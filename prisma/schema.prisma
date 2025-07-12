@@ -1,0 +1,213 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(cuid())
+  githubId      String    @unique
+  username      String    @unique
+  displayName   String?
+  avatarUrl     String?
+  email         String?   @unique
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  // Relationships
+  dailyStats    DailyStats[]
+  preferences   UserPreferences?
+  sessions      Session[]
+  accounts      Account[]
+  apiTokens     ApiToken[]
+  folderProjects FolderProject[]
+  
+  @@map("users")
+}
+
+model DailyStats {
+  id                    String   @id @default(cuid())
+  userId                String
+  date                  DateTime @db.Date
+  folder                String?  // Optional folder field for project association
+  
+  // Cost and Token metrics
+  cost                  Float    @default(0)
+  inputTokens           Int      @default(0)
+  outputTokens          Int      @default(0)
+  cachedTokens          Int      @default(0)
+  
+  // Conversation metrics
+  userMessages          Int      @default(0)
+  aiMessages            Int      @default(0)
+  toolCalls             Int      @default(0)
+  conversations         Int      @default(0)
+  maxFlowLengthSeconds  Int      @default(0)
+  
+  // File operation metrics
+  filesRead             Int      @default(0)
+  filesEdited           Int      @default(0)
+  filesWritten          Int      @default(0)
+  linesRead             Int      @default(0)
+  linesAdded            Int      @default(0)
+  linesDeleted          Int      @default(0)
+  linesModified         Int      @default(0)
+  bytesRead             Int      @default(0)
+  bytesEdited           Int      @default(0)
+  bytesWritten          Int      @default(0)
+  
+  // Tool usage metrics
+  bashCommands          Int      @default(0)
+  globSearches          Int      @default(0)
+  grepSearches          Int      @default(0)
+  
+  // Todo metrics
+  todosCreated          Int      @default(0)
+  todosCompleted        Int      @default(0)
+  todosInProgress       Int      @default(0)
+  todoReads             Int      @default(0)
+  todoWrites            Int      @default(0)
+  
+  // Project and language data (JSON)
+  projectsData          Json     @default("{}")  // { "project-name": { "percentage": 88.5, "lines": 1000 } }
+  languagesData         Json     @default("{}")  // { "python": { "lines": 1000, "files": 5 } }
+  modelsData            Json     @default("{}")  // { "claude-sonnet-4": 15, "claude-opus-4": 3 }
+  
+  // File type breakdown
+  codeLines             Int      @default(0)
+  docsLines             Int      @default(0)
+  dataLines             Int      @default(0)
+  
+  // Raw data backup
+  rawData               Json?    // Store original CLI data for debugging
+  
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  
+  // Relationships
+  user                  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, date])
+  @@map("daily_stats")
+}
+
+model UserPreferences {
+  id                    String   @id @default(cuid())
+  userId                String   @unique
+  
+  // Display preferences
+  displayNamePreference String   @default("displayName") // "displayName" | "username"
+  
+  // Localization
+  locale                String   @default("en")
+  timezone              String   @default("UTC")
+  currency              String   @default("USD")
+  
+  // Privacy settings
+  optOutPublic          Boolean  @default(false)
+  
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  
+  // Relationships
+  user                  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@map("user_preferences")
+}
+
+// NextAuth.js models
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@map("sessions")
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+  
+  @@unique([identifier, token])
+  @@map("verification_tokens")
+}
+
+// API tokens for CLI access
+model ApiToken {
+  id          String   @id @default(cuid())
+  userId      String
+  token       String   @unique
+  name        String   @default("CLI Token")
+  lastUsed    DateTime?
+  expiresAt   DateTime?
+  createdAt   DateTime @default(now())
+  
+  // Relationships
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@map("api_tokens")
+}
+
+// Projects table
+model Project {
+  id            String   @id @default(cuid())
+  name          String   @unique
+  description   String?
+  openSource    Boolean  @default(false)
+  githubLink    String?
+  websiteLink   String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  // Relationships
+  folderProjects FolderProject[]
+  
+  @@map("projects")
+}
+
+// Association table for folders and projects
+model FolderProject {
+  id        String   @id @default(cuid())
+  userId    String
+  folder    String
+  projectId String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Relationships
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, folder])
+  @@map("folder_projects")
+}
