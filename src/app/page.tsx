@@ -1,18 +1,6 @@
 import { Button } from "@/components/ui/button";
 import {
-  Card,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import {
   ArrowRight,
-  Code,
-  Zap,
-  Shield,
-  TrendingUp,
-  Github,
-  Database,
   Trophy,
 } from "lucide-react";
 import Image from "next/image";
@@ -37,12 +25,12 @@ export default function HomePage() {
             </h1>
             <p className="text-lg md:text-xl text-muted-foreground mb-4">
               Instantly hunt down and aggregate usage stats for all your agentic
-              AI developement tools: Claude Code, Codex*, Gemini CLI*, and more.
+              AI developement tools: Claude Code, Gemini CLI*, Codex*, and more.
               (A local web-based view coming soon!)
             </p>
             <p className="text-sm text-muted-foreground/70 mb-8">
               *Support for Codex and Gemini CLI is in development, but waiting for
-              updates from OpenAI's/Google's side.
+              updates from OpenAI&apos;s/Google&apos;s side.
             </p>
             <div className="flex flex-col sm:flex-row gap-4">
               <Button
