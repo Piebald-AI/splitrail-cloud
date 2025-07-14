@@ -3,8 +3,6 @@ import { Figtree, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { AuthSessionProvider } from "@/components/auth/session-provider";
 import { SignInButton } from "@/components/auth/sign-in-button";
-import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
 import Link from "next/link";
 import Image from "next/image";
 import { ConditionalNav } from "@/components/conditional-nav";
@@ -38,7 +36,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${figtree.variable} ${geistMono.variable} antialiased`}
+        className={`${figtree.variable} ${geistMono.variable} font-sans antialiased`}
       >
         <AuthSessionProvider>
           <div className="min-h-screen bg-background flex flex-col">

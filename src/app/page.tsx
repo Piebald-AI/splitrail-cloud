@@ -65,9 +65,11 @@ export default function HomePage() {
           </div>
           <div>
             <Link href="https://github.com/piebald-ai/splitrail">
-              <img
+              <Image
                 src="/cli.png"
                 alt="Splitrail Dashboard"
+                width={800}
+                height={600}
                 className="w-full h-auto rounded-lg shadow-lg"
               />
             </Link>
