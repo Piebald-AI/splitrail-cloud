@@ -11,10 +11,6 @@ const nextConfig: NextConfig = {
   compress: true,
 };
 
-// Only apply Sentry configuration when not using Turbopack
-// const isTurbopack = process.env.TURBOPACK || process.argv.includes('--turbopack');
-
-// export default isTurbopack ? nextConfig : withSentryConfig(nextConfig, {
 export default withSentryConfig(nextConfig, {
   // For all available options, see:
   // https://www.npmjs.com/package/@sentry/webpack-plugin#options

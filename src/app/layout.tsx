@@ -1,7 +1,5 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
-import "@fontsource-variable/inter";
-import "@fontsource-variable/jetbrains-mono";
+import { Figtree, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { AuthSessionProvider } from "@/components/auth/session-provider";
 import { SignInButton } from "@/components/auth/sign-in-button";
@@ -10,9 +8,10 @@ import { Separator } from "@/components/ui/separator";
 import Link from "next/link";
 import Image from "next/image";
 import { ConditionalNav } from "@/components/conditional-nav";
+import { ConditionalFooter } from "@/components/conditional-footer";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const figtree = Figtree({
+  variable: "--font-figtree",
   subsets: ["latin"],
   display: "swap",
   preload: true,
@@ -39,7 +38,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${figtree.variable} ${geistMono.variable} antialiased`}
       >
         <AuthSessionProvider>
           <div className="min-h-screen bg-background flex flex-col">
@@ -66,38 +65,7 @@ export default function RootLayout({
             {/* Main Content */}
             <main className="py-6 flex-grow pt-8">{children}</main>
 
-            {/* Footer */}
-            <footer className="mt-auto">
-              <Separator />
-              <div className="container mx-auto px-6 py-8">
-                <div className="text-center text-sm text-muted-foreground">
-                  <p>
-                    © 2025{" "}
-                    <Button
-                      variant="link"
-                      size="sm"
-                      asChild
-                      className="h-auto p-0"
-                    >
-                      <Link href="https://piebald.ai">Piebald, LLC.</Link>
-                    </Button>{" "}
-                    Inspiring developers to embrace agentic AI development.
-                  </p>
-                  <p className="mt-2">
-                    <Button
-                      variant="link"
-                      size="sm"
-                      asChild
-                      className="h-auto p-0"
-                    >
-                      <Link href="https://github.com/piebald-ai/splitrail">
-                        View Splitrail on GitHub
-                      </Link>
-                    </Button>
-                  </p>
-                </div>
-              </div>
-            </footer>
+            <ConditionalFooter />
           </div>
         </AuthSessionProvider>
       </body>

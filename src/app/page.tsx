@@ -8,8 +8,7 @@ import Link from "next/link";
 
 export default function HomePage() {
   return (
-    <div className="flex flex-col min-h-screen">
-      <main className="flex-grow flex justify-center items-center p-12">
+    <div className="flex justify-center items-center p-12" data-page="home">
         <div className="grid md:grid-cols-2 gap-12 items-center">
           <div>
             <Image
@@ -74,25 +73,6 @@ export default function HomePage() {
             </Link>
           </div>
         </div>
-      </main>
-      <footer className="px-12 py-4">
-        <p className="text-sm text-muted-foreground/60 flex items-center">
-          <span>From the creators of&nbsp;&nbsp;</span>
-          <Link
-            href="https://piebald.ai"
-            className="hover:text-muted-foreground transition-colors inline-flex items-center gap-1"
-          >
-            <Image
-              src="/piebald.svg"
-              alt="Piebald"
-              width={28}
-              height={28}
-            />
-            <span className="font-bold text-foreground">Piebald</span>
-          </Link>
-          <span>&nbsp;&bull; © 2025 Piebald, LLC.</span>
-        </p>
-      </footer>
     </div>
   );
 }
