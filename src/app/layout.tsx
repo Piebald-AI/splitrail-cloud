@@ -23,9 +23,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Splitrail Leaderboard",
+  title: "Splitrail",
   description:
-    "Competitive leaderboard for developers using agentic workflow tools.",
+    "Agentic AI development monitor for the command line.",
 };
 
 export default function RootLayout({
