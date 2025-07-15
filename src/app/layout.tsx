@@ -7,6 +7,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { ConditionalNav } from "@/components/conditional-nav";
 import { ConditionalFooter } from "@/components/conditional-footer";
+import { Analytics } from '@vercel/analytics/next';
 
 const figtree = Figtree({
   variable: "--font-figtree",
@@ -66,6 +67,7 @@ export default function RootLayout({
             <ConditionalFooter />
           </div>
         </AuthSessionProvider>
+        <Analytics />
       </body>
     </html>
   );
