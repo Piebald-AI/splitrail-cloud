@@ -1,14 +1,9 @@
 "use client";
-
-import { usePathname } from "next/navigation";
-import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
 import Link from "next/link";
 import Image from "next/image";
 import { ExternalLink } from "lucide-react";
 
 export function ConditionalFooter() {
-  const pathname = usePathname();
 
   return (
     <footer className="px-12 py-4 justify-between text-sm flex flex-row">
