@@ -58,10 +58,6 @@ html, body, .root {
   width: 100%;
 }
 
-/* Hide navbar on homepage */
-body:has([data-page="home"]) header {
-  display: none !important;
-}
 :root {
   --radius: 0.65rem;
   --background: oklch(1 0 0);

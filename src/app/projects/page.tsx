@@ -10,7 +10,7 @@ import {
 
 export default function ProjectsPage() {
   return (
-    <div className="container mx-auto p-6">
+    <>
       <div className="text-center">
         <Card className="max-w-md mx-auto">
           <CardHeader>
@@ -28,6 +28,6 @@ export default function ProjectsPage() {
           </CardContent>
         </Card>
       </div>
-    </div>
+    </>
   );
 }

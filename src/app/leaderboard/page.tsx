@@ -7,7 +7,7 @@ import type { UserWithStats } from "@/types";
 
 function LoadingSkeleton() {
   return (
-    <div className="container mx-auto p-6">
+    <>
       <div className="text-center mb-8">
         <div className="h-10 w-80 bg-muted rounded mx-auto mb-2"></div>
         <div className="h-5 w-96 bg-muted rounded mx-auto"></div>
@@ -31,7 +31,7 @@ function LoadingSkeleton() {
           <div className="h-10 w-96 bg-muted rounded"></div>
         </div>
       </div>
-    </div>
+    </>
   );
 }
 
@@ -75,16 +75,16 @@ export default function Leaderboard() {
 
   if (error) {
     return (
-      <div className="container mx-auto p-6">
+      <>
         <div className="text-center">
           <p className="text-destructive">Error: {error}</p>
         </div>
-      </div>
+      </>
     );
   }
 
   return (
-    <div className="container mx-auto p-6 h-full w-full">
+    <>
       <div className="text-center mb-8">
         <h1 className="text-3xl font-bold mb-2">Splitrail Leaderboard</h1>
         <p className="text-muted-foreground">
@@ -102,6 +102,6 @@ export default function Leaderboard() {
       ) : (
         <DataTable columns={columns} data={allUsers} />
       )}
-    </div>
+    </>
   );
 }

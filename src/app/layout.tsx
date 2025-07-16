@@ -2,12 +2,10 @@ import type { Metadata } from "next";
 import { Figtree, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { AuthSessionProvider } from "@/components/auth/session-provider";
-import { SignInButton } from "@/components/auth/sign-in-button";
-import Link from "next/link";
-import Image from "next/image";
-import { ConditionalNav } from "@/components/conditional-nav";
-import { ConditionalFooter } from "@/components/conditional-footer";
+import Footer from "@/components/footer";
 import { Analytics } from '@vercel/analytics/next';
+import Navbar from "@/components/navbar";
+import Main from "@/components/main";
 
 const figtree = Figtree({
   variable: "--font-figtree",
@@ -40,31 +38,14 @@ export default function RootLayout({
         className={`${figtree.variable} ${geistMono.variable} font-sans antialiased`}
       >
         <AuthSessionProvider>
-          <div className="w-full h-full bg-background flex flex-col">
-            {/* Header */}
-            <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-              <div className="container mx-auto px-6 py-2">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-6">
-                    <Link href="/" className="flex items-center gap-4">
-                      <Image
-                        src="/logo.svg"
-                        alt="Splitrail Leaderboard"
-                        width={150}
-                        height={150}
-                      />
-                    </Link>
-                    <ConditionalNav />
-                  </div>
-                  <SignInButton />
-                </div>
-              </div>
-            </header>
+          <div className="w-full bg-background grid min-h-full grid-rows-[auto_1fr_auto]">
+            <Navbar />
 
-            {/* Main Content */}
-            <main className="flex-grow items-center justify-center flex h-full w-full min-h-0 overflow-auto">{children}</main>
+            <Main>
+              {children}
+            </Main>
 
-            <ConditionalFooter />
+            <Footer />
           </div>
         </AuthSessionProvider>
         <Analytics />
