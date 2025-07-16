@@ -3,10 +3,19 @@
 import Link from "next/link";
 import Image from "next/image";
 import { ExternalLink } from "lucide-react";
+import { usePathname } from "next/navigation";
+import { cn } from "@/lib/utils";
 
 function Footer() {
+  const pathname = usePathname();
+
   return (
-    <footer className="px-12 py-4 justify-between text-sm flex flex-row">
+    <footer
+      className={cn(
+        "justify-between text-sm flex flex-row py-2",
+        pathname === "/" ? "px-12" : "px-6 container mx-auto"
+      )}
+    >
       <p className="flex items-center text-muted-foreground">
         <span>From the creators of&nbsp;&nbsp;</span>
         <Link
