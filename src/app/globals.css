@@ -53,6 +53,11 @@
   }
 }
 
+html, body, .root {
+  height: 100%;
+  width: 100%;
+}
+
 /* Hide navbar on homepage */
 body:has([data-page="home"]) header {
   display: none !important;

@@ -40,7 +40,7 @@ export default function RootLayout({
         className={`${figtree.variable} ${geistMono.variable} font-sans antialiased`}
       >
         <AuthSessionProvider>
-          <div className="min-h-screen bg-background flex flex-col">
+          <div className="w-full h-full bg-background flex flex-col">
             {/* Header */}
             <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
               <div className="container mx-auto px-6 py-2">
@@ -62,7 +62,7 @@ export default function RootLayout({
             </header>
 
             {/* Main Content */}
-            <main className="py-6 flex-grow pt-8">{children}</main>
+            <main className="flex-grow items-center justify-center flex h-full w-full min-h-0 overflow-auto">{children}</main>
 
             <ConditionalFooter />
           </div>
