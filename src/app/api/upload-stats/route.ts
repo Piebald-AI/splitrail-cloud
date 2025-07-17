@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { DatabaseService } from "@/lib/db";
-import { transformCliData } from "@/lib/utils";
-import { type UploadStatsRequest } from "@/types";
+import { DatabaseService, db } from "@/lib/db";
+import { AIMessage, UserMessage, type UploadStatsRequest } from "@/types";
 
 export async function POST(request: NextRequest) {
   try {
@@ -16,49 +15,48 @@ export async function POST(request: NextRequest) {
 
     const token = authHeader.substring(7);
 
-    // Validate token and get user
+    // Validate token and get user.
     const user = await DatabaseService.validateApiToken(token);
     if (!user) {
       return NextResponse.json({ error: "Invalid API token" }, { status: 401 });
     }
 
-    // Parse request body
     const body: UploadStatsRequest = await request.json();
 
-    // Validate required fields
-    if (!body.date || !body.stats) {
-      return NextResponse.json(
-        { error: "Missing required fields: date, stats" },
-        { status: 400 }
-      );
+    for (const chunk of body) {
+      let message = chunk.message;
+      if ("AI" in message && message.AI) {
+        const { fileOperations, todoStats, ...aiMessage } =
+          message.AI as AIMessage;
+        await db.messageStats.create({
+          data: {
+            type: "AI",
+            ...aiMessage,
+            ...fileOperations,
+            ...todoStats,
+          },
+        });
+      } else if ("User" in message && message.User) {
+        const { todoStats, ...userMessage } = message.User as UserMessage;
+        await db.messageStats.create({
+          data: {
+            type: "User",
+            ...userMessage,
+            ...todoStats,
+          },
+        });
+      } else {
+        return NextResponse.json(
+          {
+            error: "Invalid message format (expected 'AI' or 'User' root key)",
+          },
+          { status: 400 }
+        );
+      }
     }
-
-    // Parse and validate date
-    const date = new Date(body.date);
-    if (isNaN(date.getTime())) {
-      return NextResponse.json(
-        { error: "Invalid date format" },
-        { status: 400 }
-      );
-    }
-
-    // Transform CLI data to database format
-    const transformedStats = transformCliData(body.stats, body.folder);
-
-    // Store or update daily stats
-    const dailyStats = await DatabaseService.upsertDailyStats(
-      user.id,
-      date,
-      transformedStats
-    );
 
     return NextResponse.json({
       success: true,
-      data: {
-        id: dailyStats.id,
-        date: dailyStats.date.toISOString(),
-        updated: dailyStats.updatedAt.toISOString(),
-      },
     });
   } catch (error) {
     console.error("Upload stats error:", error);

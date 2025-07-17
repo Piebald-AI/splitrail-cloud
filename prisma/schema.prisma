@@ -31,6 +31,50 @@ model User {
   @@map("users")
 }
 
+model MessageStats {
+  id                    String    @id @default(cuid())
+  type                  String    // "AI" or "User"
+  timestamp             String
+  conversationFile      String
+  
+  // AI variant fields (nullable for User messages)
+  inputTokens           Int?
+  outputTokens          Int?
+  cacheCreationTokens   Int?
+  cacheReadTokens       Int?
+  cost                  Float?
+  model                 String?
+  toolCalls             Int?
+  hash                  String?
+  
+  // FileOperationStats fields (nullable for User messages)
+  filesRead             Int?
+  filesEdited           Int?
+  filesWritten          Int?
+  fileTypes             Json?     // BTreeMap<String, u32> as JSON
+  terminalCommands      Int?
+  globSearches          Int?
+  grepSearches          Int?
+  linesRead             BigInt?
+  linesEdited           BigInt?
+  linesWritten          BigInt?
+  bytesRead             BigInt?
+  bytesEdited           BigInt?
+  bytesWritten          BigInt?
+  
+  // TodoStats fields (present for both AI and User messages)
+  todosCreated          Int       @default(0)
+  todosCompleted        Int       @default(0)
+  todosInProgress       Int       @default(0)
+  todoWrites            Int       @default(0)
+  todoReads             Int       @default(0)
+  
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@map("message_stats")
+}
+
 model DailyStats {
   id                    String   @id @default(cuid())
   userId                String

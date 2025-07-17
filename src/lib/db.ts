@@ -409,31 +409,6 @@ export class DatabaseService {
     };
   }
 
-  // Store or update daily stats
-  static async upsertDailyStats(
-    userId: string,
-    date: Date,
-    statsData: Record<string, unknown>
-  ) {
-    return db.dailyStats.upsert({
-      where: {
-        userId_date: {
-          userId,
-          date,
-        },
-      },
-      update: {
-        ...statsData,
-        updatedAt: new Date(),
-      },
-      create: {
-        userId,
-        date,
-        ...statsData,
-      },
-    });
-  }
-
   // Get all API tokens for user
   static async getUserApiTokens(userId: string) {
     return await db.apiToken.findMany({
