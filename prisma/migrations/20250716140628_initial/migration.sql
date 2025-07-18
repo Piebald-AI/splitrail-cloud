@@ -13,7 +13,7 @@ CREATE TABLE "users" (
 );
 
 -- CreateTable
-CREATE TABLE "daily_stats" (
+CREATE TABLE "user_daily_stats" (
     "id" TEXT NOT NULL,
     "userId" TEXT NOT NULL,
     "date" DATE NOT NULL,
@@ -55,7 +55,7 @@ CREATE TABLE "daily_stats" (
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
-    CONSTRAINT "daily_stats_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "user_daily_stats_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -157,7 +157,7 @@ CREATE UNIQUE INDEX "users_username_key" ON "users"("username");
 CREATE UNIQUE INDEX "users_email_key" ON "users"("email");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "daily_stats_userId_date_key" ON "daily_stats"("userId", "date");
+CREATE UNIQUE INDEX "user_daily_stats_userId_date_key" ON "user_daily_stats"("userId", "date");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "user_preferences_userId_key" ON "user_preferences"("userId");
@@ -184,7 +184,7 @@ CREATE UNIQUE INDEX "projects_name_key" ON "projects"("name");
 CREATE UNIQUE INDEX "folder_projects_userId_folder_key" ON "folder_projects"("userId", "folder");
 
 -- AddForeignKey
-ALTER TABLE "daily_stats" ADD CONSTRAINT "daily_stats_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "user_daily_stats" ADD CONSTRAINT "user_daily_stats_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "user_preferences" ADD CONSTRAINT "user_preferences_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;

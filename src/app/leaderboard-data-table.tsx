@@ -42,14 +42,14 @@ import {
   TableRow,
 } from "@/components/ui/table";
 
+type PeriodType = "hourly" | "daily" | "weekly" | "monthly" | "yearly" | "all-time";
+
 interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[];
-  data: TData[];
 }
 
 export function DataTable<TData extends UserWithStats, TValue>({
   columns,
-  data,
 }: DataTableProps<TData, TValue>) {
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
@@ -58,6 +58,39 @@ export function DataTable<TData extends UserWithStats, TValue>({
   const [columnVisibility, setColumnVisibility] =
     React.useState<VisibilityState>({});
   const [rowSelection, setRowSelection] = React.useState({});
+  const [period, setPeriod] = React.useState<PeriodType>("all-time");
+  const [data, setData] = React.useState<TData[]>([]);
+  const [loading, setLoading] = React.useState(true);
+  const [error, setError] = React.useState<string | null>(null);
+
+  const fetchLeaderboardData = React.useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const response = await fetch(`/api/leaderboard?period=${period}&sortBy=totalCost&sortOrder=desc&pageSize=100`);
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch leaderboard data');
+      }
+      
+      const result = await response.json();
+      
+      if (result.success) {
+        setData(result.data?.users || []);
+      } else {
+        throw new Error(result.error || 'Failed to fetch leaderboard data');
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred');
+    } finally {
+      setLoading(false);
+    }
+  }, [period]);
+
+  React.useEffect(() => {
+    fetchLeaderboardData();
+  }, [fetchLeaderboardData]);
 
   const table = useReactTable({
     data,
@@ -135,6 +168,35 @@ export function DataTable<TData extends UserWithStats, TValue>({
               })}
           </DropdownMenuContent>
         </DropdownMenu>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" className="ml-2">
+              {period === "all-time" ? "All Time" : period.charAt(0).toUpperCase() + period.slice(1)} <ChevronDown className="ml-2 h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            {[
+              { value: "hourly", label: "Hourly" },
+              { value: "daily", label: "Daily" },
+              { value: "weekly", label: "Weekly" },
+              { value: "monthly", label: "Monthly" },
+              { value: "yearly", label: "Yearly" },
+              { value: "all-time", label: "All Time" },
+            ].map((periodOption) => (
+              <DropdownMenuCheckboxItem
+                key={periodOption.value}
+                checked={period === periodOption.value}
+                onCheckedChange={(checked) => {
+                  if (checked) {
+                    setPeriod(periodOption.value as PeriodType);
+                  }
+                }}
+              >
+                {periodOption.label}
+              </DropdownMenuCheckboxItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
       <div className="rounded-md border bg-card overflow-x-auto">
         <Table className="min-w-full">
@@ -160,7 +222,26 @@ export function DataTable<TData extends UserWithStats, TValue>({
             ))}
           </TableHeader>
           <TableBody>
-            {table.getRowModel().rows?.length ? (
+            {loading ? (
+              Array.from({ length: 10 }).map((_, i) => (
+                <TableRow key={i}>
+                  {columns.map((_, colIndex) => (
+                    <TableCell key={colIndex} className="border-r border-border last:border-r-0 text-center py-4">
+                      <div className="h-4 bg-muted rounded animate-pulse"></div>
+                    </TableCell>
+                  ))}
+                </TableRow>
+              ))
+            ) : error ? (
+              <TableRow>
+                <TableCell
+                  colSpan={columns.length}
+                  className="h-24 text-center text-destructive"
+                >
+                  Error: {error}
+                </TableCell>
+              </TableRow>
+            ) : table.getRowModel().rows?.length ? (
               table.getRowModel().rows.map((row) => (
                 <TableRow
                   key={row.id}

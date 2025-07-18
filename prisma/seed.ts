@@ -2,212 +2,336 @@ import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
-async function main() {
-  console.log("🌱 Starting database seed...");
+interface UserStats {
+  totalToolsCalled: number;
+  totalMessagesSent: number;
+  totalInputTokens: number;
+  totalOutputTokens: number;
+  totalCacheCreationTokens: number;
+  totalCacheReadTokens: number;
+  totalCost: number;
+  totalFilesRead: number;
+  totalFilesEdited: number;
+  totalFilesWritten: number;
+  totalLinesRead: number;
+  totalLinesEdited: number;
+  totalLinesWritten: number;
+  totalBytesRead: number;
+  totalBytesEdited: number;
+  totalBytesWritten: number;
+  totalTerminalCommands: number;
+  totalGlobSearches: number;
+  totalGrepSearches: number;
+  totalTodosCreated: number;
+  totalTodosCompleted: number;
+  totalTodosInProgress: number;
+  totalTodoWrites: number;
+  totalTodoReads: number;
+}
 
-  // Clear existing data
-  await prisma.dailyStats.deleteMany();
+const sampleUsers = [
+  {
+    githubId: "12345",
+    username: "codecrafter",
+    displayName: "Code Crafter",
+    email: "code@example.com",
+    multiplier: 1.8,
+  },
+  {
+    githubId: "12346", 
+    username: "aidev",
+    displayName: "AI Developer",
+    email: "ai@example.com",
+    multiplier: 1.5,
+  },
+  {
+    githubId: "12347",
+    username: "scriptmaster",
+    displayName: "Script Master", 
+    email: "script@example.com",
+    multiplier: 1.2,
+  },
+  {
+    githubId: "12348",
+    username: "debugger",
+    displayName: "The Debugger",
+    email: "debug@example.com", 
+    multiplier: 1.0,
+  },
+  {
+    githubId: "12349",
+    username: "novice",
+    displayName: "Novice Coder",
+    email: "novice@example.com",
+    multiplier: 0.6,
+  }
+];
+
+function generateStats(baseMultiplier: number, periodMultiplier: number): UserStats {
+  const multiplier = baseMultiplier * periodMultiplier;
+  const variation = Math.random() * 0.4 + 0.8; // 0.8 to 1.2 variation
+  
+  return {
+    totalToolsCalled: Math.round((Math.random() * 25 + 10) * multiplier * variation),
+    totalMessagesSent: Math.round((Math.random() * 40 + 20) * multiplier * variation),
+    totalInputTokens: Math.round((Math.random() * 15000 + 8000) * multiplier * variation),
+    totalOutputTokens: Math.round((Math.random() * 8000 + 4000) * multiplier * variation),
+    totalCacheCreationTokens: Math.round((Math.random() * 3000 + 1500) * multiplier * variation),
+    totalCacheReadTokens: Math.round((Math.random() * 5000 + 2500) * multiplier * variation),
+    totalCost: Math.round((Math.random() * 75 + 25) * multiplier * variation * 100) / 100,
+    totalFilesRead: Math.round((Math.random() * 80 + 30) * multiplier * variation),
+    totalFilesEdited: Math.round((Math.random() * 25 + 10) * multiplier * variation),
+    totalFilesWritten: Math.round((Math.random() * 15 + 5) * multiplier * variation),
+    totalLinesRead: Math.round((Math.random() * 8000 + 3000) * multiplier * variation),
+    totalLinesEdited: Math.round((Math.random() * 800 + 300) * multiplier * variation),
+    totalLinesWritten: Math.round((Math.random() * 600 + 200) * multiplier * variation),
+    totalBytesRead: Math.round((Math.random() * 150000 + 50000) * multiplier * variation),
+    totalBytesEdited: Math.round((Math.random() * 30000 + 10000) * multiplier * variation),
+    totalBytesWritten: Math.round((Math.random() * 25000 + 8000) * multiplier * variation),
+    totalTerminalCommands: Math.round((Math.random() * 15 + 5) * multiplier * variation),
+    totalGlobSearches: Math.round((Math.random() * 12 + 3) * multiplier * variation),
+    totalGrepSearches: Math.round((Math.random() * 18 + 5) * multiplier * variation),
+    totalTodosCreated: Math.round((Math.random() * 8 + 2) * multiplier * variation),
+    totalTodosCompleted: Math.round((Math.random() * 12 + 4) * multiplier * variation),
+    totalTodosInProgress: Math.round((Math.random() * 4 + 1) * multiplier * variation),
+    totalTodoWrites: Math.round((Math.random() * 10 + 3) * multiplier * variation),
+    totalTodoReads: Math.round((Math.random() * 15 + 5) * multiplier * variation),
+  };
+}
+
+function getPeriodDates() {
+  const now = new Date();
+  
+  // Current hour
+  const hourStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), now.getHours(), 0, 0, 0);
+  const hourEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), now.getHours(), 59, 59, 999);
+  
+  // Current day
+  const dayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+  const dayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+  
+  // Current week (Monday start)
+  const day = now.getDay();
+  const diff = now.getDate() - day + (day === 0 ? -6 : 1);
+  const weekStart = new Date(now.getFullYear(), now.getMonth(), diff, 0, 0, 0, 0);
+  const weekEnd = new Date(weekStart.getTime() + 6 * 24 * 60 * 60 * 1000 + 23 * 60 * 60 * 1000 + 59 * 60 * 1000 + 59 * 1000 + 999);
+  
+  // Current month
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+  const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+  
+  // Current year
+  const yearStart = new Date(now.getFullYear(), 0, 1, 0, 0, 0, 0);
+  const yearEnd = new Date(now.getFullYear(), 11, 31, 23, 59, 59, 999);
+  
+  return {
+    hourly: { start: hourStart, end: hourEnd },
+    daily: { start: dayStart, end: dayEnd },
+    weekly: { start: weekStart, end: weekEnd },
+    monthly: { start: monthStart, end: monthEnd },
+    yearly: { start: yearStart, end: yearEnd },
+  };
+}
+
+async function clearDatabase() {
+  console.log("🧹 Clearing existing data...");
+  
+  await prisma.userHourlyStats.deleteMany();
+  await prisma.userDailyStats.deleteMany();
+  await prisma.userWeeklyStats.deleteMany();
+  await prisma.userMonthlyStats.deleteMany();
+  await prisma.userYearlyStats.deleteMany();
+  await prisma.userAllTimeStats.deleteMany();
+  await prisma.userEvents.deleteMany();
   await prisma.userPreferences.deleteMany();
   await prisma.apiToken.deleteMany();
   await prisma.account.deleteMany();
   await prisma.session.deleteMany();
   await prisma.user.deleteMany();
+  
+  console.log("✅ Database cleared");
+}
 
-  // Create sample users
-  const users = await Promise.all([
-    prisma.user.create({
-      data: {
-        githubId: "12346",
-        username: "codecrafter",
-        displayName: "Code Crafter",
-        avatarUrl: "https://github.com/codecrafter.png",
-        email: "code@example.com",
-        preferences: {
-          create: {
-            displayNamePreference: "displayName",
-            locale: "en",
-            timezone: "UTC",
-            currency: "USD",
-            optOutPublic: false,
+async function createUsers() {
+  console.log("👤 Creating users...");
+  
+  const users = await Promise.all(
+    sampleUsers.map(userData => 
+      prisma.user.create({
+        data: {
+          githubId: userData.githubId,
+          username: userData.username,
+          displayName: userData.displayName,
+          avatarUrl: `https://github.com/${userData.username}.png`,
+          email: userData.email,
+          preferences: {
+            create: {
+              displayNamePreference: "displayName",
+              locale: "en",
+              timezone: "UTC",
+              currency: "USD",
+              optOutPublic: false,
+            },
           },
         },
-      },
-    }),
-    prisma.user.create({
-      data: {
-        githubId: "12347",
-        username: "aidev",
-        displayName: "AI Developer",
-        avatarUrl: "https://github.com/aidev.png",
-        email: "ai@example.com",
-        preferences: {
-          create: {
-            displayNamePreference: "username",
-            locale: "en",
-            timezone: "UTC",
-            currency: "USD",
-            optOutPublic: false,
-          },
-        },
-      },
-    }),
-  ]);
-
+      })
+    )
+  );
+  
   console.log(`✅ Created ${users.length} users`);
+  return users.map((user, index) => ({
+    ...user,
+    multiplier: sampleUsers[index].multiplier
+  }));
+}
 
-  // Generate daily stats for the last 30 days
-  const today = new Date();
-  const statsPromises = [];
+async function createPeriodStats(users: Array<{ id: string; multiplier: number }>) {
+  console.log("📊 Creating period statistics...");
+  
+  const periods = getPeriodDates();
+  
+  // Period multipliers (how much activity in each period)
+  const periodMultipliers = {
+    hourly: 0.1,   // 10% of daily activity in current hour
+    daily: 1.0,    // Base daily activity
+    weekly: 6.5,   // About 6.5 days worth of activity
+    monthly: 22,   // About 22 working days
+    yearly: 250,   // About 250 working days
+    allTime: 500,  // Lifetime accumulated (about 2 years)
+  };
+  
+  for (const user of users) {
+    // Hourly stats
+    const hourlyStats = generateStats(user.multiplier, periodMultipliers.hourly);
+    await prisma.userHourlyStats.create({
+      data: {
+        userId: user.id,
+        periodStart: periods.hourly.start,
+        periodEnd: periods.hourly.end,
+        ...hourlyStats,
+        totalInputTokens: BigInt(hourlyStats.totalInputTokens),
+        totalOutputTokens: BigInt(hourlyStats.totalOutputTokens),
+        totalCacheCreationTokens: BigInt(hourlyStats.totalCacheCreationTokens),
+        totalCacheReadTokens: BigInt(hourlyStats.totalCacheReadTokens),
+        totalLinesRead: BigInt(hourlyStats.totalLinesRead),
+        totalLinesEdited: BigInt(hourlyStats.totalLinesEdited),
+        totalLinesWritten: BigInt(hourlyStats.totalLinesWritten),
+        totalBytesRead: BigInt(hourlyStats.totalBytesRead),
+        totalBytesEdited: BigInt(hourlyStats.totalBytesEdited),
+        totalBytesWritten: BigInt(hourlyStats.totalBytesWritten),
+      },
+    });
 
-  for (let i = 0; i < 30; i++) {
-    const date = new Date(today);
-    date.setDate(date.getDate() - i);
+    // Daily stats
+    const dailyStats = generateStats(user.multiplier, periodMultipliers.daily);
+    await prisma.userDailyStats.create({
+      data: {
+        userId: user.id,
+        periodStart: periods.daily.start,
+        periodEnd: periods.daily.end,
+        ...dailyStats,
+        totalInputTokens: BigInt(dailyStats.totalInputTokens),
+        totalOutputTokens: BigInt(dailyStats.totalOutputTokens),
+        totalCacheCreationTokens: BigInt(dailyStats.totalCacheCreationTokens),
+        totalCacheReadTokens: BigInt(dailyStats.totalCacheReadTokens),
+        totalLinesRead: BigInt(dailyStats.totalLinesRead),
+        totalLinesEdited: BigInt(dailyStats.totalLinesEdited),
+        totalLinesWritten: BigInt(dailyStats.totalLinesWritten),
+        totalBytesRead: BigInt(dailyStats.totalBytesRead),
+        totalBytesEdited: BigInt(dailyStats.totalBytesEdited),
+        totalBytesWritten: BigInt(dailyStats.totalBytesWritten),
+      },
+    });
 
-    for (const user of users) {
-      const multiplier =
-        user.username === "evalstate"
-          ? 2
-          : user.username === "codecrafter"
-            ? 1.5
-            : 1;
-      const dayVariation = Math.random() * 0.5 + 0.75; // 0.75 to 1.25 variation
+    // Weekly stats
+    const weeklyStats = generateStats(user.multiplier, periodMultipliers.weekly);
+    await prisma.userWeeklyStats.create({
+      data: {
+        userId: user.id,
+        periodStart: periods.weekly.start,
+        periodEnd: periods.weekly.end,
+        ...weeklyStats,
+        totalInputTokens: BigInt(weeklyStats.totalInputTokens),
+        totalOutputTokens: BigInt(weeklyStats.totalOutputTokens),
+        totalCacheCreationTokens: BigInt(weeklyStats.totalCacheCreationTokens),
+        totalCacheReadTokens: BigInt(weeklyStats.totalCacheReadTokens),
+        totalLinesRead: BigInt(weeklyStats.totalLinesRead),
+        totalLinesEdited: BigInt(weeklyStats.totalLinesEdited),
+        totalLinesWritten: BigInt(weeklyStats.totalLinesWritten),
+        totalBytesRead: BigInt(weeklyStats.totalBytesRead),
+        totalBytesEdited: BigInt(weeklyStats.totalBytesEdited),
+        totalBytesWritten: BigInt(weeklyStats.totalBytesWritten),
+      },
+    });
 
-      statsPromises.push(
-        prisma.dailyStats.create({
-          data: {
-            userId: user.id,
-            date: date,
-            cost:
-              Math.round(
-                (Math.random() * 50 + 10) * multiplier * dayVariation * 100
-              ) / 100,
-            inputTokens: Math.round(
-              (Math.random() * 10000 + 5000) * multiplier * dayVariation
-            ),
-            outputTokens: Math.round(
-              (Math.random() * 5000 + 2000) * multiplier * dayVariation
-            ),
-            cachedTokens: Math.round(
-              (Math.random() * 3000 + 1000) * multiplier * dayVariation
-            ),
-            userMessages: Math.round(
-              (Math.random() * 20 + 10) * multiplier * dayVariation
-            ),
-            aiMessages: Math.round(
-              (Math.random() * 25 + 15) * multiplier * dayVariation
-            ),
-            toolCalls: Math.round(
-              (Math.random() * 15 + 5) * multiplier * dayVariation
-            ),
-            conversations: Math.round(
-              (Math.random() * 3 + 1) * multiplier * dayVariation
-            ),
-            maxFlowLengthSeconds: Math.round(
-              (Math.random() * 1800 + 300) * multiplier * dayVariation
-            ),
-            filesRead: Math.round(
-              (Math.random() * 50 + 20) * multiplier * dayVariation
-            ),
-            filesEdited: Math.round(
-              (Math.random() * 15 + 5) * multiplier * dayVariation
-            ),
-            filesWritten: Math.round(
-              (Math.random() * 10 + 2) * multiplier * dayVariation
-            ),
-            linesRead: Math.round(
-              (Math.random() * 5000 + 1000) * multiplier * dayVariation
-            ),
-            linesAdded: Math.round(
-              (Math.random() * 500 + 100) * multiplier * dayVariation
-            ),
-            linesDeleted: Math.round(
-              (Math.random() * 200 + 50) * multiplier * dayVariation
-            ),
-            linesModified: Math.round(
-              (Math.random() * 300 + 100) * multiplier * dayVariation
-            ),
-            bytesRead: Math.round(
-              (Math.random() * 100000 + 20000) * multiplier * dayVariation
-            ),
-            bytesEdited: Math.round(
-              (Math.random() * 20000 + 5000) * multiplier * dayVariation
-            ),
-            bytesWritten: Math.round(
-              (Math.random() * 15000 + 3000) * multiplier * dayVariation
-            ),
-            bashCommands: Math.round(
-              (Math.random() * 10 + 2) * multiplier * dayVariation
-            ),
-            globSearches: Math.round(
-              (Math.random() * 8 + 1) * multiplier * dayVariation
-            ),
-            grepSearches: Math.round(
-              (Math.random() * 12 + 3) * multiplier * dayVariation
-            ),
-            todosCreated: Math.round(
-              (Math.random() * 5 + 1) * multiplier * dayVariation
-            ),
-            todosCompleted: Math.round(
-              (Math.random() * 8 + 2) * multiplier * dayVariation
-            ),
-            todosInProgress: Math.round(
-              (Math.random() * 3 + 0) * multiplier * dayVariation
-            ),
-            todoReads: Math.round(
-              (Math.random() * 10 + 3) * multiplier * dayVariation
-            ),
-            todoWrites: Math.round(
-              (Math.random() * 6 + 1) * multiplier * dayVariation
-            ),
-            codeLines: Math.round(
-              (Math.random() * 2000 + 500) * multiplier * dayVariation
-            ),
-            docsLines: Math.round(
-              (Math.random() * 800 + 200) * multiplier * dayVariation
-            ),
-            dataLines: Math.round(
-              (Math.random() * 500 + 100) * multiplier * dayVariation
-            ),
-            projectsData: {
-              "fast-agent": {
-                percentage: 88.5,
-                lines: Math.round((Math.random() * 1000 + 500) * multiplier),
-              },
-              "web-scraper": {
-                percentage: 11.5,
-                lines: Math.round((Math.random() * 200 + 100) * multiplier),
-              },
-            },
-            languagesData: {
-              python: {
-                lines: Math.round((Math.random() * 1500 + 300) * multiplier),
-                files: Math.round((Math.random() * 10 + 3) * multiplier),
-              },
-              typescript: {
-                lines: Math.round((Math.random() * 800 + 200) * multiplier),
-                files: Math.round((Math.random() * 8 + 2) * multiplier),
-              },
-              javascript: {
-                lines: Math.round((Math.random() * 400 + 100) * multiplier),
-                files: Math.round((Math.random() * 5 + 1) * multiplier),
-              },
-            },
-            modelsData: {
-              "claude-sonnet-4": Math.round(
-                (Math.random() * 20 + 5) * multiplier
-              ),
-              "claude-opus-4": Math.round((Math.random() * 5 + 1) * multiplier),
-            },
-          },
-        })
-      );
-    }
+    // Monthly stats
+    const monthlyStats = generateStats(user.multiplier, periodMultipliers.monthly);
+    await prisma.userMonthlyStats.create({
+      data: {
+        userId: user.id,
+        periodStart: periods.monthly.start,
+        periodEnd: periods.monthly.end,
+        ...monthlyStats,
+        totalInputTokens: BigInt(monthlyStats.totalInputTokens),
+        totalOutputTokens: BigInt(monthlyStats.totalOutputTokens),
+        totalCacheCreationTokens: BigInt(monthlyStats.totalCacheCreationTokens),
+        totalCacheReadTokens: BigInt(monthlyStats.totalCacheReadTokens),
+        totalLinesRead: BigInt(monthlyStats.totalLinesRead),
+        totalLinesEdited: BigInt(monthlyStats.totalLinesEdited),
+        totalLinesWritten: BigInt(monthlyStats.totalLinesWritten),
+        totalBytesRead: BigInt(monthlyStats.totalBytesRead),
+        totalBytesEdited: BigInt(monthlyStats.totalBytesEdited),
+        totalBytesWritten: BigInt(monthlyStats.totalBytesWritten),
+      },
+    });
+
+    // Yearly stats
+    const yearlyStats = generateStats(user.multiplier, periodMultipliers.yearly);
+    await prisma.userYearlyStats.create({
+      data: {
+        userId: user.id,
+        periodStart: periods.yearly.start,
+        periodEnd: periods.yearly.end,
+        ...yearlyStats,
+        totalInputTokens: BigInt(yearlyStats.totalInputTokens),
+        totalOutputTokens: BigInt(yearlyStats.totalOutputTokens),
+        totalCacheCreationTokens: BigInt(yearlyStats.totalCacheCreationTokens),
+        totalCacheReadTokens: BigInt(yearlyStats.totalCacheReadTokens),
+        totalLinesRead: BigInt(yearlyStats.totalLinesRead),
+        totalLinesEdited: BigInt(yearlyStats.totalLinesEdited),
+        totalLinesWritten: BigInt(yearlyStats.totalLinesWritten),
+        totalBytesRead: BigInt(yearlyStats.totalBytesRead),
+        totalBytesEdited: BigInt(yearlyStats.totalBytesEdited),
+        totalBytesWritten: BigInt(yearlyStats.totalBytesWritten),
+      },
+    });
+
+    // All-time stats
+    const allTimeStats = generateStats(user.multiplier, periodMultipliers.allTime);
+    await prisma.userAllTimeStats.create({
+      data: {
+        userId: user.id,
+        ...allTimeStats,
+        totalInputTokens: BigInt(allTimeStats.totalInputTokens),
+        totalOutputTokens: BigInt(allTimeStats.totalOutputTokens),
+        totalCacheCreationTokens: BigInt(allTimeStats.totalCacheCreationTokens),
+        totalCacheReadTokens: BigInt(allTimeStats.totalCacheReadTokens),
+        totalLinesRead: BigInt(allTimeStats.totalLinesRead),
+        totalLinesEdited: BigInt(allTimeStats.totalLinesEdited),
+        totalLinesWritten: BigInt(allTimeStats.totalLinesWritten),
+        totalBytesRead: BigInt(allTimeStats.totalBytesRead),
+        totalBytesEdited: BigInt(allTimeStats.totalBytesEdited),
+        totalBytesWritten: BigInt(allTimeStats.totalBytesWritten),
+      },
+    });
   }
+  
+  console.log(`✅ Created period statistics for ${users.length} users`);
+}
 
-  await Promise.all(statsPromises);
-  console.log(`✅ Created ${statsPromises.length} daily stats entries`);
-
-  // Create API tokens for users
+async function createApiTokens(users: Array<{ id: string; username?: string }>) {
+  console.log("🔑 Creating API tokens...");
+  
   for (const user of users) {
     await prisma.apiToken.create({
       data: {
@@ -217,9 +341,27 @@ async function main() {
       },
     });
   }
+  
+  console.log(`✅ Created API tokens for ${users.length} users`);
+}
 
-  console.log("✅ Created API tokens for all users");
+async function main() {
+  console.log("🌱 Starting database seed...");
+  
+  await clearDatabase();
+  const users = await createUsers();
+  await createPeriodStats(users);
+  await createApiTokens(users);
+  
   console.log("🎉 Database seeding completed!");
+  console.log("");
+  console.log("📈 Generated data for all time periods:");
+  console.log("  • Hourly (current hour)");
+  console.log("  • Daily (current day)");
+  console.log("  • Weekly (current week)");
+  console.log("  • Monthly (current month)");
+  console.log("  • Yearly (current year)");
+  console.log("  • All-time (lifetime totals)");
 }
 
 main()

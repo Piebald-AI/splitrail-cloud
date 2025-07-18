@@ -12,8 +12,9 @@ if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = db;
 export class DatabaseService {
   // Get leaderboard data with ranking
   static async getLeaderboardData(
-    sortBy: string = "cost",
+    sortBy: string = "totalCost",
     sortOrder: "asc" | "desc" = "desc",
+    period: "hourly" | "daily" | "weekly" | "monthly" | "yearly" | "all-time" = "all-time",
     page: number = 1,
     pageSize: number = 100
   ) {
