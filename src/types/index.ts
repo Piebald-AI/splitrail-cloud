@@ -1,23 +1,52 @@
-import {
-  type User,
-  type UserPreferences,
-} from "@prisma/client";
+import { type User, type UserPreferences } from "@prisma/client";
+
+export interface UserStats {
+  cost: number;
+  inputTokens: number;
+  outputTokens: number;
+  cacheCreationTokens: number;
+  cacheReadTokens: number;
+  messagesSent: number;
+  toolsCalled: number;
+  filesRead: number;
+  filesEdited: number;
+  filesWritten: number;
+  linesRead: number;
+  linesEdited: number;
+  linesWritten: number;
+  linesAdded: number;
+  linesDeleted: number;
+  linesModified: number;
+  bytesRead: number;
+  bytesEdited: number;
+  bytesWritten: number;
+  terminalCommands: number;
+  globSearches: number;
+  grepSearches: number;
+  todosCreated: number;
+  todosCompleted: number;
+  todosInProgress: number;
+  todoWrites: number;
+  todoReads: number;
+}
 
 // Extended types for API responses
-export interface UserWithStats extends User {
-  totalCost: number;
-  totalTokens: number;
-  totalLinesAdded: number;
-  totalLinesDeleted: number;
-  totalLinesModified: number;
-  totalProjects: number;
-  totalLanguages: number;
-  totalCodeLines: number;
-  totalDocsLines: number;
-  totalDataLines: number;
-  totalTodosCompleted: number;
+export interface UserWithStats extends User, UserStats {
+  id: string;
+  displayName: string;
+  email: string;
+  createdAt: Date;
   rank: number;
   badge?: "gold" | "silver" | "bronze";
+}
+
+export interface UserWithPeriods extends UserWithStats {
+  hourlyStats: UserStats;
+  dailyStats: UserStats;
+  weeklyStats: UserStats;
+  monthlyStats: UserStats;
+  yearlyStats: UserStats;
+  allTimeStats: UserStats;
 }
 
 export interface LeaderboardData {
@@ -90,30 +119,6 @@ export interface ApiResponse<T = unknown> {
   success: boolean;
   data?: T;
   error?: ApiError;
-}
-
-// Leaderboard sorting options
-export type SortColumn =
-  | "cost"
-  | "tokens"
-  | "linesAdded"
-  | "linesDeleted"
-  | "linesModified"
-  | "projects"
-  | "languages"
-  | "codeLines"
-  | "docsLines"
-  | "dataLines"
-  | "todosCompleted";
-
-export type SortOrder = "asc" | "desc";
-
-export interface LeaderboardFilters {
-  sortBy: SortColumn;
-  sortOrder: SortOrder;
-  page: number;
-  pageSize: number;
-  timeRange?: "all" | "year" | "month" | "week" | "day";
 }
 
 // User preferences

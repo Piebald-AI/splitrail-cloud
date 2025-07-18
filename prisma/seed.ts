@@ -3,30 +3,30 @@ import { PrismaClient } from "@prisma/client";
 const prisma = new PrismaClient();
 
 interface UserStats {
-  totalToolsCalled: number;
-  totalMessagesSent: number;
-  totalInputTokens: number;
-  totalOutputTokens: number;
-  totalCacheCreationTokens: number;
-  totalCacheReadTokens: number;
-  totalCost: number;
-  totalFilesRead: number;
-  totalFilesEdited: number;
-  totalFilesWritten: number;
-  totalLinesRead: number;
-  totalLinesEdited: number;
-  totalLinesWritten: number;
-  totalBytesRead: number;
-  totalBytesEdited: number;
-  totalBytesWritten: number;
-  totalTerminalCommands: number;
-  totalGlobSearches: number;
-  totalGrepSearches: number;
-  totalTodosCreated: number;
-  totalTodosCompleted: number;
-  totalTodosInProgress: number;
-  totalTodoWrites: number;
-  totalTodoReads: number;
+  toolsCalled: number;
+  messagesSent: number;
+  inputTokens: number;
+  outputTokens: number;
+  cacheCreationTokens: number;
+  cacheReadTokens: number;
+  cost: number;
+  filesRead: number;
+  filesEdited: number;
+  filesWritten: number;
+  linesRead: number;
+  linesEdited: number;
+  linesWritten: number;
+  bytesRead: number;
+  bytesEdited: number;
+  bytesWritten: number;
+  terminalCommands: number;
+  globSearches: number;
+  grepSearches: number;
+  todosCreated: number;
+  todosCompleted: number;
+  todosInProgress: number;
+  todoWrites: number;
+  todoReads: number;
 }
 
 const sampleUsers = [
@@ -72,30 +72,30 @@ function generateStats(baseMultiplier: number, periodMultiplier: number): UserSt
   const variation = Math.random() * 0.4 + 0.8; // 0.8 to 1.2 variation
   
   return {
-    totalToolsCalled: Math.round((Math.random() * 25 + 10) * multiplier * variation),
-    totalMessagesSent: Math.round((Math.random() * 40 + 20) * multiplier * variation),
-    totalInputTokens: Math.round((Math.random() * 15000 + 8000) * multiplier * variation),
-    totalOutputTokens: Math.round((Math.random() * 8000 + 4000) * multiplier * variation),
-    totalCacheCreationTokens: Math.round((Math.random() * 3000 + 1500) * multiplier * variation),
-    totalCacheReadTokens: Math.round((Math.random() * 5000 + 2500) * multiplier * variation),
-    totalCost: Math.round((Math.random() * 75 + 25) * multiplier * variation * 100) / 100,
-    totalFilesRead: Math.round((Math.random() * 80 + 30) * multiplier * variation),
-    totalFilesEdited: Math.round((Math.random() * 25 + 10) * multiplier * variation),
-    totalFilesWritten: Math.round((Math.random() * 15 + 5) * multiplier * variation),
-    totalLinesRead: Math.round((Math.random() * 8000 + 3000) * multiplier * variation),
-    totalLinesEdited: Math.round((Math.random() * 800 + 300) * multiplier * variation),
-    totalLinesWritten: Math.round((Math.random() * 600 + 200) * multiplier * variation),
-    totalBytesRead: Math.round((Math.random() * 150000 + 50000) * multiplier * variation),
-    totalBytesEdited: Math.round((Math.random() * 30000 + 10000) * multiplier * variation),
-    totalBytesWritten: Math.round((Math.random() * 25000 + 8000) * multiplier * variation),
-    totalTerminalCommands: Math.round((Math.random() * 15 + 5) * multiplier * variation),
-    totalGlobSearches: Math.round((Math.random() * 12 + 3) * multiplier * variation),
-    totalGrepSearches: Math.round((Math.random() * 18 + 5) * multiplier * variation),
-    totalTodosCreated: Math.round((Math.random() * 8 + 2) * multiplier * variation),
-    totalTodosCompleted: Math.round((Math.random() * 12 + 4) * multiplier * variation),
-    totalTodosInProgress: Math.round((Math.random() * 4 + 1) * multiplier * variation),
-    totalTodoWrites: Math.round((Math.random() * 10 + 3) * multiplier * variation),
-    totalTodoReads: Math.round((Math.random() * 15 + 5) * multiplier * variation),
+    toolsCalled: Math.round((Math.random() * 25 + 10) * multiplier * variation),
+    messagesSent: Math.round((Math.random() * 40 + 20) * multiplier * variation),
+    inputTokens: Math.round((Math.random() * 15000 + 8000) * multiplier * variation),
+    outputTokens: Math.round((Math.random() * 8000 + 4000) * multiplier * variation),
+    cacheCreationTokens: Math.round((Math.random() * 3000 + 1500) * multiplier * variation),
+    cacheReadTokens: Math.round((Math.random() * 5000 + 2500) * multiplier * variation),
+    cost: Math.round((Math.random() * 75 + 25) * multiplier * variation * 100) / 100,
+    filesRead: Math.round((Math.random() * 80 + 30) * multiplier * variation),
+    filesEdited: Math.round((Math.random() * 25 + 10) * multiplier * variation),
+    filesWritten: Math.round((Math.random() * 15 + 5) * multiplier * variation),
+    linesRead: Math.round((Math.random() * 8000 + 3000) * multiplier * variation),
+    linesEdited: Math.round((Math.random() * 800 + 300) * multiplier * variation),
+    linesWritten: Math.round((Math.random() * 600 + 200) * multiplier * variation),
+    bytesRead: Math.round((Math.random() * 150000 + 50000) * multiplier * variation),
+    bytesEdited: Math.round((Math.random() * 30000 + 10000) * multiplier * variation),
+    bytesWritten: Math.round((Math.random() * 25000 + 8000) * multiplier * variation),
+    terminalCommands: Math.round((Math.random() * 15 + 5) * multiplier * variation),
+    globSearches: Math.round((Math.random() * 12 + 3) * multiplier * variation),
+    grepSearches: Math.round((Math.random() * 18 + 5) * multiplier * variation),
+    todosCreated: Math.round((Math.random() * 8 + 2) * multiplier * variation),
+    todosCompleted: Math.round((Math.random() * 12 + 4) * multiplier * variation),
+    todosInProgress: Math.round((Math.random() * 4 + 1) * multiplier * variation),
+    todoWrites: Math.round((Math.random() * 10 + 3) * multiplier * variation),
+    todoReads: Math.round((Math.random() * 15 + 5) * multiplier * variation),
   };
 }
 
@@ -209,16 +209,16 @@ async function createPeriodStats(users: Array<{ id: string; multiplier: number }
         periodStart: periods.hourly.start,
         periodEnd: periods.hourly.end,
         ...hourlyStats,
-        totalInputTokens: BigInt(hourlyStats.totalInputTokens),
-        totalOutputTokens: BigInt(hourlyStats.totalOutputTokens),
-        totalCacheCreationTokens: BigInt(hourlyStats.totalCacheCreationTokens),
-        totalCacheReadTokens: BigInt(hourlyStats.totalCacheReadTokens),
-        totalLinesRead: BigInt(hourlyStats.totalLinesRead),
-        totalLinesEdited: BigInt(hourlyStats.totalLinesEdited),
-        totalLinesWritten: BigInt(hourlyStats.totalLinesWritten),
-        totalBytesRead: BigInt(hourlyStats.totalBytesRead),
-        totalBytesEdited: BigInt(hourlyStats.totalBytesEdited),
-        totalBytesWritten: BigInt(hourlyStats.totalBytesWritten),
+        inputTokens: hourlyStats.inputTokens,
+        outputTokens: hourlyStats.outputTokens,
+        cacheCreationTokens: hourlyStats.cacheCreationTokens,
+        cacheReadTokens: hourlyStats.cacheReadTokens,
+        linesRead: hourlyStats.linesRead,
+        linesEdited: hourlyStats.linesEdited,
+        linesWritten: hourlyStats.linesWritten,
+        bytesRead: hourlyStats.bytesRead,
+        bytesEdited: hourlyStats.bytesEdited,
+        bytesWritten: hourlyStats.bytesWritten,
       },
     });
 
@@ -230,16 +230,16 @@ async function createPeriodStats(users: Array<{ id: string; multiplier: number }
         periodStart: periods.daily.start,
         periodEnd: periods.daily.end,
         ...dailyStats,
-        totalInputTokens: BigInt(dailyStats.totalInputTokens),
-        totalOutputTokens: BigInt(dailyStats.totalOutputTokens),
-        totalCacheCreationTokens: BigInt(dailyStats.totalCacheCreationTokens),
-        totalCacheReadTokens: BigInt(dailyStats.totalCacheReadTokens),
-        totalLinesRead: BigInt(dailyStats.totalLinesRead),
-        totalLinesEdited: BigInt(dailyStats.totalLinesEdited),
-        totalLinesWritten: BigInt(dailyStats.totalLinesWritten),
-        totalBytesRead: BigInt(dailyStats.totalBytesRead),
-        totalBytesEdited: BigInt(dailyStats.totalBytesEdited),
-        totalBytesWritten: BigInt(dailyStats.totalBytesWritten),
+        inputTokens: dailyStats.inputTokens,
+        outputTokens: dailyStats.outputTokens,
+        cacheCreationTokens: dailyStats.cacheCreationTokens,
+        cacheReadTokens: dailyStats.cacheReadTokens,
+        linesRead: dailyStats.linesRead,
+        linesEdited: dailyStats.linesEdited,
+        linesWritten: dailyStats.linesWritten,
+        bytesRead: dailyStats.bytesRead,
+        bytesEdited: dailyStats.bytesEdited,
+        bytesWritten: dailyStats.bytesWritten,
       },
     });
 
@@ -251,16 +251,16 @@ async function createPeriodStats(users: Array<{ id: string; multiplier: number }
         periodStart: periods.weekly.start,
         periodEnd: periods.weekly.end,
         ...weeklyStats,
-        totalInputTokens: BigInt(weeklyStats.totalInputTokens),
-        totalOutputTokens: BigInt(weeklyStats.totalOutputTokens),
-        totalCacheCreationTokens: BigInt(weeklyStats.totalCacheCreationTokens),
-        totalCacheReadTokens: BigInt(weeklyStats.totalCacheReadTokens),
-        totalLinesRead: BigInt(weeklyStats.totalLinesRead),
-        totalLinesEdited: BigInt(weeklyStats.totalLinesEdited),
-        totalLinesWritten: BigInt(weeklyStats.totalLinesWritten),
-        totalBytesRead: BigInt(weeklyStats.totalBytesRead),
-        totalBytesEdited: BigInt(weeklyStats.totalBytesEdited),
-        totalBytesWritten: BigInt(weeklyStats.totalBytesWritten),
+        inputTokens: weeklyStats.inputTokens,
+        outputTokens: weeklyStats.outputTokens,
+        cacheCreationTokens: weeklyStats.cacheCreationTokens,
+        cacheReadTokens: weeklyStats.cacheReadTokens,
+        linesRead: weeklyStats.linesRead,
+        linesEdited: weeklyStats.linesEdited,
+        linesWritten: weeklyStats.linesWritten,
+        bytesRead: weeklyStats.bytesRead,
+        bytesEdited: weeklyStats.bytesEdited,
+        bytesWritten: weeklyStats.bytesWritten,
       },
     });
 
@@ -272,16 +272,16 @@ async function createPeriodStats(users: Array<{ id: string; multiplier: number }
         periodStart: periods.monthly.start,
         periodEnd: periods.monthly.end,
         ...monthlyStats,
-        totalInputTokens: BigInt(monthlyStats.totalInputTokens),
-        totalOutputTokens: BigInt(monthlyStats.totalOutputTokens),
-        totalCacheCreationTokens: BigInt(monthlyStats.totalCacheCreationTokens),
-        totalCacheReadTokens: BigInt(monthlyStats.totalCacheReadTokens),
-        totalLinesRead: BigInt(monthlyStats.totalLinesRead),
-        totalLinesEdited: BigInt(monthlyStats.totalLinesEdited),
-        totalLinesWritten: BigInt(monthlyStats.totalLinesWritten),
-        totalBytesRead: BigInt(monthlyStats.totalBytesRead),
-        totalBytesEdited: BigInt(monthlyStats.totalBytesEdited),
-        totalBytesWritten: BigInt(monthlyStats.totalBytesWritten),
+        inputTokens: monthlyStats.inputTokens,
+        outputTokens: monthlyStats.outputTokens,
+        cacheCreationTokens: monthlyStats.cacheCreationTokens,
+        cacheReadTokens: monthlyStats.cacheReadTokens,
+        linesRead: monthlyStats.linesRead,
+        linesEdited: monthlyStats.linesEdited,
+        linesWritten: monthlyStats.linesWritten,
+        bytesRead: monthlyStats.bytesRead,
+        bytesEdited: monthlyStats.bytesEdited,
+        bytesWritten: monthlyStats.bytesWritten,
       },
     });
 
@@ -293,16 +293,16 @@ async function createPeriodStats(users: Array<{ id: string; multiplier: number }
         periodStart: periods.yearly.start,
         periodEnd: periods.yearly.end,
         ...yearlyStats,
-        totalInputTokens: BigInt(yearlyStats.totalInputTokens),
-        totalOutputTokens: BigInt(yearlyStats.totalOutputTokens),
-        totalCacheCreationTokens: BigInt(yearlyStats.totalCacheCreationTokens),
-        totalCacheReadTokens: BigInt(yearlyStats.totalCacheReadTokens),
-        totalLinesRead: BigInt(yearlyStats.totalLinesRead),
-        totalLinesEdited: BigInt(yearlyStats.totalLinesEdited),
-        totalLinesWritten: BigInt(yearlyStats.totalLinesWritten),
-        totalBytesRead: BigInt(yearlyStats.totalBytesRead),
-        totalBytesEdited: BigInt(yearlyStats.totalBytesEdited),
-        totalBytesWritten: BigInt(yearlyStats.totalBytesWritten),
+        inputTokens: yearlyStats.inputTokens,
+        outputTokens: yearlyStats.outputTokens,
+        cacheCreationTokens: yearlyStats.cacheCreationTokens,
+        cacheReadTokens: yearlyStats.cacheReadTokens,
+        linesRead: yearlyStats.linesRead,
+        linesEdited: yearlyStats.linesEdited,
+        linesWritten: yearlyStats.linesWritten,
+        bytesRead: yearlyStats.bytesRead,
+        bytesEdited: yearlyStats.bytesEdited,
+        bytesWritten: yearlyStats.bytesWritten,
       },
     });
 
@@ -312,16 +312,16 @@ async function createPeriodStats(users: Array<{ id: string; multiplier: number }
       data: {
         userId: user.id,
         ...allTimeStats,
-        totalInputTokens: BigInt(allTimeStats.totalInputTokens),
-        totalOutputTokens: BigInt(allTimeStats.totalOutputTokens),
-        totalCacheCreationTokens: BigInt(allTimeStats.totalCacheCreationTokens),
-        totalCacheReadTokens: BigInt(allTimeStats.totalCacheReadTokens),
-        totalLinesRead: BigInt(allTimeStats.totalLinesRead),
-        totalLinesEdited: BigInt(allTimeStats.totalLinesEdited),
-        totalLinesWritten: BigInt(allTimeStats.totalLinesWritten),
-        totalBytesRead: BigInt(allTimeStats.totalBytesRead),
-        totalBytesEdited: BigInt(allTimeStats.totalBytesEdited),
-        totalBytesWritten: BigInt(allTimeStats.totalBytesWritten),
+        inputTokens: allTimeStats.inputTokens,
+        outputTokens: allTimeStats.outputTokens,
+        cacheCreationTokens: allTimeStats.cacheCreationTokens,
+        cacheReadTokens: allTimeStats.cacheReadTokens,
+        linesRead: allTimeStats.linesRead,
+        linesEdited: allTimeStats.linesEdited,
+        linesWritten: allTimeStats.linesWritten,
+        bytesRead: allTimeStats.bytesRead,
+        bytesEdited: allTimeStats.bytesEdited,
+        bytesWritten: allTimeStats.bytesWritten,
       },
     });
   }
@@ -361,7 +361,7 @@ async function main() {
   console.log("  • Weekly (current week)");
   console.log("  • Monthly (current month)");
   console.log("  • Yearly (current year)");
-  console.log("  • All-time (lifetime totals)");
+  console.log("  • All-time (lifetime s)");
 }
 
 main()

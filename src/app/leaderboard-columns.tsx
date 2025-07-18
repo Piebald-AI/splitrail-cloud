@@ -97,7 +97,7 @@ export const columns: ColumnDef<UserWithStats>[] = [
     enableSorting: false,
   },
   {
-    accessorKey: "totalCost",
+    accessorKey: "cost",
     header: ({ column }) => {
       return (
         <Button
@@ -116,7 +116,7 @@ export const columns: ColumnDef<UserWithStats>[] = [
     ),
   },
   {
-    accessorKey: "totalTokens",
+    accessorKey: "tokens",
     header: ({ column }) => {
       return (
         <Button
@@ -130,14 +130,16 @@ export const columns: ColumnDef<UserWithStats>[] = [
         </Button>
       );
     },
-    cell: ({ getValue }) => (
+    cell: ({ row }) => (
       <div className="text-center">
-        {formatLargeNumber(getValue() as number)}
+        {formatLargeNumber(
+          row.original.inputTokens + row.original.outputTokens
+        )}
       </div>
     ),
   },
   {
-    accessorKey: "totalLinesAdded",
+    accessorKey: "linesAdded",
     header: ({ column }) => {
       return (
         <Button
@@ -158,7 +160,7 @@ export const columns: ColumnDef<UserWithStats>[] = [
     ),
   },
   {
-    accessorKey: "totalLinesDeleted",
+    accessorKey: "linesDeleted",
     header: ({ column }) => {
       return (
         <Button
@@ -179,7 +181,7 @@ export const columns: ColumnDef<UserWithStats>[] = [
     ),
   },
   {
-    accessorKey: "totalLinesModified",
+    accessorKey: "linesModified",
     header: ({ column }) => {
       return (
         <Button
@@ -200,7 +202,7 @@ export const columns: ColumnDef<UserWithStats>[] = [
     ),
   },
   {
-    accessorKey: "totalCodeLines",
+    accessorKey: "codeLines",
     header: ({ column }) => {
       return (
         <Button
@@ -222,7 +224,7 @@ export const columns: ColumnDef<UserWithStats>[] = [
     ),
   },
   {
-    accessorKey: "totalDocsLines",
+    accessorKey: "docsLines",
     header: ({ column }) => {
       return (
         <Button
@@ -244,7 +246,7 @@ export const columns: ColumnDef<UserWithStats>[] = [
     ),
   },
   {
-    accessorKey: "totalDataLines",
+    accessorKey: "dataLines",
     header: ({ column }) => {
       return (
         <Button
@@ -266,7 +268,7 @@ export const columns: ColumnDef<UserWithStats>[] = [
     ),
   },
   {
-    accessorKey: "totalTodosCompleted",
+    accessorKey: "todosCompleted",
     header: ({ column }) => {
       return (
         <Button

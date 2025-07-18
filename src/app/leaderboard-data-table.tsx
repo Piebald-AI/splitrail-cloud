@@ -68,7 +68,7 @@ export function DataTable<TData extends UserWithStats, TValue>({
       setLoading(true);
       setError(null);
       
-      const response = await fetch(`/api/leaderboard?period=${period}&sortBy=totalCost&sortOrder=desc&pageSize=100`);
+      const response = await fetch(`/api/leaderboard?period=${period}&sortBy=cost&sortOrder=desc&pageSize=100`);
       
       if (!response.ok) {
         throw new Error('Failed to fetch leaderboard data');
@@ -91,6 +91,8 @@ export function DataTable<TData extends UserWithStats, TValue>({
   React.useEffect(() => {
     fetchLeaderboardData();
   }, [fetchLeaderboardData]);
+
+  console.log("data,", data);
 
   const table = useReactTable({
     data,
@@ -142,15 +144,15 @@ export function DataTable<TData extends UserWithStats, TValue>({
                 const columnNames: { [key: string]: string } = {
                   rank: "Rank",
                   username: "Developer",
-                  totalCost: "Cost",
-                  totalTokens: "Tokens",
-                  totalLinesAdded: "Lines Added",
-                  totalLinesDeleted: "Lines Deleted",
-                  totalLinesModified: "Lines Modified",
-                  totalCodeLines: "Code",
-                  totalDocsLines: "Docs",
-                  totalDataLines: "Data",
-                  totalTodosCompleted: "Tasks Completed",
+                  cost: "Cost",
+                  tokens: "Tokens",
+                  linesAdded: "Lines Added",
+                  linesDeleted: "Lines Deleted",
+                  linesModified: "Lines Modified",
+                  codeLines: "Code",
+                  docsLines: "Docs",
+                  dataLines: "Data",
+                  todosCompleted: "Tasks Completed",
                 };
 
                 return (
