@@ -1,6 +1,42 @@
 import { type User, type UserPreferences } from "@prisma/client";
 
-export interface UserStats {
+// CLI data structure (mirrors Rust types)
+export interface FileOperationStats {
+  filesRead: number;
+  filesAdded: number;
+  filesEdited: number;
+  filesDeleted: number;
+  linesRead: number;
+  linesAdded: number;
+  linesEdited: number;
+  linesDeleted: number;
+  bytesRead: number;
+  bytesEdited: number;
+  bytesAdded: number;
+  bytesDeleted: number;
+  terminalCommands: number;
+  globSearches: number;
+  grepSearches: number;
+}
+
+export interface CompositionStats {
+  codeLines: number;
+  docsLines: number;
+  dataLines: number;
+  mediaLines: number;
+  configLines: number;
+  otherLines: number;
+}
+
+export interface TodoStats {
+  todosCreated: number;
+  todosCompleted: number;
+  todosInProgress: number;
+  todoReads: number;
+  todoWrites: number;
+}
+
+export type UserStats = FileOperationStats & CompositionStats & TodoStats & {
   cost: number;
   inputTokens: number;
   outputTokens: number;
@@ -8,30 +44,7 @@ export interface UserStats {
   cacheReadTokens: number;
   messagesSent: number;
   toolsCalled: number;
-  filesRead: number;
-  filesEdited: number;
-  filesWritten: number;
-  linesRead: number;
-  linesEdited: number;
-  linesWritten: number;
-  linesAdded: number;
-  linesDeleted: number;
-  linesModified: number;
-  codeLines: number;
-  docsLines: number;
-  dataLines: number;
-  bytesRead: number;
-  bytesEdited: number;
-  bytesWritten: number;
-  terminalCommands: number;
-  globSearches: number;
-  grepSearches: number;
-  todosCreated: number;
-  todosCompleted: number;
-  todosInProgress: number;
-  todoWrites: number;
-  todoReads: number;
-}
+};
 
 // Extended types for API responses
 export interface UserWithStats extends User, UserStats {
@@ -44,7 +57,9 @@ export interface UserWithStats extends User, UserStats {
 }
 
 export interface UserWithPeriods extends UserWithStats {
-  userStats: Array<UserStats & { period: string; periodStart?: Date; periodEnd?: Date }>;
+  userStats: Array<
+    UserStats & { period: string; periodStart?: Date; periodEnd?: Date }
+  >;
 }
 
 export interface LeaderboardData {
@@ -161,37 +176,6 @@ export interface CreateProjectRequest {
 export interface AssociateFolderRequest {
   folder: string;
   projectId: string;
-}
-
-// CLI data structure (mirrors Rust types)
-export interface FileOperationStats {
-  filesRead: number;
-  filesEdited: number;
-  filesWritten: number;
-  linesRead: number;
-  linesAdded: number;
-  linesDeleted: number;
-  linesModified: number;
-  bytesRead: number;
-  bytesEdited: number;
-  bytesWritten: number;
-  bashCommands: number;
-  globSearches: number;
-  grepSearches: number;
-  sourceCodeLines: number;
-  dataLines: number;
-  documentationLines: number;
-  mediaLines: number;
-  configurationLines: number;
-  otherLines: number;
-}
-
-export interface TodoStats {
-  todosCreated: number;
-  todosCompleted: number;
-  todosInProgress: number;
-  todoReads: number;
-  todoWrites: number;
 }
 
 export interface DailyStats {

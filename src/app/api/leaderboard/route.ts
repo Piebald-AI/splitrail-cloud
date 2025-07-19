@@ -35,7 +35,9 @@ export async function GET(request: NextRequest) {
     if (!validPeriods.includes(period)) {
       return NextResponse.json(
         {
-          error: "Invalid period parameter. Must be one of: " + validPeriods.join(", "),
+          error:
+            "Invalid period parameter. Must be one of: " +
+            validPeriods.join(", "),
         },
         { status: 400 }
       );
@@ -73,7 +75,6 @@ export async function GET(request: NextRequest) {
         ],
       },
     });
-    console.log("usersWithStats", usersWithStats);
 
     // Filter users who have stats for the selected period and prepare data
     const usersWithMetrics = usersWithStats
@@ -89,11 +90,9 @@ export async function GET(request: NextRequest) {
           ...stats,
         };
       });
-    console.log("usersWithMetrics", usersWithMetrics);
 
     // Apply pagination
     const paginatedUsers = usersWithMetrics.slice(skip, skip + pageSize);
-    console.log("paginatedUsers", paginatedUsers);
 
     const leaderboardData = {
       users: paginatedUsers,
