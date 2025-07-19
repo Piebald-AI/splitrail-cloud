@@ -287,7 +287,7 @@ export async function POST(request: NextRequest) {
 
     for (const chunk of body) {
       let message = chunk.message;
-      const eventDate = new Date(chunk.message.timestamp || Date.now());
+      const eventDate = Date.now();
       const dateOnly = new Date(
         eventDate.getFullYear(),
         eventDate.getMonth(),

@@ -178,11 +178,11 @@ export function DataTable<TData extends UserWithStats, TValue>({
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             {[
-              { value: "hourly", label: "Hourly" },
-              { value: "daily", label: "Daily" },
-              { value: "weekly", label: "Weekly" },
-              { value: "monthly", label: "Monthly" },
-              { value: "yearly", label: "Yearly" },
+              { value: "hourly", label: "This Hour" },
+              { value: "daily", label: "Today" },
+              { value: "weekly", label: "This Week" },
+              { value: "monthly", label: "This Month" },
+              { value: "yearly", label: "This Year" },
               { value: "all-time", label: "All Time" },
             ].map((periodOption) => (
               <DropdownMenuCheckboxItem
