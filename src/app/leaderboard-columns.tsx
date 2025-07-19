@@ -20,26 +20,28 @@ import {
 } from "lucide-react";
 
 // Ranking Award component
-function RankingAward({ type }: { type: "gold" | "silver" | "bronze" }) {
-  const awardConfig = {
-    gold: {
+function RankingAward({ rank }: { rank: number }) {
+  const awardConfig = [
+    {
       glowClass: "drop-shadow-[0_0_2px_rgba(234,179,8,1)]",
       iconClass: "text-yellow-500",
     },
-    silver: {
+    {
       glowClass: "drop-shadow-[0_0_2px_rgba(148,163,184,1)]",
       iconClass: "text-slate-400",
     },
-    bronze: {
+    {
       glowClass: "drop-shadow-[0_0_2px_rgba(217,119,6,1)]",
       iconClass: "text-amber-600",
     },
-  };
+  ];
 
-  const config = awardConfig[type];
+  const config = awardConfig[rank - 1];
 
-  return (
+  return config ? (
     <Award className={cn("h-5 w-5", config.iconClass, config.glowClass)} />
+  ) : (
+    <span className="font-medium text-sm">{rank}</span>
   );
 }
 
@@ -81,7 +83,7 @@ export const columns: ColumnDef<UserWithStats>[] = [
     header: "Rank",
     cell: ({ row }) => (
       <div className="flex items-center justify-center">
-        {row.original.badge && <RankingAward type={row.original.badge} />}
+        {row.original && <RankingAward rank={row.original.rank} />}
       </div>
     ),
     enableSorting: false,
@@ -181,7 +183,7 @@ export const columns: ColumnDef<UserWithStats>[] = [
     ),
   },
   {
-    accessorKey: "linesModified",
+    accessorKey: "linesEdited",
     header: ({ column }) => {
       return (
         <Button
@@ -190,7 +192,7 @@ export const columns: ColumnDef<UserWithStats>[] = [
           className="h-auto px-1 py-0"
           onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
         >
-          Lines Modified
+          Lines Edited
           <SortIcon column={column} />
         </Button>
       );

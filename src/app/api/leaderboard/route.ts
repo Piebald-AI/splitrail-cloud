@@ -62,7 +62,7 @@ export async function GET(request: NextRequest) {
       include: {
         userStats: {
           where: {
-            period,
+            OR: [{ period }, { period: "all-time" }],
           },
         },
         preferences: true,
@@ -77,25 +77,38 @@ export async function GET(request: NextRequest) {
     });
 
     // Filter users who have stats for the selected period and prepare data
+    const costs: number[] = [];
+    const userCosts: Record<string, number> = {};
     const usersWithMetrics = usersWithStats
       .filter((user) => {
         return user.userStats.length > 0;
       })
       .map((user) => {
-        const stats = user.userStats[0] as unknown as UserStats;
+        // In the query above, we fetched the stats for both this period and all time, so that we
+        // can show ranks based on all time, but display stats based on the selected period.
+        // Here, we'll record a list of all users' total costs and later rank the users based on
+        // their total costs. If the selected period is "all-time", the query above will only
+        // return one row, so we'll just use that row.
+        const cost = user.userStats[period === "all-time" ? 0 : 1].cost;
+        costs.push(cost);
+        userCosts[user.id] = cost;
         return {
           rank: 0,
-          badge: undefined as "gold" | "silver" | "bronze" | undefined,
+          ...user.userStats[0],
           ...user,
-          ...stats,
         };
       });
 
-    // Apply pagination
-    const paginatedUsers = usersWithMetrics.slice(skip, skip + pageSize);
+    // Add ranks to user, based on cost.  So the user with the maximum cost value is gold, then
+    // silver, then bronze, then just numbers.
+    costs.sort((a, b) => b - a);
+    usersWithMetrics.forEach((user) => {
+      const costIndex = costs.indexOf(userCosts[user.id]);
+      user.rank = costIndex + 1;
+    });
 
     const leaderboardData = {
-      users: paginatedUsers,
+      users: usersWithMetrics.slice(skip, skip + pageSize),
       total: usersWithMetrics.length,
       currentPage: page,
       pageSize,

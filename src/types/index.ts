@@ -53,7 +53,6 @@ export interface UserWithStats extends User, UserStats {
   email: string;
   createdAt: Date;
   rank: number;
-  badge?: "gold" | "silver" | "bronze";
 }
 
 export interface UserWithPeriods extends UserWithStats {
