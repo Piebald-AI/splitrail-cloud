@@ -104,6 +104,7 @@ export type AIMessage = {
   conversationFile: string;
   fileOperations: FileOperationStats;
   todoStats: TodoStats;
+  compositionStats: CompositionStats;
 };
 
 export type UserMessage = {

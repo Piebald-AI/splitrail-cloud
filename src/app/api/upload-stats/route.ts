@@ -252,7 +252,8 @@ async function updatePeriodStats(
         terminalCommands:
           existingStats.terminalCommands + stats.terminalCommands,
         fileSearches: existingStats.fileSearches + stats.fileSearches,
-        fileContentSearches: existingStats.fileContentSearches + stats.fileContentSearches,
+        fileContentSearches:
+          existingStats.fileContentSearches + stats.fileContentSearches,
         todosCreated: existingStats.todosCreated + stats.todosCreated,
         todosCompleted: existingStats.todosCompleted + stats.todosCompleted,
         todosInProgress: existingStats.todosInProgress + stats.todosInProgress,
@@ -294,8 +295,8 @@ export async function POST(request: NextRequest) {
       );
 
       if ("AI" in message && message.AI) {
-        const { fileOperations, todoStats, ...aiMessage } =
-          message.AI as AIMessage;
+        const { fileOperations, todoStats, compositionStats, ...aiMessage } =
+          message.AI;
 
         // Update current period stats
         await updateCurrentPeriodStats(user.id, eventDate, {
@@ -326,15 +327,15 @@ export async function POST(request: NextRequest) {
           todosInProgress: todoStats?.todosInProgress || 0,
           todoWrites: todoStats?.todoWrites || 0,
           todoReads: todoStats?.todoReads || 0,
-          codeLines: fileOperations?.codeLines || 0,
-          docsLines: fileOperations?.docsLines || 0,
-          dataLines: fileOperations?.dataLines || 0,
-          mediaLines: fileOperations?.mediaLines || 0,
-          configLines: fileOperations?.configLines || 0,
-          otherLines: fileOperations?.otherLines || 0,
+          codeLines: compositionStats?.codeLines || 0,
+          docsLines: compositionStats?.docsLines || 0,
+          dataLines: compositionStats?.dataLines || 0,
+          mediaLines: compositionStats?.mediaLines || 0,
+          configLines: compositionStats?.configLines || 0,
+          otherLines: compositionStats?.otherLines || 0,
         });
       } else if ("User" in message && message.User) {
-        const { todoStats, ...userMessage } = message.User as UserMessage;
+        const { todoStats, ...userMessage } = message.User;
 
         // Update current period stats
         await updateCurrentPeriodStats(user.id, eventDate, {
