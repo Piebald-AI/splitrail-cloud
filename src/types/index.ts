@@ -15,8 +15,8 @@ export interface FileOperationStats {
   bytesAdded: number;
   bytesDeleted: number;
   terminalCommands: number;
-  globSearches: number;
-  grepSearches: number;
+  fileSearches: number;
+  fileContentSearches: number;
 }
 
 export interface CompositionStats {

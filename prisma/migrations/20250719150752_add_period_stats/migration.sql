@@ -1,3 +1,10 @@
+/*
+  Warnings:
+
+  - You are about to drop the `user_daily_stats` table. If the table is not empty, all the data it contains will be lost.
+
+*/
+
 -- CreateTable
 CREATE TABLE "message_stats" (
     "id" TEXT NOT NULL,
@@ -21,15 +28,15 @@ CREATE TABLE "message_stats" (
     "filesEdited" INTEGER,
     "filesDeleted" INTEGER,
     "linesRead" INTEGER,
-    "linesAdded" INTEGER,
     "linesEdited" INTEGER,
+    "linesAdded" INTEGER,
     "linesDeleted" INTEGER,
     "bytesRead" INTEGER,
     "bytesAdded" INTEGER,
     "bytesEdited" INTEGER,
     "bytesDeleted" INTEGER,
-    "docsLines" INTEGER,
     "codeLines" INTEGER,
+    "docsLines" INTEGER,
     "dataLines" INTEGER,
     "mediaLines" INTEGER,
     "configLines" INTEGER,
@@ -71,15 +78,15 @@ CREATE TABLE "user_stats" (
     "bytesAdded" INTEGER NOT NULL DEFAULT 0,
     "bytesEdited" INTEGER NOT NULL DEFAULT 0,
     "bytesDeleted" INTEGER NOT NULL DEFAULT 0,
-    "docsLines" INTEGER NOT NULL DEFAULT 0,
     "codeLines" INTEGER NOT NULL DEFAULT 0,
+    "docsLines" INTEGER NOT NULL DEFAULT 0,
     "dataLines" INTEGER NOT NULL DEFAULT 0,
     "mediaLines" INTEGER NOT NULL DEFAULT 0,
     "configLines" INTEGER NOT NULL DEFAULT 0,
     "otherLines" INTEGER NOT NULL DEFAULT 0,
     "terminalCommands" INTEGER NOT NULL DEFAULT 0,
-    "globSearches" INTEGER NOT NULL DEFAULT 0,
-    "grepSearches" INTEGER NOT NULL DEFAULT 0,
+    "fileSearches" INTEGER NOT NULL DEFAULT 0,
+    "fileContentSearches" INTEGER NOT NULL DEFAULT 0,
     "todosCreated" INTEGER NOT NULL DEFAULT 0,
     "todosCompleted" INTEGER NOT NULL DEFAULT 0,
     "todosInProgress" INTEGER NOT NULL DEFAULT 0,
@@ -91,16 +98,13 @@ CREATE TABLE "user_stats" (
     CONSTRAINT "user_stats_pkey" PRIMARY KEY ("id")
 );
 
-
 -- CreateIndex
 CREATE UNIQUE INDEX "user_stats_userId_period_key" ON "user_stats"("userId", "period");
-
 
 -- AddForeignKey
 ALTER TABLE "user_stats" ADD CONSTRAINT "user_stats_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
-
--- Migrate data from user_daily_stats to user_stats with period = "all-time"
+-- Migrate data from user_daily_stats to user_stats (aggregated as 'all-time')
 INSERT INTO "user_stats" (
     "id",
     "userId", 
@@ -108,9 +112,9 @@ INSERT INTO "user_stats" (
     "periodStart",
     "periodEnd",
     "toolsCalled",
-    "messagesSent", 
+    "messagesSent",
     "inputTokens",
-    "outputTokens",
+    "outputTokens", 
     "cacheCreationTokens",
     "cacheReadTokens",
     "cost",
@@ -123,20 +127,20 @@ INSERT INTO "user_stats" (
     "linesEdited",
     "linesDeleted",
     "bytesRead",
-    "bytesAdded", 
+    "bytesAdded",
     "bytesEdited",
-    "bytesDeleted", 
+    "bytesDeleted",
     "codeLines",
-    "docsLines",
+    "docsLines", 
     "dataLines",
     "mediaLines",
     "configLines",
     "otherLines",
     "terminalCommands",
-    "fileSearches",
+    "fileSearches", 
     "fileContentSearches",
     "todosCreated",
-    "todosCompleted", 
+    "todosCompleted",
     "todosInProgress",
     "todoWrites",
     "todoReads",
@@ -144,46 +148,52 @@ INSERT INTO "user_stats" (
     "updatedAt"
 )
 SELECT 
-    gen_random_uuid(),
+    gen_random_uuid() as "id",
     "userId",
-    'all-time',
-    NULL,
-    NULL,
-    COALESCE("toolCalls", 0),
-    COALESCE("aiMessages" + "userMessages", 0),
-    COALESCE("inputTokens", 0),
-    COALESCE("outputTokens", 0),
-    0, -- cacheCreationTokens (new field)
-    COALESCE("cachedTokens", 0), -- map cachedTokens to cacheReadTokens
-    COALESCE("cost", 0),
-    COALESCE("filesRead", 0),
-    COALESCE("filesAdded", 0),
-    COALESCE("filesEdited", 0),
-    COALESCE("filesDeleted", 0),
-    COALESCE("linesRead", 0),
-    COALESCE("linesAdded", 0),
-    COALESCE("linesEdited", 0),
-    COALESCE("linesDeleted", 0),
-    COALESCE("codeLines", 0),
-    COALESCE("docsLines", 0),
-    COALESCE("dataLines", 0),
-    COALESCE("mediaLines", 0),
-    COALESCE("configLines", 0),
-    COALESCE("otherLines", 0),
-    COALESCE("bytesRead", 0),
-    COALESCE("bytesEdited", 0),
-    COALESCE("bytesDeleted", 0),
-    COALESCE("terminalCommands", 0),
-    COALESCE("fileSearches", 0),
-    COALESCE("fileContentSearches", 0),
-    COALESCE("todosCreated", 0),
-    COALESCE("todosCompleted", 0),
-    COALESCE("todosInProgress", 0),
-    COALESCE("todoWrites", 0),
-    COALESCE("todoReads", 0),
-    "createdAt",
-    "updatedAt"
-FROM "user_daily_stats";
+    'all-time' as "period",
+    NULL as "periodStart",
+    NULL as "periodEnd", 
+    COALESCE(SUM("toolCalls"), 0) as "toolsCalled",
+    COALESCE(SUM("userMessages" + "aiMessages"), 0) as "messagesSent",
+    COALESCE(SUM("inputTokens"), 0) as "inputTokens",
+    COALESCE(SUM("outputTokens"), 0) as "outputTokens",
+    0 as "cacheCreationTokens",
+    COALESCE(SUM("cachedTokens"), 0) as "cacheReadTokens", 
+    COALESCE(SUM("cost"), 0) as "cost",
+    COALESCE(SUM("filesRead"), 0) as "filesRead",
+    COALESCE(SUM("filesWritten"), 0) as "filesAdded",
+    COALESCE(SUM("filesEdited"), 0) as "filesEdited",
+    0 as "filesDeleted",
+    COALESCE(SUM("linesRead"), 0) as "linesRead", 
+    COALESCE(SUM("linesAdded"), 0) as "linesAdded",
+    COALESCE(SUM("linesModified"), 0) as "linesEdited",
+    COALESCE(SUM("linesDeleted"), 0) as "linesDeleted",
+    COALESCE(SUM("bytesRead"), 0) as "bytesRead",
+    COALESCE(SUM("bytesWritten"), 0) as "bytesAdded",
+    COALESCE(SUM("bytesEdited"), 0) as "bytesEdited",
+    0 as "bytesDeleted",
+    COALESCE(SUM("codeLines"), 0) as "codeLines",
+    COALESCE(SUM("docsLines"), 0) as "docsLines",
+    COALESCE(SUM("dataLines"), 0) as "dataLines", 
+    0 as "mediaLines",
+    0 as "configLines",
+    0 as "otherLines",
+    COALESCE(SUM("bashCommands"), 0) as "terminalCommands",
+    COALESCE(SUM("globSearches"), 0) as "fileSearches",
+    COALESCE(SUM("grepSearches"), 0) as "fileContentSearches",
+    COALESCE(SUM("todosCreated"), 0) as "todosCreated",
+    COALESCE(SUM("todosCompleted"), 0) as "todosCompleted", 
+    COALESCE(SUM("todosInProgress"), 0) as "todosInProgress",
+    COALESCE(SUM("todoWrites"), 0) as "todoWrites",
+    COALESCE(SUM("todoReads"), 0) as "todoReads",
+    MIN("createdAt") as "createdAt",
+    MAX("updatedAt") as "updatedAt"
+FROM "user_daily_stats"
+GROUP BY "userId";
+
+-- DropForeignKey
+ALTER TABLE "user_daily_stats" DROP CONSTRAINT "user_daily_stats_userId_fkey";
 
 -- DropTable
 DROP TABLE "user_daily_stats";
+

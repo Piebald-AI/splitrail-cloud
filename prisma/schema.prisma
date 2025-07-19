@@ -44,25 +44,28 @@ model MessageStats {
   model                 String?
   toolCalls             Int?
   hash                  String?
-  filesRead             Int?
-  filesEdited           Int?
-  filesWritten          Int?
   fileTypes             Json?
   terminalCommands      Int?
-  globSearches          Int?
-  grepSearches          Int?
+  fileSearches          Int?
+  fileContentSearches   Int?
+  filesRead             Int?
+  filesAdded            Int?
+  filesEdited           Int?
+  filesDeleted          Int?
   linesRead             Int?
   linesEdited           Int?
-  linesWritten          Int?
   linesAdded            Int?
   linesDeleted          Int?
-  linesModified         Int?
+  bytesRead             Int?
+  bytesAdded            Int?
+  bytesEdited           Int?
+  bytesDeleted          Int?
   codeLines             Int?
   docsLines             Int?
   dataLines             Int?
-  bytesRead             Int?
-  bytesEdited           Int?
-  bytesWritten          Int?
+  mediaLines            Int?
+  configLines           Int?
+  otherLines            Int?
   todosCreated          Int       @default(0)
   todosCompleted        Int       @default(0)
   todosInProgress       Int       @default(0)
@@ -81,42 +84,42 @@ model UserStats {
   period                String   // "hourly", "daily", "weekly", "monthly", "yearly", "all-time"
   periodStart           DateTime?
   periodEnd             DateTime?
-  toolsCalled      Int      @default(0)
-  messagesSent     Int      @default(0)
-  inputTokens      Int      @default(0)
-  outputTokens     Int      @default(0)
-  cacheCreationTokens Int   @default(0)
-  cacheReadTokens  Int      @default(0)
-  cost             Float    @default(0)
-  filesRead        Int      @default(0)
-  filesAdded       Int      @default(0)
-  filesEdited      Int      @default(0)
-  filesDeleted     Int      @default(0)
-  linesRead        Int      @default(0)
-  linesAdded       Int      @default(0)
-  linesEdited      Int      @default(0)
-  linesDeleted     Int      @default(0)
-  bytesRead        Int      @default(0)
-  bytesAdded       Int      @default(0)
-  bytesEdited      Int      @default(0)
-  bytesDeleted     Int      @default(0)
-  codeLines        Int      @default(0)
-  docsLines        Int      @default(0)
-  dataLines        Int      @default(0)
-  mediaLines       Int      @default(0)
-  configLines      Int      @default(0)
-  otherLines       Int      @default(0)
-  terminalCommands Int      @default(0)
-  fileSearches     Int      @default(0)
-  fileContentSearches Int   @default(0)
-  todosCreated     Int      @default(0)
-  todosCompleted   Int      @default(0)
-  todosInProgress  Int      @default(0)
-  todoWrites       Int      @default(0)
-  todoReads        Int      @default(0)
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
-  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  toolsCalled           Int      @default(0)
+  messagesSent          Int      @default(0)
+  inputTokens           Int      @default(0)
+  outputTokens          Int      @default(0)
+  cacheCreationTokens   Int      @default(0)
+  cacheReadTokens       Int      @default(0)
+  cost                  Float    @default(0)
+  filesRead             Int      @default(0)
+  filesAdded            Int      @default(0)
+  filesEdited           Int      @default(0)
+  filesDeleted          Int      @default(0)
+  linesRead             Int      @default(0)
+  linesAdded            Int      @default(0)
+  linesEdited           Int      @default(0)
+  linesDeleted          Int      @default(0)
+  bytesRead             Int      @default(0)
+  bytesAdded            Int      @default(0)
+  bytesEdited           Int      @default(0)
+  bytesDeleted          Int      @default(0)
+  codeLines             Int      @default(0)
+  docsLines             Int      @default(0)
+  dataLines             Int      @default(0)
+  mediaLines            Int      @default(0)
+  configLines           Int      @default(0)
+  otherLines            Int      @default(0)
+  terminalCommands      Int      @default(0)
+  fileSearches          Int      @default(0)
+  fileContentSearches   Int      @default(0)
+  todosCreated          Int      @default(0)
+  todosCompleted        Int      @default(0)
+  todosInProgress       Int      @default(0)
+  todoWrites            Int      @default(0)
+  todoReads             Int      @default(0)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  user                  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   
   @@unique([userId, period])
   @@map("user_stats")
