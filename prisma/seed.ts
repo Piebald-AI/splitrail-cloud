@@ -1,33 +1,7 @@
+import { UserStats } from "@/types";
 import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
-
-interface UserStats {
-  toolsCalled: number;
-  messagesSent: number;
-  inputTokens: number;
-  outputTokens: number;
-  cacheCreationTokens: number;
-  cacheReadTokens: number;
-  cost: number;
-  filesRead: number;
-  filesEdited: number;
-  filesWritten: number;
-  linesRead: number;
-  linesEdited: number;
-  linesWritten: number;
-  bytesRead: number;
-  bytesEdited: number;
-  bytesWritten: number;
-  terminalCommands: number;
-  globSearches: number;
-  grepSearches: number;
-  todosCreated: number;
-  todosCompleted: number;
-  todosInProgress: number;
-  todoWrites: number;
-  todoReads: number;
-}
 
 const sampleUsers = [
   {
@@ -85,6 +59,12 @@ function generateStats(baseMultiplier: number, periodMultiplier: number): UserSt
     linesRead: Math.round((Math.random() * 8000 + 3000) * multiplier * variation),
     linesEdited: Math.round((Math.random() * 800 + 300) * multiplier * variation),
     linesWritten: Math.round((Math.random() * 600 + 200) * multiplier * variation),
+    linesAdded: Math.round((Math.random() * 600 + 200) * multiplier * variation),
+    linesDeleted: Math.round((Math.random() * 600 + 200) * multiplier * variation),
+    linesModified: Math.round((Math.random() * 600 + 200) * multiplier * variation),
+    codeLines: Math.round((Math.random() * 600 + 200) * multiplier * variation),
+    docsLines: Math.round((Math.random() * 600 + 200) * multiplier * variation),
+    dataLines: Math.round((Math.random() * 600 + 200) * multiplier * variation),
     bytesRead: Math.round((Math.random() * 150000 + 50000) * multiplier * variation),
     bytesEdited: Math.round((Math.random() * 30000 + 10000) * multiplier * variation),
     bytesWritten: Math.round((Math.random() * 25000 + 8000) * multiplier * variation),
@@ -136,13 +116,7 @@ function getPeriodDates() {
 async function clearDatabase() {
   console.log("🧹 Clearing existing data...");
   
-  await prisma.userHourlyStats.deleteMany();
-  await prisma.userDailyStats.deleteMany();
-  await prisma.userWeeklyStats.deleteMany();
-  await prisma.userMonthlyStats.deleteMany();
-  await prisma.userYearlyStats.deleteMany();
-  await prisma.userAllTimeStats.deleteMany();
-  await prisma.userEvents.deleteMany();
+  await prisma.userStats.deleteMany();
   await prisma.userPreferences.deleteMany();
   await prisma.apiToken.deleteMany();
   await prisma.account.deleteMany();
@@ -197,133 +171,32 @@ async function createPeriodStats(users: Array<{ id: string; multiplier: number }
     weekly: 6.5,   // About 6.5 days worth of activity
     monthly: 22,   // About 22 working days
     yearly: 250,   // About 250 working days
-    allTime: 500,  // Lifetime accumulated (about 2 years)
+    "all-time": 500,  // Lifetime accumulated (about 2 years)
   };
   
   for (const user of users) {
-    // Hourly stats
-    const hourlyStats = generateStats(user.multiplier, periodMultipliers.hourly);
-    await prisma.userHourlyStats.create({
-      data: {
-        userId: user.id,
-        periodStart: periods.hourly.start,
-        periodEnd: periods.hourly.end,
-        ...hourlyStats,
-        inputTokens: hourlyStats.inputTokens,
-        outputTokens: hourlyStats.outputTokens,
-        cacheCreationTokens: hourlyStats.cacheCreationTokens,
-        cacheReadTokens: hourlyStats.cacheReadTokens,
-        linesRead: hourlyStats.linesRead,
-        linesEdited: hourlyStats.linesEdited,
-        linesWritten: hourlyStats.linesWritten,
-        bytesRead: hourlyStats.bytesRead,
-        bytesEdited: hourlyStats.bytesEdited,
-        bytesWritten: hourlyStats.bytesWritten,
-      },
-    });
+    // Create stats for each period
+    const periodConfigs = [
+      { period: "hourly", multiplier: periodMultipliers.hourly, start: periods.hourly.start, end: periods.hourly.end },
+      { period: "daily", multiplier: periodMultipliers.daily, start: periods.daily.start, end: periods.daily.end },
+      { period: "weekly", multiplier: periodMultipliers.weekly, start: periods.weekly.start, end: periods.weekly.end },
+      { period: "monthly", multiplier: periodMultipliers.monthly, start: periods.monthly.start, end: periods.monthly.end },
+      { period: "yearly", multiplier: periodMultipliers.yearly, start: periods.yearly.start, end: periods.yearly.end },
+      { period: "all-time", multiplier: periodMultipliers["all-time"], start: null, end: null },
+    ];
 
-    // Daily stats
-    const dailyStats = generateStats(user.multiplier, periodMultipliers.daily);
-    await prisma.userDailyStats.create({
-      data: {
-        userId: user.id,
-        periodStart: periods.daily.start,
-        periodEnd: periods.daily.end,
-        ...dailyStats,
-        inputTokens: dailyStats.inputTokens,
-        outputTokens: dailyStats.outputTokens,
-        cacheCreationTokens: dailyStats.cacheCreationTokens,
-        cacheReadTokens: dailyStats.cacheReadTokens,
-        linesRead: dailyStats.linesRead,
-        linesEdited: dailyStats.linesEdited,
-        linesWritten: dailyStats.linesWritten,
-        bytesRead: dailyStats.bytesRead,
-        bytesEdited: dailyStats.bytesEdited,
-        bytesWritten: dailyStats.bytesWritten,
-      },
-    });
-
-    // Weekly stats
-    const weeklyStats = generateStats(user.multiplier, periodMultipliers.weekly);
-    await prisma.userWeeklyStats.create({
-      data: {
-        userId: user.id,
-        periodStart: periods.weekly.start,
-        periodEnd: periods.weekly.end,
-        ...weeklyStats,
-        inputTokens: weeklyStats.inputTokens,
-        outputTokens: weeklyStats.outputTokens,
-        cacheCreationTokens: weeklyStats.cacheCreationTokens,
-        cacheReadTokens: weeklyStats.cacheReadTokens,
-        linesRead: weeklyStats.linesRead,
-        linesEdited: weeklyStats.linesEdited,
-        linesWritten: weeklyStats.linesWritten,
-        bytesRead: weeklyStats.bytesRead,
-        bytesEdited: weeklyStats.bytesEdited,
-        bytesWritten: weeklyStats.bytesWritten,
-      },
-    });
-
-    // Monthly stats
-    const monthlyStats = generateStats(user.multiplier, periodMultipliers.monthly);
-    await prisma.userMonthlyStats.create({
-      data: {
-        userId: user.id,
-        periodStart: periods.monthly.start,
-        periodEnd: periods.monthly.end,
-        ...monthlyStats,
-        inputTokens: monthlyStats.inputTokens,
-        outputTokens: monthlyStats.outputTokens,
-        cacheCreationTokens: monthlyStats.cacheCreationTokens,
-        cacheReadTokens: monthlyStats.cacheReadTokens,
-        linesRead: monthlyStats.linesRead,
-        linesEdited: monthlyStats.linesEdited,
-        linesWritten: monthlyStats.linesWritten,
-        bytesRead: monthlyStats.bytesRead,
-        bytesEdited: monthlyStats.bytesEdited,
-        bytesWritten: monthlyStats.bytesWritten,
-      },
-    });
-
-    // Yearly stats
-    const yearlyStats = generateStats(user.multiplier, periodMultipliers.yearly);
-    await prisma.userYearlyStats.create({
-      data: {
-        userId: user.id,
-        periodStart: periods.yearly.start,
-        periodEnd: periods.yearly.end,
-        ...yearlyStats,
-        inputTokens: yearlyStats.inputTokens,
-        outputTokens: yearlyStats.outputTokens,
-        cacheCreationTokens: yearlyStats.cacheCreationTokens,
-        cacheReadTokens: yearlyStats.cacheReadTokens,
-        linesRead: yearlyStats.linesRead,
-        linesEdited: yearlyStats.linesEdited,
-        linesWritten: yearlyStats.linesWritten,
-        bytesRead: yearlyStats.bytesRead,
-        bytesEdited: yearlyStats.bytesEdited,
-        bytesWritten: yearlyStats.bytesWritten,
-      },
-    });
-
-    // All-time stats
-    const allTimeStats = generateStats(user.multiplier, periodMultipliers.allTime);
-    await prisma.userAllTimeStats.create({
-      data: {
-        userId: user.id,
-        ...allTimeStats,
-        inputTokens: allTimeStats.inputTokens,
-        outputTokens: allTimeStats.outputTokens,
-        cacheCreationTokens: allTimeStats.cacheCreationTokens,
-        cacheReadTokens: allTimeStats.cacheReadTokens,
-        linesRead: allTimeStats.linesRead,
-        linesEdited: allTimeStats.linesEdited,
-        linesWritten: allTimeStats.linesWritten,
-        bytesRead: allTimeStats.bytesRead,
-        bytesEdited: allTimeStats.bytesEdited,
-        bytesWritten: allTimeStats.bytesWritten,
-      },
-    });
+    for (const config of periodConfigs) {
+      const stats = generateStats(user.multiplier, config.multiplier);
+      await prisma.userStats.create({
+        data: {
+          userId: user.id,
+          period: config.period,
+          periodStart: config.start,
+          periodEnd: config.end,
+          ...stats,
+        },
+      });
+    }
   }
   
   console.log(`✅ Created period statistics for ${users.length} users`);

@@ -17,6 +17,9 @@ export interface UserStats {
   linesAdded: number;
   linesDeleted: number;
   linesModified: number;
+  codeLines: number;
+  docsLines: number;
+  dataLines: number;
   bytesRead: number;
   bytesEdited: number;
   bytesWritten: number;
@@ -41,12 +44,7 @@ export interface UserWithStats extends User, UserStats {
 }
 
 export interface UserWithPeriods extends UserWithStats {
-  hourlyStats: UserStats;
-  dailyStats: UserStats;
-  weeklyStats: UserStats;
-  monthlyStats: UserStats;
-  yearlyStats: UserStats;
-  allTimeStats: UserStats;
+  userStats: Array<UserStats & { period: string; periodStart?: Date; periodEnd?: Date }>;
 }
 
 export interface LeaderboardData {

@@ -127,50 +127,6 @@ export function getLanguageIcon(language: string): string {
   return languageIcons[normalizedLang] || languageIcons.default;
 }
 
-// Convert CLI data to database format
-export function transformCliData(
-  cliData: Record<string, unknown>,
-  folder?: string
-): Record<string, unknown> {
-  return {
-    cost: cliData.cost || 0,
-    inputTokens: cliData.inputTokens || 0,
-    outputTokens: cliData.outputTokens || 0,
-    cachedTokens: cliData.cachedTokens || 0,
-    userMessages: cliData.userMessages || 0,
-    aiMessages: cliData.aiMessages || 0,
-    toolCalls: cliData.toolCalls || 0,
-    conversations: cliData.conversations || 0,
-    maxFlowLengthSeconds: cliData.maxFlowLengthSeconds || 0,
-    filesRead: cliData.filesRead || 0,
-    filesEdited: cliData.filesEdited || 0,
-    filesWritten: cliData.filesWritten || 0,
-    linesRead: cliData.linesRead || 0,
-    linesAdded: cliData.linesAdded || 0,
-    linesDeleted: cliData.linesDeleted || 0,
-    linesModified: cliData.linesModified || 0,
-    bytesRead: cliData.bytesRead || 0,
-    bytesEdited: cliData.bytesEdited || 0,
-    bytesWritten: cliData.bytesWritten || 0,
-    bashCommands: cliData.bashCommands || 0,
-    globSearches: cliData.globSearches || 0,
-    grepSearches: cliData.grepSearches || 0,
-    todosCreated: cliData.todosCreated || 0,
-    todosCompleted: cliData.todosCompleted || 0,
-    todosInProgress: cliData.todosInProgress || 0,
-    todoReads: cliData.todoReads || 0,
-    todoWrites: cliData.todoWrites || 0,
-    codeLines: cliData.codeLines || 0,
-    docsLines: cliData.docsLines || 0,
-    dataLines: cliData.dataLines || 0,
-    projectsData: cliData.projectsData || {},
-    languagesData: cliData.languagesData || {},
-    modelsData: cliData.modelsData || {},
-    folder: folder || null,
-    rawData: cliData,
-  };
-}
-
 // Generate API token
 export function generateApiToken(): string {
   return (

@@ -22,21 +22,20 @@ export async function GET(request: NextRequest) {
       500
     ); // Max 500
 
-    const periodToTable = {
-      hourly: "hourlyStats",
-      daily: "dailyStats",
-      weekly: "weeklyStats",
-      monthly: "monthlyStats",
-      yearly: "yearlyStats",
-      "all-time": "allTimeStats",
-    } as Record<PeriodType, string>;
+    const validPeriods = [
+      "hourly",
+      "daily",
+      "weekly",
+      "monthly",
+      "yearly",
+      "all-time",
+    ];
 
     // Validate period parameter
-    const keys = Object.keys(periodToTable);
-    if (!keys.includes(period)) {
+    if (!validPeriods.includes(period)) {
       return NextResponse.json(
         {
-          error: "Invalid period parameter. Must be one of: " + keys.join(", "),
+          error: "Invalid period parameter. Must be one of: " + validPeriods.join(", "),
         },
         { status: 400 }
       );
@@ -59,7 +58,11 @@ export async function GET(request: NextRequest) {
     // Get users with their period stats and preferences
     const usersWithStats = await db.user.findMany({
       include: {
-        [periodToTable[period]]: true,
+        userStats: {
+          where: {
+            period,
+          },
+        },
         preferences: true,
       },
       where: {
@@ -70,14 +73,15 @@ export async function GET(request: NextRequest) {
         ],
       },
     });
+    console.log("usersWithStats", usersWithStats);
 
     // Filter users who have stats for the selected period and prepare data
     const usersWithMetrics = usersWithStats
       .filter((user) => {
-        return user[periodToTable[period]] !== null;
+        return user.userStats.length > 0;
       })
       .map((user) => {
-        const stats = user[periodToTable[period]] as unknown as UserStats;
+        const stats = user.userStats[0] as unknown as UserStats;
         return {
           rank: 0,
           badge: undefined as "gold" | "silver" | "bronze" | undefined,

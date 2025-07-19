@@ -21,18 +21,12 @@ model User {
   updatedAt     DateTime  @updatedAt
   
   // Relationships
-  hourlyStats   UserHourlyStats?
-  dailyStats    UserDailyStats?
-  weeklyStats   UserWeeklyStats?
-  monthlyStats  UserMonthlyStats?
-  yearlyStats   UserYearlyStats?
-  allTimeStats  UserAllTimeStats?
+  userStats     UserStats[]
   preferences   UserPreferences?
   sessions      Session[]
   accounts      Account[]
   apiTokens     ApiToken[]
   folderProjects FolderProject[]
-  userEvents    UserEvents[]
   
   @@map("users")
 }
@@ -42,8 +36,6 @@ model MessageStats {
   type                  String    // "AI" or "User"
   timestamp             String
   conversationFile      String
-  
-  // AI variant fields (nullable for User messages)
   inputTokens           Int?
   outputTokens          Int?
   cacheCreationTokens   Int?
@@ -52,23 +44,25 @@ model MessageStats {
   model                 String?
   toolCalls             Int?
   hash                  String?
-  
-  // FileOperationStats fields (nullable for User messages)
   filesRead             Int?
   filesEdited           Int?
   filesWritten          Int?
-  fileTypes             Json?     // BTreeMap<String, u32> as JSON
+  fileTypes             Json?
   terminalCommands      Int?
   globSearches          Int?
   grepSearches          Int?
   linesRead             Int?
   linesEdited           Int?
   linesWritten          Int?
+  linesAdded            Int?
+  linesDeleted          Int?
+  linesModified         Int?
+  codeLines             Int?
+  docsLines             Int?
+  dataLines             Int?
   bytesRead             Int?
   bytesEdited           Int?
   bytesWritten          Int?
-  
-  // TodoStats fields (present for both AI and User messages)
   todosCreated          Int       @default(0)
   todosCompleted        Int       @default(0)
   todosInProgress       Int       @default(0)
@@ -81,22 +75,19 @@ model MessageStats {
   @@map("message_stats")
 }
 
-model UserHourlyStats {
+model UserStats {
   id                    String   @id @default(cuid())
-  userId                String   @unique
-  periodStart           DateTime
-  periodEnd             DateTime
-  
-  // Aggregated metrics
+  userId                String
+  period                String   // "hourly", "daily", "weekly", "monthly", "yearly", "all-time"
+  periodStart           DateTime?
+  periodEnd             DateTime?
   toolsCalled      Int      @default(0)
   messagesSent     Int      @default(0)
   inputTokens      Int      @default(0)
   outputTokens     Int      @default(0)
-  cacheCreationTokens Int @default(0)
+  cacheCreationTokens Int   @default(0)
   cacheReadTokens  Int      @default(0)
   cost             Float    @default(0)
-  
-  // File operations
   filesRead        Int      @default(0)
   filesEdited      Int      @default(0)
   filesWritten     Int      @default(0)
@@ -106,75 +97,26 @@ model UserHourlyStats {
   linesAdded       Int      @default(0)
   linesDeleted     Int      @default(0)
   linesModified    Int      @default(0)
+  codeLines        Int      @default(0)
+  docsLines        Int      @default(0)
+  dataLines        Int      @default(0)
   bytesRead        Int      @default(0)
   bytesEdited      Int      @default(0)
   bytesWritten     Int      @default(0)
   terminalCommands Int      @default(0)
   globSearches     Int      @default(0)
   grepSearches     Int      @default(0)
-  
-  // Todo stats
   todosCreated     Int      @default(0)
   todosCompleted   Int      @default(0)
   todosInProgress  Int      @default(0)
   todoWrites       Int      @default(0)
   todoReads        Int      @default(0)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   
-  createdAt             DateTime @default(now())
-  updatedAt             DateTime @updatedAt
-  
-  // Relationships
-  user                  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  @@map("user_hourly_stats")
-}
-
-model UserDailyStats {
-  id                    String   @id @default(cuid())
-  userId                String   @unique
-  periodStart           DateTime
-  periodEnd             DateTime
-  
-  // Aggregated metrics
-  toolsCalled      Int      @default(0)
-  messagesSent     Int      @default(0)
-  inputTokens      Int      @default(0)
-  outputTokens     Int      @default(0)
-  cacheCreationTokens Int @default(0)
-  cacheReadTokens  Int      @default(0)
-  cost             Float    @default(0)
-  
-  // File operations
-  filesRead        Int      @default(0)
-  filesEdited      Int      @default(0)
-  filesWritten     Int      @default(0)
-  linesRead        Int      @default(0)
-  linesEdited      Int      @default(0)
-  linesWritten     Int      @default(0)
-  linesAdded       Int      @default(0)
-  linesDeleted     Int      @default(0)
-  linesModified    Int      @default(0)
-  bytesRead        Int      @default(0)
-  bytesEdited      Int      @default(0)
-  bytesWritten     Int      @default(0)
-  terminalCommands Int      @default(0)
-  globSearches     Int      @default(0)
-  grepSearches     Int      @default(0)
-  
-  // Todo stats
-  todosCreated     Int      @default(0)
-  todosCompleted   Int      @default(0)
-  todosInProgress  Int      @default(0)
-  todoWrites       Int      @default(0)
-  todoReads        Int      @default(0)
-  
-  createdAt             DateTime @default(now())
-  updatedAt             DateTime @updatedAt
-  
-  // Relationships
-  user                  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  @@map("user_daily_stats")
+  @@unique([userId, period])
+  @@map("user_stats")
 }
 
 model UserPreferences {
@@ -292,249 +234,4 @@ model FolderProject {
   @@map("folder_projects")
 }
 
-// Raw events table for 30-day retention
-model UserEvents {
-  id                    String    @id @default(cuid())
-  userId                String
-  eventDate             DateTime  @db.Date
-  type                  String    // "AI" or "User"
-  timestamp             String
-  conversationFile      String
-  
-  // Aggregated metrics per message
-  toolsUsed             Int       @default(0)
-  messagesCount         Int       @default(1)
-  inputTokens           Int       @default(0)
-  outputTokens          Int       @default(0)
-  cacheCreationTokens   Int       @default(0)
-  cacheReadTokens       Int       @default(0)
-  cost                  Float     @default(0)
-  
-  // File operations
-  filesRead             Int       @default(0)
-  filesEdited           Int       @default(0)
-  filesWritten          Int       @default(0)
-  linesRead             Int       @default(0)
-  linesEdited           Int       @default(0)
-  linesWritten          Int       @default(0)
-  linesAdded            Int       @default(0)
-  linesDeleted          Int       @default(0)
-  linesModified         Int       @default(0)
-  bytesRead             Int       @default(0)
-  bytesEdited           Int       @default(0)
-  bytesWritten          Int       @default(0)
-  terminalCommands      Int       @default(0)
-  globSearches          Int       @default(0)
-  grepSearches          Int       @default(0)
-  
-  // Todo stats
-  todosCreated          Int       @default(0)
-  todosCompleted        Int       @default(0)
-  todosInProgress       Int       @default(0)
-  todoWrites            Int       @default(0)
-  todoReads             Int       @default(0)
-  
-  createdAt             DateTime  @default(now())
-  
-  // Relationships
-  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  @@index([eventDate])
-  @@index([userId, eventDate])
-  @@index([createdAt])
-  @@map("user_events")
-}
 
-// Monthly aggregation table
-model UserMonthlyStats {
-  id                    String   @id @default(cuid())
-  userId                String   @unique
-  periodStart           DateTime
-  periodEnd             DateTime
-  
-  // Aggregated metrics
-  toolsCalled      Int      @default(0)
-  messagesSent     Int      @default(0)
-  inputTokens      Int      @default(0)
-  outputTokens     Int      @default(0)
-  cacheCreationTokens Int @default(0)
-  cacheReadTokens  Int      @default(0)
-  cost             Float    @default(0)
-  
-  // File operations
-  filesRead        Int      @default(0)
-  filesEdited      Int      @default(0)
-  filesWritten     Int      @default(0)
-  linesRead        Int      @default(0)
-  linesEdited      Int      @default(0)
-  linesWritten     Int      @default(0)
-  linesAdded       Int      @default(0)
-  linesDeleted     Int      @default(0)
-  linesModified    Int      @default(0)
-  bytesRead        Int      @default(0)
-  bytesEdited      Int      @default(0)
-  bytesWritten     Int      @default(0)
-  terminalCommands Int      @default(0)
-  globSearches     Int      @default(0)
-  grepSearches     Int      @default(0)
-  
-  // Todo stats
-  todosCreated     Int      @default(0)
-  todosCompleted   Int      @default(0)
-  todosInProgress  Int      @default(0)
-  todoWrites       Int      @default(0)
-  todoReads        Int      @default(0)
-  
-  createdAt             DateTime @default(now())
-  updatedAt             DateTime @updatedAt
-  
-  // Relationships
-  user                  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  @@map("user_monthly_stats")
-}
-
-// Weekly aggregation table
-model UserWeeklyStats {
-  id                    String   @id @default(cuid())
-  userId                String   @unique
-  periodStart           DateTime
-  periodEnd             DateTime
-  
-  // Aggregated metrics
-  toolsCalled      Int      @default(0)
-  messagesSent     Int      @default(0)
-  inputTokens      Int      @default(0)
-  outputTokens     Int      @default(0)
-  cacheCreationTokens Int @default(0)
-  cacheReadTokens  Int      @default(0)
-  cost             Float    @default(0)
-  
-  // File operations
-  filesRead        Int      @default(0)
-  filesEdited      Int      @default(0)
-  filesWritten     Int      @default(0)
-  linesRead        Int      @default(0)
-  linesEdited      Int      @default(0)
-  linesWritten     Int      @default(0)
-  linesAdded       Int      @default(0)
-  linesDeleted     Int      @default(0)
-  linesModified    Int      @default(0)
-  bytesRead        Int      @default(0)
-  bytesEdited      Int      @default(0)
-  bytesWritten     Int      @default(0)
-  terminalCommands Int      @default(0)
-  globSearches     Int      @default(0)
-  grepSearches     Int      @default(0)
-  
-  // Todo stats
-  todosCreated     Int      @default(0)
-  todosCompleted   Int      @default(0)
-  todosInProgress  Int      @default(0)
-  todoWrites       Int      @default(0)
-  todoReads        Int      @default(0)
-  
-  createdAt             DateTime @default(now())
-  updatedAt             DateTime @updatedAt
-  
-  // Relationships
-  user                  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  @@map("user_weekly_stats")
-}
-
-// Yearly aggregation table
-model UserYearlyStats {
-  id                    String   @id @default(cuid())
-  userId                String   @unique
-  periodStart           DateTime
-  periodEnd             DateTime
-  
-  // Aggregated metrics
-  toolsCalled      Int      @default(0)
-  messagesSent     Int      @default(0)
-  inputTokens      Int      @default(0)
-  outputTokens     Int      @default(0)
-  cacheCreationTokens Int @default(0)
-  cacheReadTokens  Int      @default(0)
-  cost             Float    @default(0)
-  
-  // File operations
-  filesRead        Int      @default(0)
-  filesEdited      Int      @default(0)
-  filesWritten     Int      @default(0)
-  linesRead        Int      @default(0)
-  linesEdited      Int      @default(0)
-  linesWritten     Int      @default(0)
-  linesAdded       Int      @default(0)
-  linesDeleted     Int      @default(0)
-  linesModified    Int      @default(0)
-  bytesRead        Int      @default(0)
-  bytesEdited      Int      @default(0)
-  bytesWritten     Int      @default(0)
-  terminalCommands Int      @default(0)
-  globSearches     Int      @default(0)
-  grepSearches     Int      @default(0)
-  
-  // Todo stats
-  todosCreated     Int      @default(0)
-  todosCompleted   Int      @default(0)
-  todosInProgress  Int      @default(0)
-  todoWrites       Int      @default(0)
-  todoReads        Int      @default(0)
-  
-  createdAt             DateTime @default(now())
-  updatedAt             DateTime @updatedAt
-  
-  // Relationships
-  user                  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  @@map("user_yearly_stats")
-}
-
-// All-time aggregation table (never resets, always accumulates)
-model UserAllTimeStats {
-  id                    String   @id @default(cuid())
-  userId                String   @unique
-  
-  // Aggregated metrics (lifetime s)
-  toolsCalled      Int      @default(0)
-  messagesSent     Int      @default(0)
-  inputTokens      Int      @default(0)
-  outputTokens     Int      @default(0)
-  cacheCreationTokens Int @default(0)
-  cacheReadTokens  Int      @default(0)
-  cost             Float    @default(0)
-  
-  // File operations
-  filesRead        Int      @default(0)
-  filesEdited      Int      @default(0)
-  filesWritten     Int      @default(0)
-  linesRead        Int      @default(0)
-  linesEdited      Int      @default(0)
-  linesWritten     Int      @default(0)
-  linesAdded       Int      @default(0)
-  linesDeleted     Int      @default(0)
-  linesModified    Int      @default(0)
-  bytesRead        Int      @default(0)
-  bytesEdited      Int      @default(0)
-  bytesWritten     Int      @default(0)
-  terminalCommands Int      @default(0)
-  globSearches     Int      @default(0)
-  grepSearches     Int      @default(0)
-  
-  // Todo stats
-  todosCreated     Int      @default(0)
-  todosCompleted   Int      @default(0)
-  todosInProgress  Int      @default(0)
-  todoWrites       Int      @default(0)
-  todoReads        Int      @default(0)
-  
-  createdAt             DateTime @default(now())
-  updatedAt             DateTime @updatedAt
-  
-  // Relationships
-  user                  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  @@map("user_all_time_stats")
-}

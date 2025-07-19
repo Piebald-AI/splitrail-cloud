@@ -1,3 +1,10 @@
+/*
+  Warnings:
+
+  - You are about to drop the `user_daily_stats` table. If the table is not empty, all the data it contains will be lost.
+
+*/
+
 -- CreateTable
 CREATE TABLE "message_stats" (
     "id" TEXT NOT NULL,
@@ -25,8 +32,8 @@ CREATE TABLE "message_stats" (
     "linesAdded" INTEGER,
     "linesDeleted" INTEGER,
     "linesModified" INTEGER,
-    "docsLines" INTEGER,
     "codeLines" INTEGER,
+    "docsLines" INTEGER,
     "dataLines" INTEGER,
     "bytesRead" INTEGER,
     "bytesEdited" INTEGER,
@@ -65,12 +72,12 @@ CREATE TABLE "user_stats" (
     "linesAdded" INTEGER NOT NULL DEFAULT 0,
     "linesDeleted" INTEGER NOT NULL DEFAULT 0,
     "linesModified" INTEGER NOT NULL DEFAULT 0,
+    "codeLines" INTEGER NOT NULL DEFAULT 0,
+    "docsLines" INTEGER NOT NULL DEFAULT 0,
+    "dataLines" INTEGER NOT NULL DEFAULT 0,
     "bytesRead" INTEGER NOT NULL DEFAULT 0,
     "bytesEdited" INTEGER NOT NULL DEFAULT 0,
     "bytesWritten" INTEGER NOT NULL DEFAULT 0,
-    "docsLines" INTEGER NOT NULL DEFAULT 0,
-    "codeLines" INTEGER NOT NULL DEFAULT 0,
-    "dataLines" INTEGER NOT NULL DEFAULT 0,
     "terminalCommands" INTEGER NOT NULL DEFAULT 0,
     "globSearches" INTEGER NOT NULL DEFAULT 0,
     "grepSearches" INTEGER NOT NULL DEFAULT 0,
@@ -85,14 +92,11 @@ CREATE TABLE "user_stats" (
     CONSTRAINT "user_stats_pkey" PRIMARY KEY ("id")
 );
 
-
 -- CreateIndex
 CREATE UNIQUE INDEX "user_stats_userId_period_key" ON "user_stats"("userId", "period");
 
-
 -- AddForeignKey
 ALTER TABLE "user_stats" ADD CONSTRAINT "user_stats_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
 
 -- Migrate data from user_daily_stats to user_stats with period = "all-time"
 INSERT INTO "user_stats" (
@@ -173,6 +177,9 @@ SELECT
     "createdAt",
     "updatedAt"
 FROM "user_daily_stats";
+
+-- DropForeignKey
+ALTER TABLE "user_daily_stats" DROP CONSTRAINT "user_daily_stats_userId_fkey";
 
 -- DropTable
 DROP TABLE "user_daily_stats";

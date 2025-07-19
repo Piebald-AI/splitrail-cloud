@@ -85,489 +85,112 @@ async function updateCurrentPeriodStats(userId: string, eventDate: Date, message
 
   // Update all period stats in parallel
   await Promise.all([
-    updateHourlyStats(userId, hourStart, getHourEnd(eventDate), messageType, stats),
-    updateDailyStats(userId, dayStart, getDayEnd(eventDate), messageType, stats),
-    updateWeeklyStats(userId, weekStart, getWeekEnd(eventDate), messageType, stats),
-    updateMonthlyStats(userId, monthStart, getMonthEnd(eventDate), messageType, stats),
-    updateYearlyStats(userId, yearStart, getYearEnd(eventDate), messageType, stats),
-    updateAllTimeStats(userId, messageType, stats)
+    updatePeriodStats(userId, "hourly", hourStart, getHourEnd(eventDate), messageType, stats),
+    updatePeriodStats(userId, "daily", dayStart, getDayEnd(eventDate), messageType, stats),
+    updatePeriodStats(userId, "weekly", weekStart, getWeekEnd(eventDate), messageType, stats),
+    updatePeriodStats(userId, "monthly", monthStart, getMonthEnd(eventDate), messageType, stats),
+    updatePeriodStats(userId, "yearly", yearStart, getYearEnd(eventDate), messageType, stats),
+    updatePeriodStats(userId, "all-time", null, null, messageType, stats)
   ]);
 }
 
-async function updateHourlyStats(userId: string, periodStart: Date, periodEnd: Date, messageType: string, stats: MessageStats) {
-  const existingStats = await db.userHourlyStats.findUnique({
-    where: { userId }
-  });
-
-  const statsData = {
-    periodStart,
-    periodEnd,
-    toolsCalled: stats.toolsUsed,
-    messagesSent: stats.messagesCount,
-    inputTokens: stats.inputTokens,
-    outputTokens: stats.outputTokens,
-    cacheCreationTokens: stats.cacheCreationTokens,
-    cacheReadTokens: stats.cacheReadTokens,
-    cost: stats.cost,
-    filesRead: stats.filesRead,
-    filesEdited: stats.filesEdited,
-    filesWritten: stats.filesWritten,
-    linesRead: stats.linesRead,
-    linesEdited: stats.linesEdited,
-    linesWritten: stats.linesWritten,
-    linesAdded: stats.linesAdded,
-    linesDeleted: stats.linesDeleted,
-    linesModified: stats.linesModified,
-    bytesRead: stats.bytesRead,
-    bytesEdited: stats.bytesEdited,
-    bytesWritten: stats.bytesWritten,
-    terminalCommands: stats.terminalCommands,
-    globSearches: stats.globSearches,
-    grepSearches: stats.grepSearches,
-    todosCreated: stats.todosCreated,
-    todosCompleted: stats.todosCompleted,
-    todosInProgress: stats.todosInProgress,
-    todoWrites: stats.todoWrites,
-    todoReads: stats.todoReads,
-  };
-
-  if (!existingStats || existingStats.periodStart.getTime() !== periodStart.getTime()) {
-    // New period - replace existing stats
-    await db.userHourlyStats.upsert({
-      where: { userId },
-      create: { userId, ...statsData },
-      update: statsData
-    });
-  } else {
-    // Same period - add to existing stats
-    await db.userHourlyStats.update({
-      where: { userId },
-      data: {
-        toolsCalled: existingStats.toolsCalled + stats.toolsUsed,
-        messagesSent: existingStats.messagesSent + stats.messagesCount,
-        inputTokens: existingStats.inputTokens + stats.inputTokens,
-        outputTokens: existingStats.outputTokens + stats.outputTokens,
-        cacheCreationTokens: existingStats.cacheCreationTokens + stats.cacheCreationTokens,
-        cacheReadTokens: existingStats.cacheReadTokens + stats.cacheReadTokens,
-        cost: existingStats.cost + stats.cost,
-        filesRead: existingStats.filesRead + stats.filesRead,
-        filesEdited: existingStats.filesEdited + stats.filesEdited,
-        filesWritten: existingStats.filesWritten + stats.filesWritten,
-        linesRead: existingStats.linesRead + stats.linesRead,
-        linesEdited: existingStats.linesEdited + stats.linesEdited,
-        linesWritten: existingStats.linesWritten + stats.linesWritten,
-        linesAdded: existingStats.linesAdded + stats.linesAdded,
-        linesDeleted: existingStats.linesDeleted + stats.linesDeleted,
-        linesModified: existingStats.linesModified + stats.linesModified,
-        bytesRead: existingStats.bytesRead + stats.bytesRead,
-        bytesEdited: existingStats.bytesEdited + stats.bytesEdited,
-        bytesWritten: existingStats.bytesWritten + stats.bytesWritten,
-        terminalCommands: existingStats.terminalCommands + stats.terminalCommands,
-        globSearches: existingStats.globSearches + stats.globSearches,
-        grepSearches: existingStats.grepSearches + stats.grepSearches,
-        todosCreated: existingStats.todosCreated + stats.todosCreated,
-        todosCompleted: existingStats.todosCompleted + stats.todosCompleted,
-        todosInProgress: existingStats.todosInProgress + stats.todosInProgress,
-        todoWrites: existingStats.todoWrites + stats.todoWrites,
-        todoReads: existingStats.todoReads + stats.todoReads,
-      }
-    });
-  }
-}
-
-async function updateDailyStats(userId: string, periodStart: Date, periodEnd: Date, messageType: string, stats: MessageStats) {
-  const existingStats = await db.userDailyStats.findUnique({
-    where: { userId }
-  });
-
-  const statsData = {
-    periodStart,
-    periodEnd,
-    toolsCalled: stats.toolsUsed,
-    messagesSent: stats.messagesCount,
-    inputTokens: stats.inputTokens,
-    outputTokens: stats.outputTokens,
-    cacheCreationTokens: stats.cacheCreationTokens,
-    cacheReadTokens: stats.cacheReadTokens,
-    cost: stats.cost,
-    filesRead: stats.filesRead,
-    filesEdited: stats.filesEdited,
-    filesWritten: stats.filesWritten,
-    linesRead: stats.linesRead,
-    linesEdited: stats.linesEdited,
-    linesWritten: stats.linesWritten,
-    linesAdded: stats.linesAdded,
-    linesDeleted: stats.linesDeleted,
-    linesModified: stats.linesModified,
-    bytesRead: stats.bytesRead,
-    bytesEdited: stats.bytesEdited,
-    bytesWritten: stats.bytesWritten,
-    terminalCommands: stats.terminalCommands,
-    globSearches: stats.globSearches,
-    grepSearches: stats.grepSearches,
-    todosCreated: stats.todosCreated,
-    todosCompleted: stats.todosCompleted,
-    todosInProgress: stats.todosInProgress,
-    todoWrites: stats.todoWrites,
-    todoReads: stats.todoReads,
-  };
-
-  if (!existingStats || existingStats.periodStart.getTime() !== periodStart.getTime()) {
-    // New period - replace existing stats
-    await db.userDailyStats.upsert({
-      where: { userId },
-      create: { userId, ...statsData },
-      update: statsData
-    });
-  } else {
-    // Same period - add to existing stats
-    await db.userDailyStats.update({
-      where: { userId },
-      data: {
-        toolsCalled: existingStats.toolsCalled + stats.toolsUsed,
-        messagesSent: existingStats.messagesSent + stats.messagesCount,
-        inputTokens: existingStats.inputTokens + stats.inputTokens,
-        outputTokens: existingStats.outputTokens + stats.outputTokens,
-        cacheCreationTokens: existingStats.cacheCreationTokens + stats.cacheCreationTokens,
-        cacheReadTokens: existingStats.cacheReadTokens + stats.cacheReadTokens,
-        cost: existingStats.cost + stats.cost,
-        filesRead: existingStats.filesRead + stats.filesRead,
-        filesEdited: existingStats.filesEdited + stats.filesEdited,
-        filesWritten: existingStats.filesWritten + stats.filesWritten,
-        linesRead: existingStats.linesRead + stats.linesRead,
-        linesEdited: existingStats.linesEdited + stats.linesEdited,
-        linesWritten: existingStats.linesWritten + stats.linesWritten,
-        linesAdded: existingStats.linesAdded + stats.linesAdded,
-        linesDeleted: existingStats.linesDeleted + stats.linesDeleted,
-        linesModified: existingStats.linesModified + stats.linesModified,
-        bytesRead: existingStats.bytesRead + stats.bytesRead,
-        bytesEdited: existingStats.bytesEdited + stats.bytesEdited,
-        bytesWritten: existingStats.bytesWritten + stats.bytesWritten,
-        terminalCommands: existingStats.terminalCommands + stats.terminalCommands,
-        globSearches: existingStats.globSearches + stats.globSearches,
-        grepSearches: existingStats.grepSearches + stats.grepSearches,
-        todosCreated: existingStats.todosCreated + stats.todosCreated,
-        todosCompleted: existingStats.todosCompleted + stats.todosCompleted,
-        todosInProgress: existingStats.todosInProgress + stats.todosInProgress,
-        todoWrites: existingStats.todoWrites + stats.todoWrites,
-        todoReads: existingStats.todoReads + stats.todoReads,
-      }
-    });
-  }
-}
-
-async function updateWeeklyStats(userId: string, periodStart: Date, periodEnd: Date, messageType: string, stats: MessageStats) {
-  const existingStats = await db.userWeeklyStats.findUnique({
-    where: { userId }
-  });
-
-  const statsData = {
-    periodStart,
-    periodEnd,
-    toolsCalled: stats.toolsUsed,
-    messagesSent: stats.messagesCount,
-    inputTokens: stats.inputTokens,
-    outputTokens: stats.outputTokens,
-    cacheCreationTokens: stats.cacheCreationTokens,
-    cacheReadTokens: stats.cacheReadTokens,
-    cost: stats.cost,
-    filesRead: stats.filesRead,
-    filesEdited: stats.filesEdited,
-    filesWritten: stats.filesWritten,
-    linesRead: stats.linesRead,
-    linesEdited: stats.linesEdited,
-    linesWritten: stats.linesWritten,
-    linesAdded: stats.linesAdded,
-    linesDeleted: stats.linesDeleted,
-    linesModified: stats.linesModified,
-    bytesRead: stats.bytesRead,
-    bytesEdited: stats.bytesEdited,
-    bytesWritten: stats.bytesWritten,
-    terminalCommands: stats.terminalCommands,
-    globSearches: stats.globSearches,
-    grepSearches: stats.grepSearches,
-    todosCreated: stats.todosCreated,
-    todosCompleted: stats.todosCompleted,
-    todosInProgress: stats.todosInProgress,
-    todoWrites: stats.todoWrites,
-    todoReads: stats.todoReads,
-  };
-
-  if (!existingStats || existingStats.periodStart.getTime() !== periodStart.getTime()) {
-    await db.userWeeklyStats.upsert({
-      where: { userId },
-      create: { userId, ...statsData },
-      update: statsData
-    });
-  } else {
-    await db.userWeeklyStats.update({
-      where: { userId },
-      data: {
-        toolsCalled: existingStats.toolsCalled + stats.toolsUsed,
-        messagesSent: existingStats.messagesSent + stats.messagesCount,
-        inputTokens: existingStats.inputTokens + stats.inputTokens,
-        outputTokens: existingStats.outputTokens + stats.outputTokens,
-        cacheCreationTokens: existingStats.cacheCreationTokens + stats.cacheCreationTokens,
-        cacheReadTokens: existingStats.cacheReadTokens + stats.cacheReadTokens,
-        cost: existingStats.cost + stats.cost,
-        filesRead: existingStats.filesRead + stats.filesRead,
-        filesEdited: existingStats.filesEdited + stats.filesEdited,
-        filesWritten: existingStats.filesWritten + stats.filesWritten,
-        linesRead: existingStats.linesRead + stats.linesRead,
-        linesEdited: existingStats.linesEdited + stats.linesEdited,
-        linesWritten: existingStats.linesWritten + stats.linesWritten,
-        linesAdded: existingStats.linesAdded + stats.linesAdded,
-        linesDeleted: existingStats.linesDeleted + stats.linesDeleted,
-        linesModified: existingStats.linesModified + stats.linesModified,
-        bytesRead: existingStats.bytesRead + stats.bytesRead,
-        bytesEdited: existingStats.bytesEdited + stats.bytesEdited,
-        bytesWritten: existingStats.bytesWritten + stats.bytesWritten,
-        terminalCommands: existingStats.terminalCommands + stats.terminalCommands,
-        globSearches: existingStats.globSearches + stats.globSearches,
-        grepSearches: existingStats.grepSearches + stats.grepSearches,
-        todosCreated: existingStats.todosCreated + stats.todosCreated,
-        todosCompleted: existingStats.todosCompleted + stats.todosCompleted,
-        todosInProgress: existingStats.todosInProgress + stats.todosInProgress,
-        todoWrites: existingStats.todoWrites + stats.todoWrites,
-        todoReads: existingStats.todoReads + stats.todoReads,
-      }
-    });
-  }
-}
-
-async function updateMonthlyStats(userId: string, periodStart: Date, periodEnd: Date, messageType: string, stats: MessageStats) {
-  const existingStats = await db.userMonthlyStats.findUnique({
-    where: { userId }
-  });
-
-  const statsData = {
-    periodStart,
-    periodEnd,
-    toolsCalled: stats.toolsUsed,
-    messagesSent: stats.messagesCount,
-    inputTokens: stats.inputTokens,
-    outputTokens: stats.outputTokens,
-    cacheCreationTokens: stats.cacheCreationTokens,
-    cacheReadTokens: stats.cacheReadTokens,
-    cost: stats.cost,
-    filesRead: stats.filesRead,
-    filesEdited: stats.filesEdited,
-    filesWritten: stats.filesWritten,
-    linesRead: stats.linesRead,
-    linesEdited: stats.linesEdited,
-    linesWritten: stats.linesWritten,
-    linesAdded: stats.linesAdded,
-    linesDeleted: stats.linesDeleted,
-    linesModified: stats.linesModified,
-    bytesRead: stats.bytesRead,
-    bytesEdited: stats.bytesEdited,
-    bytesWritten: stats.bytesWritten,
-    terminalCommands: stats.terminalCommands,
-    globSearches: stats.globSearches,
-    grepSearches: stats.grepSearches,
-    todosCreated: stats.todosCreated,
-    todosCompleted: stats.todosCompleted,
-    todosInProgress: stats.todosInProgress,
-    todoWrites: stats.todoWrites,
-    todoReads: stats.todoReads,
-  };
-
-  if (!existingStats || existingStats.periodStart.getTime() !== periodStart.getTime()) {
-    await db.userMonthlyStats.upsert({
-      where: { userId },
-      create: { userId, ...statsData },
-      update: statsData
-    });
-  } else {
-    await db.userMonthlyStats.update({
-      where: { userId },
-      data: {
-        toolsCalled: existingStats.toolsCalled + stats.toolsUsed,
-        messagesSent: existingStats.messagesSent + stats.messagesCount,
-        inputTokens: existingStats.inputTokens + stats.inputTokens,
-        outputTokens: existingStats.outputTokens + stats.outputTokens,
-        cacheCreationTokens: existingStats.cacheCreationTokens + stats.cacheCreationTokens,
-        cacheReadTokens: existingStats.cacheReadTokens + stats.cacheReadTokens,
-        cost: existingStats.cost + stats.cost,
-        filesRead: existingStats.filesRead + stats.filesRead,
-        filesEdited: existingStats.filesEdited + stats.filesEdited,
-        filesWritten: existingStats.filesWritten + stats.filesWritten,
-        linesRead: existingStats.linesRead + stats.linesRead,
-        linesEdited: existingStats.linesEdited + stats.linesEdited,
-        linesWritten: existingStats.linesWritten + stats.linesWritten,
-        linesAdded: existingStats.linesAdded + stats.linesAdded,
-        linesDeleted: existingStats.linesDeleted + stats.linesDeleted,
-        linesModified: existingStats.linesModified + stats.linesModified,
-        bytesRead: existingStats.bytesRead + stats.bytesRead,
-        bytesEdited: existingStats.bytesEdited + stats.bytesEdited,
-        bytesWritten: existingStats.bytesWritten + stats.bytesWritten,
-        terminalCommands: existingStats.terminalCommands + stats.terminalCommands,
-        globSearches: existingStats.globSearches + stats.globSearches,
-        grepSearches: existingStats.grepSearches + stats.grepSearches,
-        todosCreated: existingStats.todosCreated + stats.todosCreated,
-        todosCompleted: existingStats.todosCompleted + stats.todosCompleted,
-        todosInProgress: existingStats.todosInProgress + stats.todosInProgress,
-        todoWrites: existingStats.todoWrites + stats.todoWrites,
-        todoReads: existingStats.todoReads + stats.todoReads,
-      }
-    });
-  }
-}
-
-async function updateYearlyStats(userId: string, periodStart: Date, periodEnd: Date, messageType: string, stats: MessageStats) {
-  const existingStats = await db.userYearlyStats.findUnique({
-    where: { userId }
-  });
-
-  const statsData = {
-    periodStart,
-    periodEnd,
-    toolsCalled: stats.toolsUsed,
-    messagesSent: stats.messagesCount,
-    inputTokens: stats.inputTokens,
-    outputTokens: stats.outputTokens,
-    cacheCreationTokens: stats.cacheCreationTokens,
-    cacheReadTokens: stats.cacheReadTokens,
-    cost: stats.cost,
-    filesRead: stats.filesRead,
-    filesEdited: stats.filesEdited,
-    filesWritten: stats.filesWritten,
-    linesRead: stats.linesRead,
-    linesEdited: stats.linesEdited,
-    linesWritten: stats.linesWritten,
-    linesAdded: stats.linesAdded,
-    linesDeleted: stats.linesDeleted,
-    linesModified: stats.linesModified,
-    bytesRead: stats.bytesRead,
-    bytesEdited: stats.bytesEdited,
-    bytesWritten: stats.bytesWritten,
-    terminalCommands: stats.terminalCommands,
-    globSearches: stats.globSearches,
-    grepSearches: stats.grepSearches,
-    todosCreated: stats.todosCreated,
-    todosCompleted: stats.todosCompleted,
-    todosInProgress: stats.todosInProgress,
-    todoWrites: stats.todoWrites,
-    todoReads: stats.todoReads,
-  };
-
-  if (!existingStats || existingStats.periodStart.getTime() !== periodStart.getTime()) {
-    await db.userYearlyStats.upsert({
-      where: { userId },
-      create: { userId, ...statsData },
-      update: statsData
-    });
-  } else {
-    await db.userYearlyStats.update({
-      where: { userId },
-      data: {
-        toolsCalled: existingStats.toolsCalled + stats.toolsUsed,
-        messagesSent: existingStats.messagesSent + stats.messagesCount,
-        inputTokens: existingStats.inputTokens + stats.inputTokens,
-        outputTokens: existingStats.outputTokens + stats.outputTokens,
-        cacheCreationTokens: existingStats.cacheCreationTokens + stats.cacheCreationTokens,
-        cacheReadTokens: existingStats.cacheReadTokens + stats.cacheReadTokens,
-        cost: existingStats.cost + stats.cost,
-        filesRead: existingStats.filesRead + stats.filesRead,
-        filesEdited: existingStats.filesEdited + stats.filesEdited,
-        filesWritten: existingStats.filesWritten + stats.filesWritten,
-        linesRead: existingStats.linesRead + stats.linesRead,
-        linesEdited: existingStats.linesEdited + stats.linesEdited,
-        linesWritten: existingStats.linesWritten + stats.linesWritten,
-        linesAdded: existingStats.linesAdded + stats.linesAdded,
-        linesDeleted: existingStats.linesDeleted + stats.linesDeleted,
-        linesModified: existingStats.linesModified + stats.linesModified,
-        bytesRead: existingStats.bytesRead + stats.bytesRead,
-        bytesEdited: existingStats.bytesEdited + stats.bytesEdited,
-        bytesWritten: existingStats.bytesWritten + stats.bytesWritten,
-        terminalCommands: existingStats.terminalCommands + stats.terminalCommands,
-        globSearches: existingStats.globSearches + stats.globSearches,
-        grepSearches: existingStats.grepSearches + stats.grepSearches,
-        todosCreated: existingStats.todosCreated + stats.todosCreated,
-        todosCompleted: existingStats.todosCompleted + stats.todosCompleted,
-        todosInProgress: existingStats.todosInProgress + stats.todosInProgress,
-        todoWrites: existingStats.todoWrites + stats.todoWrites,
-        todoReads: existingStats.todoReads + stats.todoReads,
-      }
-    });
-  }
-}
-
-async function updateAllTimeStats(userId: string, messageType: string, stats: MessageStats) {
-  const existingStats = await db.userAllTimeStats.findUnique({
-    where: { userId }
-  });
-
-  if (existingStats) {
-    // Always accumulate - never reset all-time stats
-    await db.userAllTimeStats.update({
-      where: { userId },
-      data: {
-        toolsCalled: existingStats.toolsCalled + stats.toolsUsed,
-        messagesSent: existingStats.messagesSent + stats.messagesCount,
-        inputTokens: existingStats.inputTokens + stats.inputTokens,
-        outputTokens: existingStats.outputTokens + stats.outputTokens,
-        cacheCreationTokens: existingStats.cacheCreationTokens + stats.cacheCreationTokens,
-        cacheReadTokens: existingStats.cacheReadTokens + stats.cacheReadTokens,
-        cost: existingStats.cost + stats.cost,
-        filesRead: existingStats.filesRead + stats.filesRead,
-        filesEdited: existingStats.filesEdited + stats.filesEdited,
-        filesWritten: existingStats.filesWritten + stats.filesWritten,
-        linesRead: existingStats.linesRead + stats.linesRead,
-        linesEdited: existingStats.linesEdited + stats.linesEdited,
-        linesWritten: existingStats.linesWritten + stats.linesWritten,
-        linesAdded: existingStats.linesAdded + stats.linesAdded,
-        linesDeleted: existingStats.linesDeleted + stats.linesDeleted,
-        linesModified: existingStats.linesModified + stats.linesModified,
-        bytesRead: existingStats.bytesRead + stats.bytesRead,
-        bytesEdited: existingStats.bytesEdited + stats.bytesEdited,
-        bytesWritten: existingStats.bytesWritten + stats.bytesWritten,
-        terminalCommands: existingStats.terminalCommands + stats.terminalCommands,
-        globSearches: existingStats.globSearches + stats.globSearches,
-        grepSearches: existingStats.grepSearches + stats.grepSearches,
-        todosCreated: existingStats.todosCreated + stats.todosCreated,
-        todosCompleted: existingStats.todosCompleted + stats.todosCompleted,
-        todosInProgress: existingStats.todosInProgress + stats.todosInProgress,
-        todoWrites: existingStats.todoWrites + stats.todoWrites,
-        todoReads: existingStats.todoReads + stats.todoReads,
-      }
-    });
-  } else {
-    // Create initial all-time stats
-    await db.userAllTimeStats.create({
-      data: {
+async function updatePeriodStats(userId: string, period: string, periodStart: Date | null, periodEnd: Date | null, messageType: string, stats: MessageStats) {
+  const existingStats = await db.userStats.findUnique({
+    where: { 
+      userId_period: {
         userId,
-        toolsCalled: stats.toolsUsed,
-        messagesSent: stats.messagesCount,
-        inputTokens: stats.inputTokens,
-        outputTokens: stats.outputTokens,
-        cacheCreationTokens: stats.cacheCreationTokens,
-        cacheReadTokens: stats.cacheReadTokens,
-        cost: stats.cost,
-        filesRead: stats.filesRead,
-        filesEdited: stats.filesEdited,
-        filesWritten: stats.filesWritten,
-        linesRead: stats.linesRead,
-        linesEdited: stats.linesEdited,
-        linesWritten: stats.linesWritten,
-        linesAdded: stats.linesAdded,
-        linesDeleted: stats.linesDeleted,
-        linesModified: stats.linesModified,
-        bytesRead: stats.bytesRead,
-        bytesEdited: stats.bytesEdited,
-        bytesWritten: stats.bytesWritten,
-        terminalCommands: stats.terminalCommands,
-        globSearches: stats.globSearches,
-        grepSearches: stats.grepSearches,
-        todosCreated: stats.todosCreated,
-        todosCompleted: stats.todosCompleted,
-        todosInProgress: stats.todosInProgress,
-        todoWrites: stats.todoWrites,
-        todoReads: stats.todoReads,
+        period
+      }
+    }
+  });
+
+  const statsData = {
+    period,
+    periodStart,
+    periodEnd,
+    toolsCalled: stats.toolsUsed,
+    messagesSent: stats.messagesCount,
+    inputTokens: stats.inputTokens,
+    outputTokens: stats.outputTokens,
+    cacheCreationTokens: stats.cacheCreationTokens,
+    cacheReadTokens: stats.cacheReadTokens,
+    cost: stats.cost,
+    filesRead: stats.filesRead,
+    filesEdited: stats.filesEdited,
+    filesWritten: stats.filesWritten,
+    linesRead: stats.linesRead,
+    linesEdited: stats.linesEdited,
+    linesWritten: stats.linesWritten,
+    linesAdded: stats.linesAdded,
+    linesDeleted: stats.linesDeleted,
+    linesModified: stats.linesModified,
+    bytesRead: stats.bytesRead,
+    bytesEdited: stats.bytesEdited,
+    bytesWritten: stats.bytesWritten,
+    terminalCommands: stats.terminalCommands,
+    globSearches: stats.globSearches,
+    grepSearches: stats.grepSearches,
+    todosCreated: stats.todosCreated,
+    todosCompleted: stats.todosCompleted,
+    todosInProgress: stats.todosInProgress,
+    todoWrites: stats.todoWrites,
+    todoReads: stats.todoReads,
+  };
+
+  if (!existingStats || (periodStart && existingStats.periodStart && existingStats.periodStart.getTime() !== periodStart.getTime())) {
+    // New period - replace existing stats
+    await db.userStats.upsert({
+      where: { 
+        userId_period: {
+          userId,
+          period
+        }
+      },
+      create: { userId, ...statsData },
+      update: statsData
+    });
+  } else {
+    // Same period - add to existing stats
+    await db.userStats.update({
+      where: { 
+        userId_period: {
+          userId,
+          period
+        }
+      },
+      data: {
+        toolsCalled: existingStats.toolsCalled + stats.toolsUsed,
+        messagesSent: existingStats.messagesSent + stats.messagesCount,
+        inputTokens: existingStats.inputTokens + stats.inputTokens,
+        outputTokens: existingStats.outputTokens + stats.outputTokens,
+        cacheCreationTokens: existingStats.cacheCreationTokens + stats.cacheCreationTokens,
+        cacheReadTokens: existingStats.cacheReadTokens + stats.cacheReadTokens,
+        cost: existingStats.cost + stats.cost,
+        filesRead: existingStats.filesRead + stats.filesRead,
+        filesEdited: existingStats.filesEdited + stats.filesEdited,
+        filesWritten: existingStats.filesWritten + stats.filesWritten,
+        linesRead: existingStats.linesRead + stats.linesRead,
+        linesEdited: existingStats.linesEdited + stats.linesEdited,
+        linesWritten: existingStats.linesWritten + stats.linesWritten,
+        linesAdded: existingStats.linesAdded + stats.linesAdded,
+        linesDeleted: existingStats.linesDeleted + stats.linesDeleted,
+        linesModified: existingStats.linesModified + stats.linesModified,
+        bytesRead: existingStats.bytesRead + stats.bytesRead,
+        bytesEdited: existingStats.bytesEdited + stats.bytesEdited,
+        bytesWritten: existingStats.bytesWritten + stats.bytesWritten,
+        terminalCommands: existingStats.terminalCommands + stats.terminalCommands,
+        globSearches: existingStats.globSearches + stats.globSearches,
+        grepSearches: existingStats.grepSearches + stats.grepSearches,
+        todosCreated: existingStats.todosCreated + stats.todosCreated,
+        todosCompleted: existingStats.todosCompleted + stats.todosCompleted,
+        todosInProgress: existingStats.todosInProgress + stats.todosInProgress,
+        todoWrites: existingStats.todoWrites + stats.todoWrites,
+        todoReads: existingStats.todoReads + stats.todoReads,
       }
     });
   }
 }
+
 
 export async function POST(request: NextRequest) {
   try {
@@ -598,43 +221,6 @@ export async function POST(request: NextRequest) {
       if ("AI" in message && message.AI) {
         const { fileOperations, todoStats, ...aiMessage } = message.AI as AIMessage;
         
-        // Insert into raw events table
-        await db.userEvents.create({
-          data: {
-            userId: user.id,
-            eventDate: dateOnly,
-            type: "AI",
-            timestamp: aiMessage.timestamp,
-            conversationFile: aiMessage.conversationFile,
-            toolsUsed: aiMessage.toolCalls || 0,
-            messagesCount: 1,
-            inputTokens: aiMessage.inputTokens || 0,
-            outputTokens: aiMessage.outputTokens || 0,
-            cacheCreationTokens: aiMessage.cacheCreationTokens || 0,
-            cacheReadTokens: aiMessage.cacheReadTokens || 0,
-            cost: aiMessage.cost || 0,
-            filesRead: fileOperations?.filesRead || 0,
-            filesEdited: fileOperations?.filesEdited || 0,
-            filesWritten: fileOperations?.filesWritten || 0,
-            linesRead: fileOperations?.linesRead || 0,
-            linesEdited: fileOperations?.linesEdited || 0,
-            linesWritten: fileOperations?.linesWritten || 0,
-            linesAdded: fileOperations?.linesAdded || 0,
-            linesDeleted: fileOperations?.linesDeleted || 0,
-            linesModified: fileOperations?.linesModified || 0,
-            bytesRead: fileOperations?.bytesRead || 0,
-            bytesEdited: fileOperations?.bytesEdited || 0,
-            bytesWritten: fileOperations?.bytesWritten || 0,
-            terminalCommands: fileOperations?.terminalCommands || 0,
-            globSearches: fileOperations?.globSearches || 0,
-            grepSearches: fileOperations?.grepSearches || 0,
-            todosCreated: todoStats?.todosCreated || 0,
-            todosCompleted: todoStats?.todosCompleted || 0,
-            todosInProgress: todoStats?.todosInProgress || 0,
-            todoWrites: todoStats?.todoWrites || 0,
-            todoReads: todoStats?.todoReads || 0,
-          },
-        });
 
         // Update current period stats
         await updateCurrentPeriodStats(user.id, eventDate, "AI", {
@@ -670,43 +256,6 @@ export async function POST(request: NextRequest) {
       } else if ("User" in message && message.User) {
         const { todoStats, ...userMessage } = message.User as UserMessage;
         
-        // Insert into raw events table
-        await db.userEvents.create({
-          data: {
-            userId: user.id,
-            eventDate: dateOnly,
-            type: "User",
-            timestamp: userMessage.timestamp,
-            conversationFile: userMessage.conversationFile,
-            toolsUsed: 0,
-            messagesCount: 1,
-            inputTokens: 0,
-            outputTokens: 0,
-            cacheCreationTokens: 0,
-            cacheReadTokens: 0,
-            cost: 0,
-            filesRead: 0,
-            filesEdited: 0,
-            filesWritten: 0,
-            linesRead: 0,
-            linesEdited: 0,
-            linesWritten: 0,
-            linesAdded: 0,
-            linesDeleted: 0,
-            linesModified: 0,
-            bytesRead: 0,
-            bytesEdited: 0,
-            bytesWritten: 0,
-            terminalCommands: 0,
-            globSearches: 0,
-            grepSearches: 0,
-            todosCreated: todoStats?.todosCreated || 0,
-            todosCompleted: todoStats?.todosCompleted || 0,
-            todosInProgress: todoStats?.todosInProgress || 0,
-            todoWrites: todoStats?.todoWrites || 0,
-            todoReads: todoStats?.todoReads || 0,
-          },
-        });
 
         // Update current period stats
         await updateCurrentPeriodStats(user.id, eventDate, "User", {
