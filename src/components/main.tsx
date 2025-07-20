@@ -8,7 +8,7 @@ const Main = ({ children }: { children: React.ReactNode }) => {
     <main
       className={
         pathname !== "/"
-          ? "h-full min-h-0 overflow-auto container mx-auto p-6 flex-col"
+          ? "h-full min-h-0 overflow-auto container mx-auto px-6 py-12 flex-col"
           : ""
       }
     >

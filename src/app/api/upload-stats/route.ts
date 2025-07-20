@@ -184,7 +184,7 @@ async function updatePeriodStats(
     });
   } else {
     // Add incoming stats to existing stats.
-    let newStats: Partial<UserStats> = {};
+    const newStats: Partial<UserStats> = {};
     StatKeys.forEach((key) => {
       newStats[key] = existingStats[key] + (stats[key] ?? 0);
     });
