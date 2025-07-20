@@ -22,6 +22,7 @@ model User {
   
   // Relationships
   userStats     UserStats[]
+  messageStats  MessageStats[]
   preferences   UserPreferences?
   sessions      Session[]
   accounts      Account[]
@@ -32,7 +33,8 @@ model User {
 }
 
 model MessageStats {
-  id                    String    @id @default(cuid())
+  hash                  String    @id
+  userId                String
   type                  String    // "AI" or "User"
   timestamp             String
   conversationFile      String
@@ -43,7 +45,6 @@ model MessageStats {
   cost                  Float?
   model                 String?
   toolCalls             Int?
-  hash                  String?
   fileTypes             Json?
   terminalCommands      Int?
   fileSearches          Int?
@@ -74,7 +75,11 @@ model MessageStats {
   
   createdAt             DateTime  @default(now())
   updatedAt             DateTime  @updatedAt
-
+  
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId, timestamp])
+  @@index([timestamp])
   @@map("message_stats")
 }
 
@@ -84,8 +89,9 @@ model UserStats {
   period                String   // "hourly", "daily", "weekly", "monthly", "yearly", "all-time"
   periodStart           DateTime?
   periodEnd             DateTime?
-  toolsCalled           Int      @default(0)
-  messagesSent          Int      @default(0)
+  toolCalls             Int      @default(0)
+  aiMessages            Int      @default(0)
+  userMessages          Int      @default(0)
   inputTokens           Int      @default(0)
   outputTokens          Int      @default(0)
   cacheCreationTokens   Int      @default(0)

@@ -36,15 +36,28 @@ export interface TodoStats {
   todoWrites: number;
 }
 
-export type UserStats = FileOperationStats & CompositionStats & TodoStats & {
-  cost: number;
+export interface GeneralStats {
   inputTokens: number;
   outputTokens: number;
   cacheCreationTokens: number;
   cacheReadTokens: number;
-  messagesSent: number;
-  toolsCalled: number;
-};
+  cost: number;
+  toolCalls: number;
+}
+
+export type UserStats = FileOperationStats &
+  CompositionStats &
+  TodoStats &
+  GeneralStats & {
+    aiMessages: number;
+    userMessages: number;
+  };
+
+export interface UserStatsWithPeriods extends UserStats {
+  period: string;
+  periodStart?: Date;
+  periodEnd?: Date;
+}
 
 // Extended types for API responses
 export interface UserWithStats extends User, UserStats {
@@ -56,9 +69,7 @@ export interface UserWithStats extends User, UserStats {
 }
 
 export interface UserWithPeriods extends UserWithStats {
-  userStats: Array<
-    UserStats & { period: string; periodStart?: Date; periodEnd?: Date }
-  >;
+  userStats: Array<UserStatsWithPeriods>;
 }
 
 export interface LeaderboardData {
@@ -87,21 +98,11 @@ export interface ModelData {
 }
 
 export type AIMessage = {
-  inputTokens: number;
-  outputTokens: number;
-  cacheCreationTokens: number;
-  cacheReadTokens: number;
-  cost: number;
   model: string;
   timestamp: string;
-  messageId: string | null;
-  requestId: string | null;
-  hasCostUsd: boolean;
-  toolCalls: number;
-  entryType: string | null;
   hash: string | null;
-  isUserMessage: boolean;
   conversationFile: string;
+  generalStats: GeneralStats;
   fileOperations: FileOperationStats;
   todoStats: TodoStats;
   compositionStats: CompositionStats;

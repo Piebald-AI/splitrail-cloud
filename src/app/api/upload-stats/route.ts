@@ -93,7 +93,7 @@ function getYearEnd(date: Date): Date {
 async function updateCurrentPeriodStats(
   userId: string,
   eventDate: Date,
-  stats: UserStats
+  stats: Partial<UserStats>
 ) {
   // Update all period stats in parallel
   await Promise.all([
@@ -141,7 +141,7 @@ async function updatePeriodStats(
   period: string,
   periodStart: Date | null,
   periodEnd: Date | null,
-  stats: UserStats
+  stats: Partial<UserStats>
 ) {
   const existingStats = await db.userStats.findUnique({
     where: {
@@ -151,42 +151,6 @@ async function updatePeriodStats(
       },
     },
   });
-
-  const statsData = {
-    period,
-    periodStart,
-    periodEnd,
-    toolsCalled: stats.toolsCalled,
-    messagesSent: stats.messagesSent,
-    inputTokens: stats.inputTokens,
-    outputTokens: stats.outputTokens,
-    cacheCreationTokens: stats.cacheCreationTokens,
-    cacheReadTokens: stats.cacheReadTokens,
-    cost: stats.cost,
-    filesRead: stats.filesRead,
-    filesAdded: stats.filesAdded,
-    filesEdited: stats.filesEdited,
-    filesDeleted: stats.filesDeleted,
-    linesRead: stats.linesRead,
-    linesAdded: stats.linesAdded,
-    linesEdited: stats.linesEdited,
-    linesDeleted: stats.linesDeleted,
-    bytesRead: stats.bytesRead,
-    bytesAdded: stats.bytesAdded,
-    bytesEdited: stats.bytesEdited,
-    bytesDeleted: stats.bytesDeleted,
-    terminalCommands: stats.terminalCommands,
-    globSearches: stats.globSearches,
-    grepSearches: stats.grepSearches,
-    todosCreated: stats.todosCreated,
-    todosCompleted: stats.todosCompleted,
-    todosInProgress: stats.todosInProgress,
-    todoWrites: stats.todoWrites,
-    todoReads: stats.todoReads,
-    codeLines: stats.codeLines,
-    docsLines: stats.docsLines,
-    dataLines: stats.dataLines,
-  };
 
   // If there are existing stats, and the existing period start is not equal to the new period
   // start (i.e. a new period has begun).
@@ -199,6 +163,14 @@ async function updatePeriodStats(
     console.log(
       `New period (${period}) - replacing existing stats with $${stats.cost}`
     );
+
+    const statsData = {
+      period,
+      periodStart,
+      periodEnd,
+      ...stats,
+    };
+
     // New period - replace existing stats
     await db.userStats.upsert({
       where: {
@@ -211,10 +183,15 @@ async function updatePeriodStats(
       update: statsData,
     });
   } else {
-    console.log(
-      `Same period (${period}) - adding to existing stats $${existingStats.cost} with $${stats.cost} (${existingStats.cost + stats.cost})`
-    );
     // Same period - add to existing stats
+    console.log(
+      `Same period (${period}) - adding to existing stats $${existingStats.cost} with $${stats.cost} (${existingStats.cost + (stats.cost || 0)})`
+    );
+
+    let concatenatedStats = existingStats;
+    (Object.keys(stats) as (keyof UserStats)[]).forEach((key) => {
+      concatenatedStats[key] += stats[key];
+    });
     await db.userStats.update({
       where: {
         userId_period: {
@@ -222,44 +199,7 @@ async function updatePeriodStats(
           period,
         },
       },
-      data: {
-        toolsCalled: existingStats.toolsCalled + stats.toolsCalled,
-        messagesSent: existingStats.messagesSent + stats.messagesSent,
-        inputTokens: existingStats.inputTokens + stats.inputTokens,
-        outputTokens: existingStats.outputTokens + stats.outputTokens,
-        cacheCreationTokens:
-          existingStats.cacheCreationTokens + stats.cacheCreationTokens,
-        cacheReadTokens: existingStats.cacheReadTokens + stats.cacheReadTokens,
-        cost: existingStats.cost + stats.cost,
-        filesRead: existingStats.filesRead + stats.filesRead,
-        filesAdded: existingStats.filesAdded + stats.filesAdded,
-        filesEdited: existingStats.filesEdited + stats.filesEdited,
-        filesDeleted: existingStats.filesDeleted + stats.filesDeleted,
-        linesRead: existingStats.linesRead + stats.linesRead,
-        linesAdded: existingStats.linesAdded + stats.linesAdded,
-        linesEdited: existingStats.linesEdited + stats.linesEdited,
-        linesDeleted: existingStats.linesDeleted + stats.linesDeleted,
-        codeLines: existingStats.codeLines + stats.codeLines,
-        docsLines: existingStats.docsLines + stats.docsLines,
-        dataLines: existingStats.dataLines + stats.dataLines,
-        mediaLines: existingStats.mediaLines + stats.mediaLines,
-        configLines: existingStats.configLines + stats.configLines,
-        otherLines: existingStats.otherLines + stats.otherLines,
-        bytesRead: existingStats.bytesRead + stats.bytesRead,
-        bytesAdded: existingStats.bytesAdded + stats.bytesAdded,
-        bytesEdited: existingStats.bytesEdited + stats.bytesEdited,
-        bytesDeleted: existingStats.bytesDeleted + stats.bytesDeleted,
-        terminalCommands:
-          existingStats.terminalCommands + stats.terminalCommands,
-        fileSearches: existingStats.fileSearches + stats.fileSearches,
-        fileContentSearches:
-          existingStats.fileContentSearches + stats.fileContentSearches,
-        todosCreated: existingStats.todosCreated + stats.todosCreated,
-        todosCompleted: existingStats.todosCompleted + stats.todosCompleted,
-        todosInProgress: existingStats.todosInProgress + stats.todosInProgress,
-        todoWrites: existingStats.todoWrites + stats.todoWrites,
-        todoReads: existingStats.todoReads + stats.todoReads,
-      },
+      data: concatenatedStats,
     });
   }
 }
@@ -287,91 +227,34 @@ export async function POST(request: NextRequest) {
 
     for (const chunk of body) {
       let message = chunk.message;
-      const eventDate = Date.now();
-      const dateOnly = new Date(
-        eventDate.getFullYear(),
-        eventDate.getMonth(),
-        eventDate.getDate()
-      );
+      const eventDate = new Date(Date.now());
 
       if ("AI" in message && message.AI) {
-        const { fileOperations, todoStats, compositionStats, ...aiMessage } =
-          message.AI;
+        const {
+          fileOperations,
+          todoStats,
+          compositionStats,
+          generalStats,
+          ...aiMessage
+        } = message.AI;
 
         // Update current period stats
         await updateCurrentPeriodStats(user.id, eventDate, {
-          toolsCalled: aiMessage.toolCalls || 0,
-          messagesSent: 1,
-          inputTokens: aiMessage.inputTokens || 0,
-          outputTokens: aiMessage.outputTokens || 0,
-          cacheCreationTokens: aiMessage.cacheCreationTokens || 0,
-          cacheReadTokens: aiMessage.cacheReadTokens || 0,
-          cost: aiMessage.cost || 0,
-          filesRead: fileOperations?.filesRead || 0,
-          filesAdded: fileOperations?.filesAdded || 0,
-          filesEdited: fileOperations?.filesEdited || 0,
-          filesDeleted: fileOperations?.filesDeleted || 0,
-          linesRead: fileOperations?.linesRead || 0,
-          linesAdded: fileOperations?.linesAdded || 0,
-          linesEdited: fileOperations?.linesEdited || 0,
-          linesDeleted: fileOperations?.linesDeleted || 0,
-          bytesRead: fileOperations?.bytesRead || 0,
-          bytesAdded: fileOperations?.bytesAdded || 0,
-          bytesEdited: fileOperations?.bytesEdited || 0,
-          bytesDeleted: fileOperations?.bytesDeleted || 0,
-          terminalCommands: fileOperations?.terminalCommands || 0,
-          fileSearches: fileOperations?.fileSearches || 0,
-          fileContentSearches: fileOperations?.fileContentSearches || 0,
-          todosCreated: todoStats?.todosCreated || 0,
-          todosCompleted: todoStats?.todosCompleted || 0,
-          todosInProgress: todoStats?.todosInProgress || 0,
-          todoWrites: todoStats?.todoWrites || 0,
-          todoReads: todoStats?.todoReads || 0,
-          codeLines: compositionStats?.codeLines || 0,
-          docsLines: compositionStats?.docsLines || 0,
-          dataLines: compositionStats?.dataLines || 0,
-          mediaLines: compositionStats?.mediaLines || 0,
-          configLines: compositionStats?.configLines || 0,
-          otherLines: compositionStats?.otherLines || 0,
+          ...generalStats,
+          ...fileOperations,
+          ...todoStats,
+          ...compositionStats,
+          aiMessages: 1,
+          userMessages: 0,
         });
       } else if ("User" in message && message.User) {
         const { todoStats, ...userMessage } = message.User;
 
         // Update current period stats
         await updateCurrentPeriodStats(user.id, eventDate, {
-          toolsCalled: 0,
-          messagesSent: 1,
-          inputTokens: 0,
-          outputTokens: 0,
-          cacheCreationTokens: 0,
-          cacheReadTokens: 0,
-          cost: 0,
-          filesRead: 0,
-          filesAdded: 0,
-          filesEdited: 0,
-          filesDeleted: 0,
-          linesRead: 0,
-          linesAdded: 0,
-          linesEdited: 0,
-          linesDeleted: 0,
-          bytesRead: 0,
-          bytesAdded: 0,
-          bytesEdited: 0,
-          bytesDeleted: 0,
-          terminalCommands: 0,
-          fileSearches: 0,
-          fileContentSearches: 0,
-          todosCreated: todoStats?.todosCreated || 0,
-          todosCompleted: todoStats?.todosCompleted || 0,
-          todosInProgress: todoStats?.todosInProgress || 0,
-          todoWrites: todoStats?.todoWrites || 0,
-          todoReads: todoStats?.todoReads || 0,
-          codeLines: 0,
-          docsLines: 0,
-          dataLines: 0,
-          mediaLines: 0,
-          configLines: 0,
-          otherLines: 0,
+          ...todoStats,
+          userMessages: 1,
+          aiMessages: 0,
         });
       } else {
         return NextResponse.json(
