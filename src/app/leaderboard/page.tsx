@@ -23,9 +23,10 @@ import {
 import { Search } from "lucide-react";
 import React from "react";
 import { columns } from "./TableColumns";
-import { type UserWithStats } from "@/types";
+import { type UserWithStats, type ApplicationType } from "@/types";
 import { ColumnsDropdown } from "./ColumnsDropdown";
 import { PeriodDropdown } from "./PeriodDropdown";
+import { ApplicationDropdown } from "./ApplicationDropdown";
 import { TablePagination } from "./TablePagination";
 
 type PeriodType =
@@ -45,6 +46,11 @@ export default function Leaderboard() {
     React.useState<VisibilityState>({});
   const [rowSelection, setRowSelection] = React.useState({});
   const [period, setPeriod] = React.useState<PeriodType>("all-time");
+  const [apps, setApps] = React.useState<ApplicationType[]>([
+    "claude_code",
+    "gemini_cli",
+    "codex_cli",
+  ]);
   const [data, setData] = React.useState<UserWithStats[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
@@ -54,8 +60,9 @@ export default function Leaderboard() {
       setLoading(true);
       setError(null);
 
+      const applicationsParam = apps.join(",");
       const response = await fetch(
-        `/api/leaderboard?period=${period}&sortBy=cost&sortOrder=desc&pageSize=100`
+        `/api/leaderboard?period=${period}&applications=${applicationsParam}&sortBy=cost&sortOrder=desc&pageSize=100`
       );
 
       if (!response.ok) {
@@ -74,7 +81,7 @@ export default function Leaderboard() {
     } finally {
       setLoading(false);
     }
-  }, [period]);
+  }, [period, apps]);
 
   React.useEffect(() => {
     fetchLeaderboardData();
@@ -117,6 +124,7 @@ export default function Leaderboard() {
         </div>
         <ColumnsDropdown table={table} />
         <PeriodDropdown period={period} setPeriod={setPeriod} />
+        <ApplicationDropdown apps={apps} setApps={setApps} />
       </div>
       <div className="rounded-md border bg-card overflow-x-auto">
         <Table className="min-w-full">

@@ -1,5 +1,8 @@
 import { type User, type UserPreferences } from "@prisma/client";
 
+// Application types for CLI/agentic development tools
+export type ApplicationType = "claude_code" | "gemini_cli" | "codex_cli";
+
 // Using strings for stat keys instead of manually spelling them out in the interfaces so that in
 // the routes that update the database we can use these keys to determine what to update.
 
@@ -75,6 +78,7 @@ export type UserStats = Record<(typeof StatKeys)[number], number>;
 
 export interface UserStatsWithPeriods extends UserStats {
   period: string;
+  application?: ApplicationType;
   periodStart?: Date;
   periodEnd?: Date;
 }
@@ -99,6 +103,15 @@ export interface LeaderboardData {
   pageSize: number;
 }
 
+export interface LeaderboardRequest {
+  period?: string;
+  applications?: ApplicationType[];
+  page?: number;
+  pageSize?: number;
+  sortBy?: string;
+  sortOrder?: string;
+}
+
 export interface ProjectStatsData {
   [projectName: string]: {
     percentage: number;
@@ -121,6 +134,7 @@ export type AIMessage = {
   model: string;
   timestamp: string;
   hash: string | null;
+  application: ApplicationType;
   conversationFile: string;
   generalStats: GeneralStats;
   fileOperations: FileOperationStats;
@@ -130,6 +144,7 @@ export type AIMessage = {
 
 export type UserMessage = {
   timestamp: string;
+  application: ApplicationType;
   conversationFile: string;
   todoStats: TodoStats;
 };

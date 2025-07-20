@@ -1,3 +1,4 @@
+// prettier-ignore
 import { UserStats } from "@/types";
 import { PrismaClient } from "@prisma/client";
 
@@ -197,6 +198,7 @@ async function createPeriodStats(users: Array<{ id: string; multiplier: number }
           period: config.period,
           periodStart: config.start,
           periodEnd: config.end,
+          application: Math.random() < 0.5 ? "claude_code" : Math.random() < 0.5 ? "gemini_cli" : "codex_cli",
           ...stats,
         },
       });

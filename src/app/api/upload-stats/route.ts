@@ -4,6 +4,7 @@ import {
   StatKeys,
   UserStats,
   type UploadStatsRequest,
+  type ApplicationType,
 } from "@/types";
 
 function getHourStart(date: Date): Date {
@@ -91,6 +92,7 @@ function getYearEnd(date: Date): Date {
 
 async function updateCurrentPeriodStats(
   userId: string,
+  application: ApplicationType,
   eventDate: Date,
   stats: Partial<UserStats>
 ) {
@@ -98,6 +100,7 @@ async function updateCurrentPeriodStats(
   await Promise.all([
     updatePeriodStats(
       userId,
+      application,
       "hourly",
       getHourStart(eventDate),
       getHourEnd(eventDate),
@@ -105,6 +108,7 @@ async function updateCurrentPeriodStats(
     ),
     updatePeriodStats(
       userId,
+      application,
       "daily",
       getDayStart(eventDate),
       getDayEnd(eventDate),
@@ -112,6 +116,7 @@ async function updateCurrentPeriodStats(
     ),
     updatePeriodStats(
       userId,
+      application,
       "weekly",
       getWeekStart(eventDate),
       getWeekEnd(eventDate),
@@ -119,6 +124,7 @@ async function updateCurrentPeriodStats(
     ),
     updatePeriodStats(
       userId,
+      application,
       "monthly",
       getMonthStart(eventDate),
       getMonthEnd(eventDate),
@@ -126,17 +132,19 @@ async function updateCurrentPeriodStats(
     ),
     updatePeriodStats(
       userId,
+      application,
       "yearly",
       getYearStart(eventDate),
       getYearEnd(eventDate),
       stats
     ),
-    updatePeriodStats(userId, "all-time", null, null, stats),
+    updatePeriodStats(userId, application, "all-time", null, null, stats),
   ]);
 }
 
 async function updatePeriodStats(
   userId: string,
+  application: ApplicationType,
   period: string,
   periodStart: Date | null,
   periodEnd: Date | null,
@@ -144,9 +152,10 @@ async function updatePeriodStats(
 ) {
   const existingStats = await db.userStats.findUnique({
     where: {
-      userId_period: {
+      userId_period_application: {
         userId,
         period,
+        application,
       },
     },
   });
@@ -160,6 +169,7 @@ async function updatePeriodStats(
       existingStats.periodStart.getTime() !== periodStart.getTime())
   ) {
     const statsData = {
+      application,
       period,
       periodStart,
       periodEnd,
@@ -174,9 +184,10 @@ async function updatePeriodStats(
     // New period - replace existing stats
     await db.userStats.upsert({
       where: {
-        userId_period: {
+        userId_period_application: {
           userId,
           period,
+          application,
         },
       },
       create: { userId, ...statsData },
@@ -191,9 +202,10 @@ async function updatePeriodStats(
 
     await db.userStats.update({
       where: {
-        userId_period: {
+        userId_period_application: {
           userId,
           period,
+          application,
         },
       },
       data: newStats,
@@ -226,9 +238,12 @@ export async function POST(request: NextRequest) {
       let stats;
       let messageFragments;
       let messageCounts;
+      let application: ApplicationType;
+
       if ("AI" in message && message.AI) {
         messageFragments = {
           userId: user.id,
+          application: message.AI.application,
           type: "AI",
           timestamp: message.AI.timestamp,
           conversationFile: message.AI.conversationFile,
@@ -246,6 +261,7 @@ export async function POST(request: NextRequest) {
       } else if ("User" in message && message.User) {
         messageFragments = {
           userId: user.id,
+          application: message.User.application,
           type: "User",
           timestamp: message.User.timestamp,
           conversationFile: message.User.conversationFile,
@@ -267,7 +283,12 @@ export async function POST(request: NextRequest) {
       }
 
       // Update the user_stats table with the stats corresponding to the selected period.
-      await updateCurrentPeriodStats(user.id, new Date(Date.now()), stats);
+      await updateCurrentPeriodStats(
+        user.id,
+        messageFragments.application,
+        new Date(Date.now()),
+        stats
+      );
       // Update the message_stats with the new message, skipping it if it already exists.
       await db.messageStats.createMany({
         data: [

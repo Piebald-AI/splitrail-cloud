@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { type ApplicationType } from "@/types";
 
 type PeriodType =
   | "hourly"
@@ -14,7 +15,17 @@ export async function GET(request: NextRequest) {
     // Parse query parameters
     const { searchParams } = new URL(request.url);
 
+    const apps: ApplicationType[] = ["claude_code", "gemini_cli", "codex_cli"];
     const period = (searchParams.get("period") || "all-time") as PeriodType;
+    const applicationsParam = searchParams.get("applications");
+    const applications = applicationsParam
+      ? (applicationsParam
+          .split(",")
+          .filter((app) =>
+            apps.includes(app as ApplicationType)
+          ) as ApplicationType[])
+      : apps;
+
     const page = parseInt(searchParams.get("page") || "1");
     const pageSize = Math.min(
       parseInt(searchParams.get("pageSize") || "100"),
@@ -30,7 +41,7 @@ export async function GET(request: NextRequest) {
       "all-time",
     ];
 
-    // Validate period parameter
+    // Validate parameters
     if (!validPeriods.includes(period)) {
       return NextResponse.json(
         {
@@ -38,6 +49,13 @@ export async function GET(request: NextRequest) {
             "Invalid period parameter. Must be one of: " +
             validPeriods.join(", "),
         },
+        { status: 400 }
+      );
+    }
+
+    if (applications.length === 0) {
+      return NextResponse.json(
+        { error: "At least one application must be selected" },
         { status: 400 }
       );
     }
@@ -61,7 +79,10 @@ export async function GET(request: NextRequest) {
       include: {
         userStats: {
           where: {
-            OR: [{ period }, { period: "all-time" }],
+            AND: [
+              { OR: [{ period }, { period: "all-time" }] },
+              { application: { in: applications } },
+            ],
           },
         },
         preferences: true,
@@ -83,20 +104,94 @@ export async function GET(request: NextRequest) {
         return user.userStats.length > 0;
       })
       .map((user) => {
-        // In the query above, we fetched the stats for both this period and all time, so that we
-        // can show ranks based on all time, but display stats based on the selected period.
-        // Here, we'll record a list of all users' total costs and later rank the users based on
-        // their total costs. If the selected period is "all-time", the query above will only
-        // return one row, so we'll just use that row.
-        const cost = user.userStats[period === "all-time" ? 0 : 1].cost;
-        costs.push(cost);
-        userCosts[user.id] = cost;
+        // Aggregate stats across selected applications for each period
+        const currentPeriodStats = user.userStats.filter(
+          (stat) => stat.period === period
+        );
+        const allTimeStats = user.userStats.filter(
+          (stat) => stat.period === "all-time"
+        );
+
+        // Sum up stats across applications for the current period
+        const aggregateStats = (stats: typeof user.userStats) => {
+          const result = { ...stats[0] }; // Start with first stat as template
+
+          // Reset numeric fields
+          const numericFields = [
+            "cost",
+            "inputTokens",
+            "outputTokens",
+            "cacheCreationTokens",
+            "cacheReadTokens",
+            "cachedTokens",
+            "toolCalls",
+            "aiMessages",
+            "userMessages",
+            "filesRead",
+            "filesAdded",
+            "filesEdited",
+            "filesDeleted",
+            "linesRead",
+            "linesAdded",
+            "linesEdited",
+            "linesDeleted",
+            "bytesRead",
+            "bytesAdded",
+            "bytesEdited",
+            "bytesDeleted",
+            "codeLines",
+            "docsLines",
+            "dataLines",
+            "mediaLines",
+            "configLines",
+            "otherLines",
+            "terminalCommands",
+            "fileSearches",
+            "fileContentSearches",
+            "todosCreated",
+            "todosCompleted",
+            "todosInProgress",
+            "todoWrites",
+            "todoReads",
+          ];
+
+          numericFields.forEach((field) => {
+            result[field] = stats.reduce(
+              (sum, stat) => sum + (stat[field] || 0),
+              0
+            );
+          });
+
+          return result;
+        };
+
+        const aggregatedCurrentPeriod =
+          currentPeriodStats.length > 0
+            ? aggregateStats(currentPeriodStats)
+            : null;
+        const aggregatedAllTime =
+          allTimeStats.length > 0 ? aggregateStats(allTimeStats) : null;
+
+        // Use current period stats if available, otherwise all-time
+        const statsToShow =
+          period === "all-time"
+            ? aggregatedAllTime
+            : aggregatedCurrentPeriod || aggregatedAllTime;
+
+        if (!statsToShow) return null;
+
+        // Cost for ranking (use all-time if current period not available)
+        const costForRanking = aggregatedAllTime?.cost || 0;
+        costs.push(costForRanking);
+        userCosts[user.id] = costForRanking;
+
         return {
           rank: 0,
-          ...user.userStats[0],
+          ...statsToShow,
           ...user,
         };
-      });
+      })
+      .filter(Boolean); // Remove null entries
 
     // Add ranks to user, based on cost.  So the user with the maximum cost value is gold, then
     // silver, then bronze, then just numbers.
@@ -112,6 +207,7 @@ export async function GET(request: NextRequest) {
       currentPage: page,
       pageSize,
       period,
+      applications,
     };
 
     return NextResponse.json({

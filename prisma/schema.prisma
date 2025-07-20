@@ -35,6 +35,7 @@ model User {
 model MessageStats {
   hash                  String    @id
   userId                String
+  application           String    @default("claude_code") // "claude_code", "gemini_cli", "codex_cli"
   type                  String    // "AI" or "User"
   timestamp             String
   conversationFile      String
@@ -81,12 +82,14 @@ model MessageStats {
   
   @@index([userId, timestamp])
   @@index([timestamp])
+  @@index([application, timestamp])
   @@map("message_stats")
 }
 
 model UserStats {
   id                    String   @id @default(cuid())
   userId                String
+  application           String   @default("claude_code") // "claude_code", "gemini_cli", "codex_cli"
   period                String   // "hourly", "daily", "weekly", "monthly", "yearly", "all-time"
   periodStart           DateTime?
   periodEnd             DateTime?
@@ -129,7 +132,8 @@ model UserStats {
   updatedAt             DateTime @updatedAt
   user                  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   
-  @@unique([userId, period])
+  @@unique([userId, period, application])
+  @@index([application, period])
   @@map("user_stats")
 }
 
