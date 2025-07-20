@@ -42,6 +42,7 @@ model MessageStats {
   outputTokens          Int?
   cacheCreationTokens   Int?
   cacheReadTokens       Int?
+  cachedTokens          Int?
   cost                  Float?
   model                 String?
   toolCalls             Int?
@@ -96,6 +97,7 @@ model UserStats {
   outputTokens          Int      @default(0)
   cacheCreationTokens   Int      @default(0)
   cacheReadTokens       Int      @default(0)
+  cachedTokens          Int      @default(0)
   cost                  Float    @default(0)
   filesRead             Int      @default(0)
   filesAdded            Int      @default(0)

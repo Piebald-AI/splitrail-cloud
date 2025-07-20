@@ -1,57 +1,77 @@
 import { type User, type UserPreferences } from "@prisma/client";
 
+// Using strings for stat keys instead of manually spelling them out in the interfaces so that in
+// the routes that update the database we can use these keys to determine what to update.
+
+export const FileOperationStatKeys = [
+  "filesRead",
+  "filesAdded",
+  "filesEdited",
+  "filesDeleted",
+  "linesRead",
+  "linesAdded",
+  "linesEdited",
+  "linesDeleted",
+  "bytesRead",
+  "bytesEdited",
+  "bytesAdded",
+  "bytesDeleted",
+  "terminalCommands",
+  "fileSearches",
+  "fileContentSearches",
+] as const;
+
+export const CompositionStatKeys = [
+  "codeLines",
+  "docsLines",
+  "dataLines",
+  "mediaLines",
+  "configLines",
+  "otherLines",
+] as const;
+
+export const TodoStatKeys = [
+  "todosCreated",
+  "todosCompleted",
+  "todosInProgress",
+  "todoReads",
+  "todoWrites",
+] as const;
+
+export const GeneralStatKeys = [
+  "inputTokens",
+  "outputTokens",
+  "cacheCreationTokens",
+  "cacheReadTokens",
+  "cost",
+  "toolCalls",
+] as const;
+
+export const StatKeys = [
+  ...FileOperationStatKeys,
+  ...CompositionStatKeys,
+  ...TodoStatKeys,
+  ...GeneralStatKeys,
+  "aiMessages",
+  "userMessages",
+] as const;
+
 // CLI data structure (mirrors Rust types)
-export interface FileOperationStats {
-  filesRead: number;
-  filesAdded: number;
-  filesEdited: number;
-  filesDeleted: number;
-  linesRead: number;
-  linesAdded: number;
-  linesEdited: number;
-  linesDeleted: number;
-  bytesRead: number;
-  bytesEdited: number;
-  bytesAdded: number;
-  bytesDeleted: number;
-  terminalCommands: number;
-  fileSearches: number;
-  fileContentSearches: number;
-}
+export type FileOperationStats = Record<
+  (typeof FileOperationStatKeys)[number],
+  number
+>;
 
-export interface CompositionStats {
-  codeLines: number;
-  docsLines: number;
-  dataLines: number;
-  mediaLines: number;
-  configLines: number;
-  otherLines: number;
-}
+export type CompositionStats = Record<
+  (typeof CompositionStatKeys)[number],
+  number
+>;
 
-export interface TodoStats {
-  todosCreated: number;
-  todosCompleted: number;
-  todosInProgress: number;
-  todoReads: number;
-  todoWrites: number;
-}
+export type TodoStats = Record<(typeof TodoStatKeys)[number], number>;
 
-export interface GeneralStats {
-  inputTokens: number;
-  outputTokens: number;
-  cacheCreationTokens: number;
-  cacheReadTokens: number;
-  cost: number;
-  toolCalls: number;
-}
+export type GeneralStats = Record<(typeof GeneralStatKeys)[number], number>;
 
-export type UserStats = FileOperationStats &
-  CompositionStats &
-  TodoStats &
-  GeneralStats & {
-    aiMessages: number;
-    userMessages: number;
-  };
+export type UserStats = Record<(typeof StatKeys)[number], number>;
 
 export interface UserStatsWithPeriods extends UserStats {
   period: string;

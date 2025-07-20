@@ -4,10 +4,10 @@
   - You are about to drop the `user_daily_stats` table. If the table is not empty, all the data it contains will be lost.
 
 */
-
 -- CreateTable
 CREATE TABLE "message_stats" (
-    "id" TEXT NOT NULL,
+    "hash" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
     "type" TEXT NOT NULL,
     "timestamp" TEXT NOT NULL,
     "conversationFile" TEXT NOT NULL,
@@ -15,10 +15,10 @@ CREATE TABLE "message_stats" (
     "outputTokens" INTEGER,
     "cacheCreationTokens" INTEGER,
     "cacheReadTokens" INTEGER,
+    "cachedTokens" INTEGER,
     "cost" DOUBLE PRECISION,
     "model" TEXT,
     "toolCalls" INTEGER,
-    "hash" TEXT,
     "fileTypes" JSONB,
     "terminalCommands" INTEGER,
     "fileSearches" INTEGER,
@@ -49,7 +49,7 @@ CREATE TABLE "message_stats" (
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
-    CONSTRAINT "message_stats_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "message_stats_pkey" PRIMARY KEY ("hash")
 );
 
 -- CreateTable
@@ -66,6 +66,7 @@ CREATE TABLE "user_stats" (
     "outputTokens" INTEGER NOT NULL DEFAULT 0,
     "cacheCreationTokens" INTEGER NOT NULL DEFAULT 0,
     "cacheReadTokens" INTEGER NOT NULL DEFAULT 0,
+    "cachedTokens" INTEGER NOT NULL DEFAULT 0,
     "cost" DOUBLE PRECISION NOT NULL DEFAULT 0,
     "filesRead" INTEGER NOT NULL DEFAULT 0,
     "filesAdded" INTEGER NOT NULL DEFAULT 0,
@@ -100,7 +101,16 @@ CREATE TABLE "user_stats" (
 );
 
 -- CreateIndex
+CREATE INDEX "message_stats_userId_timestamp_idx" ON "message_stats"("userId", "timestamp");
+
+-- CreateIndex
+CREATE INDEX "message_stats_timestamp_idx" ON "message_stats"("timestamp");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "user_stats_userId_period_key" ON "user_stats"("userId", "period");
+
+-- AddForeignKey
+ALTER TABLE "message_stats" ADD CONSTRAINT "message_stats_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "user_stats" ADD CONSTRAINT "user_stats_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -119,6 +129,7 @@ INSERT INTO "user_stats" (
     "outputTokens", 
     "cacheCreationTokens",
     "cacheReadTokens",
+    "cachedTokens",
     "cost",
     "filesRead",
     "filesAdded",
@@ -161,7 +172,8 @@ SELECT
     COALESCE(SUM("inputTokens"), 0) as "inputTokens",
     COALESCE(SUM("outputTokens"), 0) as "outputTokens",
     0 as "cacheCreationTokens",
-    COALESCE(SUM("cachedTokens"), 0) as "cacheReadTokens", 
+    0 as "cacheReadTokens", 
+    COALESCE(SUM("cachedTokens"), 0) as "cachedTokens", 
     COALESCE(SUM("cost"), 0) as "cost",
     COALESCE(SUM("filesRead"), 0) as "filesRead",
     COALESCE(SUM("filesWritten"), 0) as "filesAdded",
@@ -199,4 +211,3 @@ ALTER TABLE "user_daily_stats" DROP CONSTRAINT "user_daily_stats_userId_fkey";
 
 -- DropTable
 DROP TABLE "user_daily_stats";
-

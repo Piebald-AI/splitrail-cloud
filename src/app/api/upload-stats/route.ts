@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { DatabaseService, db } from "@/lib/db";
 import {
-  AIMessage,
-  UserMessage,
+  StatKeys,
   UserStats,
   type UploadStatsRequest,
 } from "@/types";
@@ -160,15 +159,16 @@ async function updatePeriodStats(
       existingStats.periodStart &&
       existingStats.periodStart.getTime() !== periodStart.getTime())
   ) {
-    console.log(
-      `New period (${period}) - replacing existing stats with $${stats.cost}`
-    );
-
     const statsData = {
       period,
       periodStart,
       periodEnd,
-      ...stats,
+      // Get all the stats whose keys are in StatKeys.
+      ...Object.fromEntries(
+        Object.entries(stats).filter(([key]) =>
+          (StatKeys as readonly string[]).includes(key)
+        )
+      ),
     };
 
     // New period - replace existing stats
@@ -183,15 +183,12 @@ async function updatePeriodStats(
       update: statsData,
     });
   } else {
-    // Same period - add to existing stats
-    console.log(
-      `Same period (${period}) - adding to existing stats $${existingStats.cost} with $${stats.cost} (${existingStats.cost + (stats.cost || 0)})`
-    );
-
-    let concatenatedStats = existingStats;
-    (Object.keys(stats) as (keyof UserStats)[]).forEach((key) => {
-      concatenatedStats[key] += stats[key];
+    // Add incoming stats to existing stats.
+    let newStats: Partial<UserStats> = {};
+    StatKeys.forEach((key) => {
+      newStats[key] = existingStats[key] + (stats[key] ?? 0);
     });
+
     await db.userStats.update({
       where: {
         userId_period: {
@@ -199,7 +196,7 @@ async function updatePeriodStats(
           period,
         },
       },
-      data: concatenatedStats,
+      data: newStats,
     });
   }
 }
@@ -224,38 +221,42 @@ export async function POST(request: NextRequest) {
     }
 
     const body: UploadStatsRequest = await request.json();
-
     for (const chunk of body) {
       let message = chunk.message;
-      const eventDate = new Date(Date.now());
-
+      let stats;
+      let messageFragments;
+      let messageCounts;
       if ("AI" in message && message.AI) {
-        const {
-          fileOperations,
-          todoStats,
-          compositionStats,
-          generalStats,
-          ...aiMessage
-        } = message.AI;
-
-        // Update current period stats
-        await updateCurrentPeriodStats(user.id, eventDate, {
-          ...generalStats,
-          ...fileOperations,
-          ...todoStats,
-          ...compositionStats,
+        messageFragments = {
+          userId: user.id,
+          type: "AI",
+          timestamp: message.AI.timestamp,
+          conversationFile: message.AI.conversationFile,
+        };
+        stats = {
+          ...message.AI.generalStats,
+          ...message.AI.fileOperations,
+          ...message.AI.todoStats,
+          ...message.AI.compositionStats,
+        };
+        messageCounts = {
           aiMessages: 1,
           userMessages: 0,
-        });
+        };
       } else if ("User" in message && message.User) {
-        const { todoStats, ...userMessage } = message.User;
-
-        // Update current period stats
-        await updateCurrentPeriodStats(user.id, eventDate, {
-          ...todoStats,
-          userMessages: 1,
+        messageFragments = {
+          userId: user.id,
+          type: "User",
+          timestamp: message.User.timestamp,
+          conversationFile: message.User.conversationFile,
+        };
+        stats = {
+          ...message.User.todoStats,
+        };
+        messageCounts = {
           aiMessages: 0,
-        });
+          userMessages: 1,
+        };
       } else {
         return NextResponse.json(
           {
@@ -264,6 +265,20 @@ export async function POST(request: NextRequest) {
           { status: 400 }
         );
       }
+
+      // Update the user_stats table with the stats corresponding to the selected period.
+      await updateCurrentPeriodStats(user.id, new Date(Date.now()), stats);
+      // Update the message_stats with the new message, skipping it if it already exists.
+      await db.messageStats.createMany({
+        data: [
+          {
+            hash: chunk.hash,
+            ...messageFragments,
+            ...stats,
+          },
+        ],
+        skipDuplicates: true,
+      });
     }
 
     return NextResponse.json({
