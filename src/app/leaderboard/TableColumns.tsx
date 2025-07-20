@@ -58,8 +58,12 @@ function UserAvatarCell({ user }: { user: UserWithStats }) {
         </AvatarFallback>
       </Avatar>
       <div>
-        <div className="font-medium text-sm user-display-name">{displayName}</div>
-        <div className="text-xs text-muted-foreground user-username">@{user.username}</div>
+        <div className="font-medium text-sm user-display-name">
+          {displayName}
+        </div>
+        <div className="text-xs text-muted-foreground user-username">
+          @{user.username}
+        </div>
       </div>
     </div>
   );

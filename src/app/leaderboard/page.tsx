@@ -1,19 +1,209 @@
 "use client";
 
-import { columns } from "../leaderboard-columns";
-import { DataTable } from "../leaderboard-data-table";
+import { Input } from "@/components/ui/input";
+import {
+  TableHeader,
+  TableRow,
+  TableHead,
+  TableBody,
+  TableCell,
+  Table,
+} from "@/components/ui/table";
+import {
+  SortingState,
+  ColumnFiltersState,
+  VisibilityState,
+  useReactTable,
+  getCoreRowModel,
+  getPaginationRowModel,
+  getSortedRowModel,
+  getFilteredRowModel,
+  flexRender,
+} from "@tanstack/react-table";
+import { Search } from "lucide-react";
+import React from "react";
+import { columns } from "./TableColumns";
+import { type UserWithStats } from "@/types";
+import { ColumnsDropdown } from "./ColumnsDropdown";
+import { PeriodDropdown } from "./PeriodDropdown";
+import { TablePagination } from "./TablePagination";
+
+type PeriodType =
+  | "hourly"
+  | "daily"
+  | "weekly"
+  | "monthly"
+  | "yearly"
+  | "all-time";
 
 export default function Leaderboard() {
-  return (
-    <>
-      <div className="text-center mb-8">
-        <h1 className="text-3xl font-bold mb-2">Splitrail Leaderboard</h1>
-        <p className="text-muted-foreground">
-          Competitive rankings for developers using agentic workflow tools.
-        </p>
-      </div>
+  const [sorting, setSorting] = React.useState<SortingState>([]);
+  const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
+    []
+  );
+  const [columnVisibility, setColumnVisibility] =
+    React.useState<VisibilityState>({});
+  const [rowSelection, setRowSelection] = React.useState({});
+  const [period, setPeriod] = React.useState<PeriodType>("all-time");
+  const [data, setData] = React.useState<UserWithStats[]>([]);
+  const [loading, setLoading] = React.useState(true);
+  const [error, setError] = React.useState<string | null>(null);
 
-      <DataTable columns={columns} />
-    </>
+  const fetchLeaderboardData = React.useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const response = await fetch(
+        `/api/leaderboard?period=${period}&sortBy=cost&sortOrder=desc&pageSize=100`
+      );
+
+      if (!response.ok) {
+        throw new Error("Failed to fetch leaderboard data");
+      }
+
+      const result = await response.json();
+
+      if (result.success) {
+        setData(result.data?.users || []);
+      } else {
+        throw new Error(result.error || "Failed to fetch leaderboard data");
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "An error occurred");
+    } finally {
+      setLoading(false);
+    }
+  }, [period]);
+
+  React.useEffect(() => {
+    fetchLeaderboardData();
+  }, [fetchLeaderboardData]);
+
+  const table = useReactTable({
+    data,
+    columns,
+    onSortingChange: setSorting,
+    onColumnFiltersChange: setColumnFilters,
+    getCoreRowModel: getCoreRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
+    onColumnVisibilityChange: setColumnVisibility,
+    onRowSelectionChange: setRowSelection,
+    state: {
+      sorting,
+      columnFilters,
+      columnVisibility,
+      rowSelection,
+    },
+  });
+
+  return (
+    <div className="w-full max-w-full py-6">
+      <div className="flex items-center pb-4 flex-row gap-2">
+        <div className="relative w-full">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Filter by developer name..."
+            value={
+              (table.getColumn("username")?.getFilterValue() as string) ?? ""
+            }
+            onChange={(event) =>
+              table.getColumn("username")?.setFilterValue(event.target.value)
+            }
+            className="pl-10"
+          />
+        </div>
+        <ColumnsDropdown table={table} />
+        <PeriodDropdown period={period} setPeriod={setPeriod} />
+      </div>
+      <div className="rounded-md border bg-card overflow-x-auto">
+        <Table className="min-w-full">
+          <TableHeader>
+            {table.getHeaderGroups().map((headerGroup) => (
+              <TableRow key={headerGroup.id}>
+                {headerGroup.headers.map((header) => {
+                  return (
+                    <TableHead
+                      key={header.id}
+                      className="border-r border-border last:border-r-0 text-center !p-2"
+                    >
+                      {header.isPlaceholder
+                        ? null
+                        : flexRender(
+                            header.column.columnDef.header,
+                            header.getContext()
+                          )}
+                    </TableHead>
+                  );
+                })}
+              </TableRow>
+            ))}
+          </TableHeader>
+          <TableBody>
+            {loading ? (
+              Array.from({ length: 10 }).map((_, i) => (
+                <TableRow key={i}>
+                  {columns.map((_, colIndex) => (
+                    <TableCell
+                      key={colIndex}
+                      className="border-r border-border last:border-r-0 text-center py-4"
+                    >
+                      <div className="h-4 bg-muted rounded animate-pulse"></div>
+                    </TableCell>
+                  ))}
+                </TableRow>
+              ))
+            ) : error ? (
+              <TableRow>
+                <TableCell
+                  colSpan={columns.length}
+                  className="h-24 text-center text-destructive"
+                >
+                  Error: {error}
+                </TableCell>
+              </TableRow>
+            ) : table.getRowModel().rows?.length ? (
+              table.getRowModel().rows.map((row) => (
+                <TableRow
+                  key={row.id}
+                  data-state={row.getIsSelected() && "selected"}
+                  className="hover:bg-muted/50 cursor-pointer border-b border-border"
+                  onClick={() =>
+                    window.open(
+                      `https://github.com/${row.original.username}`,
+                      "_blank"
+                    )
+                  }
+                >
+                  {row.getVisibleCells().map((cell) => (
+                    <TableCell
+                      key={cell.id}
+                      className="border-r border-border last:border-r-0 text-center py-1"
+                    >
+                      {flexRender(
+                        cell.column.columnDef.cell,
+                        cell.getContext()
+                      )}
+                    </TableCell>
+                  ))}
+                </TableRow>
+              ))
+            ) : (
+              <TableRow>
+                <TableCell
+                  colSpan={columns.length}
+                  className="h-24 text-center"
+                >
+                  No results.
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
+      </div>
+      <TablePagination table={table} />
+    </div>
   );
 }

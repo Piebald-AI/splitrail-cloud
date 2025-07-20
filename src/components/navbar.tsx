@@ -21,7 +21,8 @@ const NavLink = ({ path, label }: { path: string; label: string }) => {
     <NavigationMenuItem>
       <NavigationMenuLink
         className={cn(navigationMenuTriggerStyle(), "text-md transition-all", {
-          "bg-gradient-to-br from-primary to-[#307850] hover:opacity-90 !text-white hover:!text-white": pathname === path,
+          "bg-gradient-to-br from-primary to-[#307850] hover:opacity-90 !text-white hover:!text-white":
+            pathname === path,
         })}
         asChild
       >
@@ -29,35 +30,37 @@ const NavLink = ({ path, label }: { path: string; label: string }) => {
       </NavigationMenuLink>
     </NavigationMenuItem>
   );
-}
+};
 
 function Navbar() {
   const pathname = usePathname();
   const { data: session } = useSession();
 
   return (
-    <header className={pathname !== "/" ? "border-b" : ""}>
-      {pathname !== "/" && <div className="container mx-auto px-6 py-2 flex items-center justify-between">
-        <div className="flex items-center gap-6">
-          <Link href="/" className="flex items-center gap-4">
-            <Image
-              src="/logo.svg"
-              alt="Splitrail Leaderboard"
-              width={150}
-              height={150}
-            />
-          </Link>
+    <header className={pathname !== "/" ? "" : ""}>
+      {pathname !== "/" && (
+        <div className="container mx-auto px-6 py-2 flex items-center justify-between">
+          <div className="flex items-center gap-6">
+            <Link href="/" className="flex items-center gap-4">
+              <Image
+                src="/logo.svg"
+                alt="Splitrail Leaderboard"
+                width={150}
+                height={150}
+              />
+            </Link>
 
-          <NavigationMenu className="hidden md:flex">
-            <NavigationMenuList>
-              <NavLink path="/leaderboard" label="Leaderboard" />
-              {session && <NavLink path="/profile" label="My Profile" />}
-              {session && <NavLink path="/settings" label="Settings" />}
-            </NavigationMenuList>
-          </NavigationMenu>
+            <NavigationMenu className="hidden md:flex">
+              <NavigationMenuList>
+                <NavLink path="/leaderboard" label="Leaderboard" />
+                {session && <NavLink path="/profile" label="My Profile" />}
+                {session && <NavLink path="/settings" label="Settings" />}
+              </NavigationMenuList>
+            </NavigationMenu>
+          </div>
+          <SignInButton />
         </div>
-        <SignInButton />
-      </div>}
+      )}
     </header>
   );
 }
