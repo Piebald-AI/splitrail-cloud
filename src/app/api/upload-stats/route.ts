@@ -296,6 +296,7 @@ export async function POST(request: NextRequest) {
             hash: chunk.hash,
             ...messageFragments,
             ...stats,
+            conversationFile: messageFragments.conversationFile || "",
           },
         ],
         skipDuplicates: true,
