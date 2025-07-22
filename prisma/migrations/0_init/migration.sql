@@ -13,52 +13,6 @@ CREATE TABLE "users" (
 );
 
 -- CreateTable
-CREATE TABLE "user_daily_stats" (
-    "id" TEXT NOT NULL,
-    "userId" TEXT NOT NULL,
-    "date" DATE NOT NULL,
-    "folder" TEXT,
-    "cost" DOUBLE PRECISION NOT NULL DEFAULT 0,
-    "inputTokens" INTEGER NOT NULL DEFAULT 0,
-    "outputTokens" INTEGER NOT NULL DEFAULT 0,
-    "cachedTokens" INTEGER NOT NULL DEFAULT 0,
-    "userMessages" INTEGER NOT NULL DEFAULT 0,
-    "aiMessages" INTEGER NOT NULL DEFAULT 0,
-    "toolCalls" INTEGER NOT NULL DEFAULT 0,
-    "conversations" INTEGER NOT NULL DEFAULT 0,
-    "maxFlowLengthSeconds" INTEGER NOT NULL DEFAULT 0,
-    "filesRead" INTEGER NOT NULL DEFAULT 0,
-    "filesEdited" INTEGER NOT NULL DEFAULT 0,
-    "filesWritten" INTEGER NOT NULL DEFAULT 0,
-    "linesRead" INTEGER NOT NULL DEFAULT 0,
-    "linesAdded" INTEGER NOT NULL DEFAULT 0,
-    "linesDeleted" INTEGER NOT NULL DEFAULT 0,
-    "linesModified" INTEGER NOT NULL DEFAULT 0,
-    "bytesRead" INTEGER NOT NULL DEFAULT 0,
-    "bytesEdited" INTEGER NOT NULL DEFAULT 0,
-    "bytesWritten" INTEGER NOT NULL DEFAULT 0,
-    "bashCommands" INTEGER NOT NULL DEFAULT 0,
-    "globSearches" INTEGER NOT NULL DEFAULT 0,
-    "grepSearches" INTEGER NOT NULL DEFAULT 0,
-    "todosCreated" INTEGER NOT NULL DEFAULT 0,
-    "todosCompleted" INTEGER NOT NULL DEFAULT 0,
-    "todosInProgress" INTEGER NOT NULL DEFAULT 0,
-    "todoReads" INTEGER NOT NULL DEFAULT 0,
-    "todoWrites" INTEGER NOT NULL DEFAULT 0,
-    "projectsData" JSONB NOT NULL DEFAULT '{}',
-    "languagesData" JSONB NOT NULL DEFAULT '{}',
-    "modelsData" JSONB NOT NULL DEFAULT '{}',
-    "codeLines" INTEGER NOT NULL DEFAULT 0,
-    "docsLines" INTEGER NOT NULL DEFAULT 0,
-    "dataLines" INTEGER NOT NULL DEFAULT 0,
-    "rawData" JSONB,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
-
-    CONSTRAINT "user_daily_stats_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
 CREATE TABLE "user_preferences" (
     "id" TEXT NOT NULL,
     "userId" TEXT NOT NULL,
@@ -147,6 +101,52 @@ CREATE TABLE "folder_projects" (
     CONSTRAINT "folder_projects_pkey" PRIMARY KEY ("id")
 );
 
+-- CreateTable
+CREATE TABLE "daily_stats" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "date" DATE NOT NULL,
+    "cost" DOUBLE PRECISION NOT NULL DEFAULT 0,
+    "inputTokens" INTEGER NOT NULL DEFAULT 0,
+    "outputTokens" INTEGER NOT NULL DEFAULT 0,
+    "cachedTokens" INTEGER NOT NULL DEFAULT 0,
+    "userMessages" INTEGER NOT NULL DEFAULT 0,
+    "aiMessages" INTEGER NOT NULL DEFAULT 0,
+    "toolCalls" INTEGER NOT NULL DEFAULT 0,
+    "conversations" INTEGER NOT NULL DEFAULT 0,
+    "maxFlowLengthSeconds" INTEGER NOT NULL DEFAULT 0,
+    "filesRead" INTEGER NOT NULL DEFAULT 0,
+    "filesEdited" INTEGER NOT NULL DEFAULT 0,
+    "filesWritten" INTEGER NOT NULL DEFAULT 0,
+    "linesRead" INTEGER NOT NULL DEFAULT 0,
+    "linesAdded" INTEGER NOT NULL DEFAULT 0,
+    "linesDeleted" INTEGER NOT NULL DEFAULT 0,
+    "linesModified" INTEGER NOT NULL DEFAULT 0,
+    "bytesRead" INTEGER NOT NULL DEFAULT 0,
+    "bytesEdited" INTEGER NOT NULL DEFAULT 0,
+    "bytesWritten" INTEGER NOT NULL DEFAULT 0,
+    "bashCommands" INTEGER NOT NULL DEFAULT 0,
+    "globSearches" INTEGER NOT NULL DEFAULT 0,
+    "grepSearches" INTEGER NOT NULL DEFAULT 0,
+    "todosCreated" INTEGER NOT NULL DEFAULT 0,
+    "todosCompleted" INTEGER NOT NULL DEFAULT 0,
+    "todosInProgress" INTEGER NOT NULL DEFAULT 0,
+    "todoReads" INTEGER NOT NULL DEFAULT 0,
+    "todoWrites" INTEGER NOT NULL DEFAULT 0,
+    "projectsData" JSONB NOT NULL DEFAULT '{}',
+    "languagesData" JSONB NOT NULL DEFAULT '{}',
+    "modelsData" JSONB NOT NULL DEFAULT '{}',
+    "codeLines" INTEGER NOT NULL DEFAULT 0,
+    "docsLines" INTEGER NOT NULL DEFAULT 0,
+    "dataLines" INTEGER NOT NULL DEFAULT 0,
+    "rawData" JSONB,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    "folder" TEXT,
+
+    CONSTRAINT "daily_stats_pkey" PRIMARY KEY ("id")
+);
+
 -- CreateIndex
 CREATE UNIQUE INDEX "users_githubId_key" ON "users"("githubId");
 
@@ -155,9 +155,6 @@ CREATE UNIQUE INDEX "users_username_key" ON "users"("username");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "users_email_key" ON "users"("email");
-
--- CreateIndex
-CREATE UNIQUE INDEX "user_daily_stats_userId_date_key" ON "user_daily_stats"("userId", "date");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "user_preferences_userId_key" ON "user_preferences"("userId");
@@ -183,8 +180,8 @@ CREATE UNIQUE INDEX "projects_name_key" ON "projects"("name");
 -- CreateIndex
 CREATE UNIQUE INDEX "folder_projects_userId_folder_key" ON "folder_projects"("userId", "folder");
 
--- AddForeignKey
-ALTER TABLE "user_daily_stats" ADD CONSTRAINT "user_daily_stats_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+-- CreateIndex
+CREATE UNIQUE INDEX "daily_stats_userId_date_key" ON "daily_stats"("userId", "date");
 
 -- AddForeignKey
 ALTER TABLE "user_preferences" ADD CONSTRAINT "user_preferences_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -199,7 +196,11 @@ ALTER TABLE "sessions" ADD CONSTRAINT "sessions_userId_fkey" FOREIGN KEY ("userI
 ALTER TABLE "api_tokens" ADD CONSTRAINT "api_tokens_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "folder_projects" ADD CONSTRAINT "folder_projects_projectId_fkey" FOREIGN KEY ("projectId") REFERENCES "projects"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "folder_projects" ADD CONSTRAINT "folder_projects_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "folder_projects" ADD CONSTRAINT "folder_projects_projectId_fkey" FOREIGN KEY ("projectId") REFERENCES "projects"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "daily_stats" ADD CONSTRAINT "daily_stats_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+

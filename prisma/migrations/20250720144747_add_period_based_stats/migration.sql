@@ -1,7 +1,7 @@
 /*
   Warnings:
 
-  - You are about to drop the `user_daily_stats` table. If the table is not empty, all the data it contains will be lost.
+  - You are about to drop the `daily_stats` table. If the table is not empty, all the data it contains will be lost.
 
 */
 -- CreateTable
@@ -115,7 +115,7 @@ ALTER TABLE "message_stats" ADD CONSTRAINT "message_stats_userId_fkey" FOREIGN K
 -- AddForeignKey
 ALTER TABLE "user_stats" ADD CONSTRAINT "user_stats_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
--- Migrate data from user_daily_stats to user_stats (aggregated as 'all-time')
+-- Migrate data from daily_stats to user_stats (aggregated as 'all-time')
 INSERT INTO "user_stats" (
     "id",
     "userId", 
@@ -203,11 +203,11 @@ SELECT
     COALESCE(SUM("todoReads"), 0) as "todoReads",
     MIN("createdAt") as "createdAt",
     MAX("updatedAt") as "updatedAt"
-FROM "user_daily_stats"
+FROM "daily_stats"
 GROUP BY "userId";
 
 -- DropForeignKey
-ALTER TABLE "user_daily_stats" DROP CONSTRAINT "user_daily_stats_userId_fkey";
+ALTER TABLE "daily_stats" DROP CONSTRAINT "daily_stats_userId_fkey";
 
 -- DropTable
-DROP TABLE "user_daily_stats";
+DROP TABLE "daily_stats";
