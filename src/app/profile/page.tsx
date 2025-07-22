@@ -4,25 +4,10 @@ import { useSession } from "next-auth/react";
 import { useState, useEffect, useCallback } from "react";
 import { type UserProfileData } from "@/types";
 import { formatCurrency, formatLargeNumber, formatDate } from "@/lib/utils";
-import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-} from "recharts";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import Link from "next/link";
 import { Spinner } from "@/components/ui/spinner";
-import {
-  Tooltip as UITooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 
 export default function ProfilePage() {
   const { data: session, status } = useSession();
@@ -119,17 +104,6 @@ export default function ProfilePage() {
       </div>
     );
   }
-
-  // Prepare chart data
-  const chartData = profileData.dailyStats
-    .slice(0, 30)
-    .reverse()
-    .map((stat) => ({
-      date: formatDate(stat.date, "en-US", { month: "short", day: "numeric" }),
-      cost: stat.cost,
-      tokens: stat.inputTokens + stat.outputTokens + stat.cachedTokens,
-      lines: stat.linesAdded + stat.linesDeleted + stat.linesModified,
-    }));
 
   return (
     <>
@@ -245,57 +219,6 @@ export default function ProfilePage() {
         </Card>
       </div>
 
-      {/* Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-        {/* Cost Over Time */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Cost Over Time</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={250}>
-              <LineChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="date" />
-                <YAxis />
-                <Tooltip formatter={(value) => formatCurrency(Number(value))} />
-                <Line
-                  type="monotone"
-                  dataKey="cost"
-                  stroke="#3b82f6"
-                  strokeWidth={2}
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-
-        {/* Tokens Over Time */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Tokens Over Time</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={250}>
-              <LineChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="date" />
-                <YAxis />
-                <Tooltip
-                  formatter={(value) => formatLargeNumber(Number(value))}
-                />
-                <Line
-                  type="monotone"
-                  dataKey="tokens"
-                  stroke="#10b981"
-                  strokeWidth={2}
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-      </div>
-
       {/* Detailed Breakdown */}
       <div className="grid grid-cols-1 lg:grid-cols-1 gap-6">
         {/* Models Used */}
@@ -332,125 +255,6 @@ export default function ProfilePage() {
                   </div>
                 ))}
             </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Recent Activity */}
-      <div className="mt-8">
-        <Card>
-          <CardHeader>
-            <CardTitle>Recent Activity</CardTitle>
-          </CardHeader>
-          <CardContent className="p-0">
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-muted/50">
-                  <tr>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                      Date
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                      Cost
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                      Tokens
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                      Lines
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                      Messages
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                      Tools
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border">
-                  {profileData.dailyStats.slice(0, 10).map((stat) => {
-                    const statDate = new Date(stat.date);
-                    const dateStr = statDate.toISOString().split("T")[0];
-                    const totalTokens =
-                      stat.inputTokens + stat.outputTokens + stat.cachedTokens;
-                    // const totalLines = stat.linesAdded + stat.linesDeleted + stat.linesModified
-                    const totalMessages = stat.userMessages + stat.aiMessages;
-
-                    return (
-                      <tr key={stat.id} className="hover:bg-muted/50">
-                        <td className="px-4 py-4 whitespace-nowrap">
-                          <Button
-                            variant="link"
-                            className="h-auto p-0 font-medium"
-                            asChild
-                          >
-                            <Link href={`/profile/${dateStr}`}>
-                              {formatDate(stat.date, "en-US", {
-                                month: "short",
-                                day: "numeric",
-                                year: "numeric",
-                              })}
-                            </Link>
-                          </Button>
-                        </td>
-                        <td className="px-4 py-4 whitespace-nowrap text-sm">
-                          {formatCurrency(stat.cost)}
-                        </td>
-                        <td className="px-4 py-4 whitespace-nowrap text-sm">
-                          {formatLargeNumber(totalTokens)}
-                        </td>
-                        <td className="px-4 py-4 whitespace-nowrap text-sm">
-                          <div className="flex items-center gap-1">
-                            <UITooltip>
-                              <TooltipTrigger>
-                                <span className="text-green-600">
-                                  +{formatLargeNumber(stat.linesAdded)}
-                                </span>
-                              </TooltipTrigger>
-                              <TooltipContent>
-                                <p>Lines Added</p>
-                              </TooltipContent>
-                            </UITooltip>
-                            <UITooltip>
-                              <TooltipTrigger>
-                                <span className="text-red-600">
-                                  -{formatLargeNumber(stat.linesDeleted)}
-                                </span>
-                              </TooltipTrigger>
-                              <TooltipContent>
-                                <p>Lines Deleted</p>
-                              </TooltipContent>
-                            </UITooltip>
-                            <UITooltip>
-                              <TooltipTrigger>
-                                <span className="text-blue-600">
-                                  {formatLargeNumber(stat.linesModified)}
-                                </span>
-                              </TooltipTrigger>
-                              <TooltipContent>
-                                <p>Lines Modified</p>
-                              </TooltipContent>
-                            </UITooltip>
-                          </div>
-                        </td>
-                        <td className="px-4 py-4 whitespace-nowrap text-sm">
-                          {totalMessages}
-                        </td>
-                        <td className="px-4 py-4 whitespace-nowrap text-sm">
-                          {stat.toolCalls}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-            {profileData.dailyStats.length === 0 && (
-              <div className="text-center py-8 text-muted-foreground">
-                No activity data available. Start using Claude Code with
-                Splitrail to see your daily stats!
-              </div>
-            )}
           </CardContent>
         </Card>
       </div>

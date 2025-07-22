@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { DatabaseService } from "@/lib/db";
 import { db } from "@/lib/db";
 import { type AssociateFolderRequest } from "@/types";
 
@@ -17,10 +16,22 @@ export async function GET(request: NextRequest) {
     const token = authHeader.substring(7);
 
     // Validate token and get user
-    const user = await DatabaseService.validateApiToken(token);
-    if (!user) {
+    const apiToken = await db.apiToken.findUnique({
+      where: { token },
+      include: { user: true },
+    });
+
+    if (!apiToken) {
       return NextResponse.json({ error: "Invalid API token" }, { status: 401 });
     }
+
+    // Update last used timestamp
+    await db.apiToken.update({
+      where: { id: apiToken.id },
+      data: { lastUsed: new Date() },
+    });
+
+    const user = apiToken.user;
 
     // Get user's folder-project associations
     const folderProjects = await db.folderProject.findMany({
@@ -58,10 +69,22 @@ export async function POST(request: NextRequest) {
     const token = authHeader.substring(7);
 
     // Validate token and get user
-    const user = await DatabaseService.validateApiToken(token);
-    if (!user) {
+    const apiToken = await db.apiToken.findUnique({
+      where: { token },
+      include: { user: true },
+    });
+
+    if (!apiToken) {
       return NextResponse.json({ error: "Invalid API token" }, { status: 401 });
     }
+
+    // Update last used timestamp
+    await db.apiToken.update({
+      where: { id: apiToken.id },
+      data: { lastUsed: new Date() },
+    });
+
+    const user = apiToken.user;
 
     // Parse request body
     const body: AssociateFolderRequest = await request.json();
@@ -132,10 +155,22 @@ export async function DELETE(request: NextRequest) {
     const token = authHeader.substring(7);
 
     // Validate token and get user
-    const user = await DatabaseService.validateApiToken(token);
-    if (!user) {
+    const apiToken = await db.apiToken.findUnique({
+      where: { token },
+      include: { user: true },
+    });
+
+    if (!apiToken) {
       return NextResponse.json({ error: "Invalid API token" }, { status: 401 });
     }
+
+    // Update last used timestamp
+    await db.apiToken.update({
+      where: { id: apiToken.id },
+      data: { lastUsed: new Date() },
+    });
+
+    const user = apiToken.user;
 
     // Get folder from query params
     const url = new URL(request.url);

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { DatabaseService } from "@/lib/db";
+import { db } from "@/lib/db";
 
 export async function GET() {
   try {
@@ -12,7 +12,17 @@ export async function GET() {
     }
 
     // Get all API tokens for the user
-    const tokens = await DatabaseService.getUserApiTokens(session.user.id);
+    const tokens = await db.apiToken.findMany({
+      where: { userId: session.user.id },
+      orderBy: { createdAt: "desc" },
+      select: {
+        id: true,
+        token: true,
+        name: true,
+        lastUsed: true,
+        createdAt: true,
+      },
+    });
 
     return NextResponse.json({
       success: true,
@@ -40,7 +50,33 @@ export async function POST(request: NextRequest) {
     const { name } = body;
 
     // Create new API token
-    const token = await DatabaseService.createApiToken(session.user.id, name);
+    const tokenCount = await db.apiToken.count({
+      where: { userId: session.user.id },
+    });
+
+    if (tokenCount >= 50) {
+      throw new Error("Maximum number of tokens (50) reached");
+    }
+
+    const tokenString =
+      "st_" +
+      Math.random().toString(36).substring(2, 15) +
+      Math.random().toString(36).substring(2, 15);
+
+    const token = await db.apiToken.create({
+      data: {
+        userId: session.user.id,
+        token: tokenString,
+        name: name || `CLI Token ${tokenCount + 1}`,
+      },
+      select: {
+        id: true,
+        token: true,
+        name: true,
+        lastUsed: true,
+        createdAt: true,
+      },
+    });
 
     return NextResponse.json({
       success: true,
@@ -82,7 +118,12 @@ export async function DELETE(request: NextRequest) {
     }
 
     // Delete specific API token
-    await DatabaseService.deleteApiToken(session.user.id, tokenId);
+    await db.apiToken.delete({
+      where: {
+        id: tokenId,
+        userId: session.user.id, // Ensure user owns the token
+      },
+    });
 
     return NextResponse.json({
       success: true,

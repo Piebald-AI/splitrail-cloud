@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { DatabaseService, db } from "@/lib/db";
+import { db } from "@/lib/db";
 
 export async function GET(
   request: NextRequest,
@@ -10,8 +10,6 @@ export async function GET(
   try {
     const session = await getServerSession(authOptions);
     const { userId } = await params;
-    const { searchParams } = new URL(request.url);
-    const timeRange = searchParams.get("timeRange") || "all";
 
     // Users can only access their own profile data (for now)
     if (!session?.user?.id || session.user.id !== userId) {
@@ -19,8 +17,12 @@ export async function GET(
     }
 
     // Get user profile data
-    const profileData = await DatabaseService.getUserProfile(userId, timeRange);
-
+    const profileData = await db.user.findUnique({
+      where: { id: userId },
+      include: {
+        preferences: true,
+      },
+    });
     if (!profileData) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
@@ -53,39 +55,32 @@ export async function DELETE(
     if (!session?.user?.id || session.user.id !== userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+    if (deleteType !== "data" && deleteType !== "account") {
+      return NextResponse.json(
+        { error: "Invalid delete type" },
+        { status: 400 }
+      );
+    }
 
-    if (deleteType === "data") {
-      // Delete all user data (daily stats, API tokens, preferences) but keep account
-      await db.dailyStats.deleteMany({
-        where: { userId },
-      });
+    // Delete all data.
+    await db.userStats.deleteMany({
+      where: { userId },
+    });
 
-      await db.apiToken.deleteMany({
-        where: { userId },
-      });
+    await db.messageStats.deleteMany({
+      where: { userId },
+    });
 
-      await db.userPreferences.deleteMany({
-        where: { userId },
-      });
+    await db.apiToken.deleteMany({
+      where: { userId },
+    });
 
-      return NextResponse.json({
-        success: true,
-        message: "All user data deleted successfully",
-      });
-    } else if (deleteType === "account") {
-      // Delete entire account and all associated data
-      await db.dailyStats.deleteMany({
-        where: { userId },
-      });
+    await db.userPreferences.deleteMany({
+      where: { userId },
+    });
 
-      await db.apiToken.deleteMany({
-        where: { userId },
-      });
-
-      await db.userPreferences.deleteMany({
-        where: { userId },
-      });
-
+    if (deleteType === "account") {
+      // Delete the account, since that's what they asked for.
       await db.user.delete({
         where: { id: userId },
       });
@@ -95,10 +90,10 @@ export async function DELETE(
         message: "Account and all data deleted successfully",
       });
     } else {
-      return NextResponse.json(
-        { error: 'Invalid delete type. Use "data" or "account"' },
-        { status: 400 }
-      );
+      return NextResponse.json({
+        success: true,
+        message: "All user data deleted successfully",
+      });
     }
   } catch (error) {
     console.error("Delete user data/account error:", error);

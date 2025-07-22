@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { DatabaseService } from "@/lib/db";
 import { db } from "@/lib/db";
 import { type CreateProjectRequest } from "@/types";
 
@@ -49,10 +48,20 @@ export async function POST(request: NextRequest) {
     const token = authHeader.substring(7);
 
     // Validate token and get user
-    const user = await DatabaseService.validateApiToken(token);
-    if (!user) {
+    const apiToken = await db.apiToken.findUnique({
+      where: { token },
+      include: { user: true },
+    });
+
+    if (!apiToken) {
       return NextResponse.json({ error: "Invalid API token" }, { status: 401 });
     }
+
+    // Update last used timestamp
+    await db.apiToken.update({
+      where: { id: apiToken.id },
+      data: { lastUsed: new Date() },
+    });
 
     // Parse request body
     const body: CreateProjectRequest = await request.json();

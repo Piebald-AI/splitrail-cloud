@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { type ApplicationType } from "@/types";
+import { StatKeys, type ApplicationType } from "@/types";
 
 type PeriodType =
   | "hourly"
@@ -115,47 +115,7 @@ export async function GET(request: NextRequest) {
         // Sum up stats across applications for the current period
         const aggregateStats = (stats: typeof user.userStats) => {
           const result = { ...stats[0] }; // Start with first stat as template
-
-          // Reset numeric fields
-          const numericFields = [
-            "cost",
-            "inputTokens",
-            "outputTokens",
-            "cacheCreationTokens",
-            "cacheReadTokens",
-            "cachedTokens",
-            "toolCalls",
-            "aiMessages",
-            "userMessages",
-            "filesRead",
-            "filesAdded",
-            "filesEdited",
-            "filesDeleted",
-            "linesRead",
-            "linesAdded",
-            "linesEdited",
-            "linesDeleted",
-            "bytesRead",
-            "bytesAdded",
-            "bytesEdited",
-            "bytesDeleted",
-            "codeLines",
-            "docsLines",
-            "dataLines",
-            "mediaLines",
-            "configLines",
-            "otherLines",
-            "terminalCommands",
-            "fileSearches",
-            "fileContentSearches",
-            "todosCreated",
-            "todosCompleted",
-            "todosInProgress",
-            "todoWrites",
-            "todoReads",
-          ];
-
-          numericFields.forEach((field) => {
+          StatKeys.forEach((field) => {
             result[field] = stats.reduce(
               (sum, stat) => sum + (stat[field] || 0),
               0
@@ -197,6 +157,7 @@ export async function GET(request: NextRequest) {
     // silver, then bronze, then just numbers.
     costs.sort((a, b) => b - a);
     usersWithMetrics.forEach((user) => {
+      if (!user) return;
       const costIndex = costs.indexOf(userCosts[user.id]);
       user.rank = costIndex + 1;
     });

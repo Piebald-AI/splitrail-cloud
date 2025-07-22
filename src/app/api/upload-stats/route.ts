@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { DatabaseService, db } from "@/lib/db";
+import { db } from "@/lib/db";
 import {
   StatKeys,
   UserStats,
@@ -227,18 +227,29 @@ export async function POST(request: NextRequest) {
     const token = authHeader.substring(7);
 
     // Validate token and get user.
-    const user = await DatabaseService.validateApiToken(token);
-    if (!user) {
+    const apiToken = await db.apiToken.findUnique({
+      where: { token },
+      include: { user: true },
+    });
+
+    if (!apiToken) {
       return NextResponse.json({ error: "Invalid API token" }, { status: 401 });
     }
 
+    // Update last used timestamp
+    await db.apiToken.update({
+      where: { id: apiToken.id },
+      data: { lastUsed: new Date() },
+    });
+
+    const user = apiToken.user;
+
     const body: UploadStatsRequest = await request.json();
     for (const chunk of body) {
-      let message = chunk.message;
+      const message = chunk.message;
       let stats;
       let messageFragments;
       let messageCounts;
-      let application: ApplicationType;
 
       if ("AI" in message && message.AI) {
         messageFragments = {
@@ -287,7 +298,7 @@ export async function POST(request: NextRequest) {
         user.id,
         messageFragments.application,
         new Date(Date.now()),
-        stats
+        { ...stats, ...messageCounts }
       );
       // Update the message_stats with the new message, skipping it if it already exists.
       await db.messageStats.createMany({
