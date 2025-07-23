@@ -11,8 +11,8 @@ import {
   navigationMenuTriggerStyle,
 } from "@/components/ui/navigation-menu";
 import { cn } from "@/lib/utils";
-import Image from "next/image";
 import { SignInButton } from "./auth/sign-in-button";
+import Logo from "./logo";
 
 const NavLink = ({ path, label }: { path: string; label: string }) => {
   const pathname = usePathname();
@@ -42,12 +42,7 @@ function Navbar() {
         <div className="container mx-auto px-6 py-2 flex items-center justify-between">
           <div className="flex items-center gap-6">
             <Link href="/" className="flex items-center gap-4">
-              <Image
-                src="/logo.svg"
-                alt="Splitrail Leaderboard"
-                width={150}
-                height={150}
-              />
+              <Logo width={150} className="text-logo" />
             </Link>
 
             <NavigationMenu className="hidden md:flex">

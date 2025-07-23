@@ -3,9 +3,10 @@ import { Figtree, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { AuthSessionProvider } from "@/components/auth/session-provider";
 import Footer from "@/components/footer";
-import { Analytics } from '@vercel/analytics/next';
+import { Analytics } from "@vercel/analytics/next";
 import Navbar from "@/components/navbar";
 import Main from "@/components/main";
+import { ThemeProvider } from "next-themes";
 
 const figtree = Figtree({
   variable: "--font-figtree",
@@ -24,7 +25,7 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Splitrail",
   description:
-    "Agentic AI development monitor for the command line.",
+    "Blazing fast, single-executable, cross-platform, agentic development monitor ",
 };
 
 export default function RootLayout({
@@ -37,17 +38,17 @@ export default function RootLayout({
       <body
         className={`${figtree.variable} ${geistMono.variable} font-sans antialiased`}
       >
-        <AuthSessionProvider>
-          <div className="w-full bg-background grid min-h-full grid-rows-[auto_1fr_auto]">
-            <Navbar />
+        <ThemeProvider attribute="class" enableSystem>
+          <AuthSessionProvider>
+            <div className="w-full bg-background grid min-h-full grid-rows-[auto_1fr_auto]">
+              <Navbar />
 
-            <Main>
-              {children}
-            </Main>
+              <Main>{children}</Main>
 
-            <Footer />
-          </div>
-        </AuthSessionProvider>
+              <Footer />
+            </div>
+          </AuthSessionProvider>
+        </ThemeProvider>
         <Analytics />
       </body>
     </html>

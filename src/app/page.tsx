@@ -1,31 +1,30 @@
+import Logo from "@/components/logo";
 import { Button } from "@/components/ui/button";
-import {
-  ArrowRight,
-  Trophy,
-} from "lucide-react";
+import { ArrowRight, Trophy } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 
 export default function HomePage() {
   return (
-    <div className="flex justify-center items-center p-12 min-h-full" data-page="home">
+    <div
+      className="flex justify-center items-center p-12 min-h-full"
+      data-page="home"
+    >
       <div className="grid md:grid-cols-2 gap-12 items-center">
         <div>
-          <Image
-            src="/logo.svg"
-            alt="Splitrail Leaderboard"
+          <Logo
             width={250}
-            height={250}
-            className="mb-4"
+            className="mb-4 text-logo"
           />
 
-          <h1 className="text-4xl md:text-5xl font-bold mb-6 text-[#01411E] leading-[normal]">
-            Agentic AI development monitor for the command line
+          <h1 className="text-4xl md:text-5xl font-bold mb-6 text-logo leading-[normal]">
+            Blazing fast, single-executable, cross-platform, agentic development
+            monitor
           </h1>
           <p className="text-lg md:text-xl text-muted-foreground mb-4">
             Instantly hunt down and aggregate usage stats for all your agentic
-            AI development tools: Claude Code, Gemini CLI*, Codex*, and more.
-            (A local web-based view coming soon!)
+            AI development tools: Claude Code, Gemini CLI*, Codex*, and more. (A
+            local web-based view coming soon!)
           </p>
           <p className="text-sm text-muted-foreground/70 mb-8">
             *Support for Codex and Gemini CLI is in development, but waiting for
@@ -34,7 +33,7 @@ export default function HomePage() {
           <div className="flex flex-col sm:flex-row gap-4">
             <Button
               asChild
-              className="group !px-5 rounded-lg h-10 text-md bg-gradient-to-br from-primary to-[#307850] hover:opacity-90"
+              className="group !px-5 rounded-lg h-10 text-md bg-gradient-to-br from-primary to-[#307850] hover:opacity-90 text-white"
             >
               <Link href="/leaderboard">
                 <Trophy className="size-5" />

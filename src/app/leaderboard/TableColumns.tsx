@@ -51,7 +51,7 @@ function UserAvatarCell({ user }: { user: UserWithStats }) {
 
   return (
     <div className="flex items-center gap-3">
-      <Avatar className="h-7 w-7">
+      <Avatar className="h-7 w-7 user-avatar">
         <AvatarImage src={user.avatarUrl || undefined} alt={displayName} />
         <AvatarFallback className="bg-slate-100 text-slate-600 font-medium">
           {displayName.charAt(0).toUpperCase()}
