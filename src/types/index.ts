@@ -1,4 +1,4 @@
-import { type User, type UserPreferences } from "@prisma/client";
+import { type User } from "@prisma/client";
 
 // Application types for CLI/agentic development tools
 export type ApplicationType = "claude_code" | "gemini_cli" | "codex_cli";
@@ -170,6 +170,16 @@ export interface ApiResponse<T = unknown> {
   error?: ApiError;
 }
 
+export interface UserProfile {
+  id: string;
+  username: string;
+  displayName: string;
+  avatarUrl: string;
+  createdAt: string;
+  updatedAt: string;
+  email: string;
+}
+
 // User preferences
 export interface UserPreferencesData {
   displayNamePreference: "displayName" | "username";
@@ -237,38 +247,4 @@ export interface ChartData {
   tokens: number;
   lines: number;
   [key: string]: unknown;
-}
-
-export interface UserProfileData extends User {
-  preferences: UserPreferences | null;
-  dailyStats: DailyStats[];
-  aggregatedStats: {
-    totalCost: number;
-    totalTokens: number;
-    totalLinesAdded: number;
-    totalLinesDeleted: number;
-    totalLinesModified: number;
-    totalProjects: number;
-    totalLanguages: number;
-    totalCodeLines: number;
-    totalDocsLines: number;
-    totalDataLines: number;
-    totalTodosCompleted: number;
-    averageCostPerDay: number;
-    averageTokensPerDay: number;
-    averageLinesPerDay: number;
-    streakDays: number;
-    topProjects: Array<{
-      name: string;
-      percentage: number;
-      lines: number;
-      isAssociated?: boolean;
-      description?: string;
-      openSource?: boolean;
-      githubLink?: string;
-      websiteLink?: string;
-    }>;
-    topLanguages: Array<{ name: string; lines: number; files: number }>;
-    topModels: Array<{ name: string; usage: number }>;
-  };
 }

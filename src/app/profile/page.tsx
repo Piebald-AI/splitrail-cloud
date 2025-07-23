@@ -2,21 +2,17 @@
 
 import { useSession } from "next-auth/react";
 import { useState, useEffect, useCallback } from "react";
-import { type UserProfileData } from "@/types";
-import { formatCurrency, formatLargeNumber, formatDate } from "@/lib/utils";
+import { formatDate } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Spinner } from "@/components/ui/spinner";
+import { UserProfile } from "@/types";
 
 export default function ProfilePage() {
   const { data: session, status } = useSession();
-  const [profileData, setProfileData] = useState<UserProfileData | null>(null);
+  const [profileData, setProfileData] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [timeRange, setTimeRange] = useState<"all" | "year" | "month" | "week">(
-    "month"
-  );
 
   const fetchProfileData = useCallback(async () => {
     if (!session?.user?.id) return;
@@ -25,9 +21,7 @@ export default function ProfilePage() {
       setLoading(true);
       setError(null);
 
-      const response = await fetch(
-        `/api/user/${session.user.id}?timeRange=${timeRange}`
-      );
+      const response = await fetch(`/api/user/${session.user.id}`);
 
       if (!response.ok) {
         throw new Error("Failed to fetch profile data");
@@ -45,7 +39,7 @@ export default function ProfilePage() {
     } finally {
       setLoading(false);
     }
-  }, [session, timeRange]);
+  }, [session]);
 
   useEffect(() => {
     if (session?.user?.id) {
@@ -53,7 +47,7 @@ export default function ProfilePage() {
     } else if (status !== "loading") {
       setLoading(false);
     }
-  }, [session, status, timeRange, fetchProfileData]);
+  }, [session, status, fetchProfileData]);
 
   if (status === "loading" || loading) {
     return (
@@ -135,128 +129,6 @@ export default function ProfilePage() {
             </p>
           </div>
         </div>
-
-        {/* Time Range Selector */}
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-medium">Time Range:</span>
-          {(["all", "year", "month", "week"] as const).map((range) => (
-            <Button
-              key={range}
-              variant={timeRange === range ? "default" : "outline"}
-              size="sm"
-              onClick={() => setTimeRange(range)}
-            >
-              {range === "all"
-                ? "All Time"
-                : range.charAt(0).toUpperCase() + range.slice(1)}
-            </Button>
-          ))}
-        </div>
-      </div>
-
-      {/* Stats Overview */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-        <Card>
-          <CardContent className="p-4">
-            <div className="text-2xl font-bold text-blue-600">
-              {formatCurrency(profileData.aggregatedStats.totalCost)}
-            </div>
-            <div className="text-sm text-muted-foreground">Total Cost</div>
-            <div className="text-xs text-muted-foreground">
-              Avg:{" "}
-              {formatCurrency(profileData.aggregatedStats.averageCostPerDay)}
-              /day
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-4">
-            <div className="text-2xl font-bold text-green-600">
-              {formatLargeNumber(profileData.aggregatedStats.totalTokens)}
-            </div>
-            <div className="text-sm text-muted-foreground">Total Tokens</div>
-            <div className="text-xs text-muted-foreground">
-              Avg:{" "}
-              {formatLargeNumber(
-                profileData.aggregatedStats.averageTokensPerDay
-              )}
-              /day
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-4">
-            <div className="text-2xl font-bold text-purple-600">
-              {formatLargeNumber(
-                profileData.aggregatedStats.totalLinesAdded +
-                  profileData.aggregatedStats.totalLinesDeleted +
-                  profileData.aggregatedStats.totalLinesModified
-              )}
-            </div>
-            <div className="text-sm text-muted-foreground">Total Lines</div>
-            <div className="text-xs text-muted-foreground">
-              Avg:{" "}
-              {formatLargeNumber(
-                profileData.aggregatedStats.averageLinesPerDay
-              )}
-              /day
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-4">
-            <div className="text-2xl font-bold text-orange-600">
-              {profileData.aggregatedStats.streakDays}
-            </div>
-            <div className="text-sm text-muted-foreground">Active Days</div>
-            <div className="text-xs text-muted-foreground">
-              {profileData.dailyStats.length} total sessions
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Detailed Breakdown */}
-      <div className="grid grid-cols-1 lg:grid-cols-1 gap-6">
-        {/* Models Used */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Models Used</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {profileData.aggregatedStats.topModels
-                .slice(0, 5)
-                .map((model) => (
-                  <div
-                    key={model.name}
-                    className="flex items-center justify-between"
-                  >
-                    <div>
-                      <div className="font-medium text-sm">{model.name}</div>
-                      <div className="text-xs text-muted-foreground">
-                        {(
-                          (model.usage /
-                            profileData.aggregatedStats.topModels.reduce(
-                              (sum, m) => sum + m.usage,
-                              0
-                            )) *
-                          100
-                        ).toFixed(1)}
-                        % usage
-                      </div>
-                    </div>
-                    <div className="text-sm text-muted-foreground">
-                      {model.usage} calls
-                    </div>
-                  </div>
-                ))}
-            </div>
-          </CardContent>
-        </Card>
       </div>
     </>
   );
