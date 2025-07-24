@@ -245,74 +245,94 @@ export async function POST(request: NextRequest) {
     const user = apiToken.user;
 
     const body: UploadStatsRequest = await request.json();
-    for (const chunk of body) {
-      const message = chunk.message;
-      let stats;
-      let messageFragments;
-      let messageCounts;
 
-      if ("AI" in message && message.AI) {
-        messageFragments = {
-          userId: user.id,
-          application: message.AI.application,
-          type: "AI",
-          timestamp: message.AI.timestamp,
-          conversationFile: message.AI.conversationFile,
-        };
-        stats = {
-          ...message.AI.generalStats,
-          ...message.AI.fileOperations,
-          ...message.AI.todoStats,
-          ...message.AI.compositionStats,
-        };
-        messageCounts = {
-          aiMessages: 1,
-          userMessages: 0,
-        };
-      } else if ("User" in message && message.User) {
-        messageFragments = {
-          userId: user.id,
-          application: message.User.application,
-          type: "User",
-          timestamp: message.User.timestamp,
-          conversationFile: message.User.conversationFile,
-        };
-        stats = {
-          ...message.User.todoStats,
-        };
-        messageCounts = {
-          aiMessages: 0,
-          userMessages: 1,
-        };
-      } else {
-        return NextResponse.json(
-          {
-            error: "Invalid message format (expected 'AI' or 'User' root key)",
-          },
-          { status: 400 }
-        );
-      }
-
-      // Update the user_stats table with the stats corresponding to the selected period.
-      await updateCurrentPeriodStats(
-        user.id,
-        messageFragments.application,
-        new Date(Date.now()),
-        { ...stats, ...messageCounts }
+    // Before asynchronously processing the data, validate the request.
+    if (!body || !Array.isArray(body)) {
+      return NextResponse.json(
+        { error: "Invalid request body" },
+        { status: 400 }
       );
-      // Update the message_stats with the new message, skipping it if it already exists.
-      await db.messageStats.createMany({
-        data: [
-          {
-            hash: chunk.hash,
-            ...messageFragments,
-            ...stats,
-            conversationFile: messageFragments.conversationFile || "",
-          },
-        ],
-        skipDuplicates: true,
-      });
+    } else if (
+      !body.every((chunk) => "AI" in chunk.message || "User" in chunk.message)
+    ) {
+      return NextResponse.json(
+        { error: "Invalid message format (expected 'AI' or 'User' root key)" },
+        { status: 400 }
+      );
     }
+
+    // Process data asynchronously without awaiting
+    (async () => {
+      try {
+        for (const chunk of body) {
+          const message = chunk.message;
+          let stats;
+          let messageFragments;
+          let messageCounts;
+
+          if ("AI" in message && message.AI) {
+            messageFragments = {
+              userId: user.id,
+              application: message.AI.application,
+              type: "AI",
+              timestamp: message.AI.timestamp,
+              conversationFile: message.AI.conversationFile,
+            };
+            stats = {
+              ...message.AI.generalStats,
+              ...message.AI.fileOperations,
+              ...message.AI.todoStats,
+              ...message.AI.compositionStats,
+            };
+            messageCounts = {
+              aiMessages: 1,
+              userMessages: 0,
+            };
+          } else if ("User" in message && message.User) {
+            messageFragments = {
+              userId: user.id,
+              application: message.User.application,
+              type: "User",
+              timestamp: message.User.timestamp,
+              conversationFile: message.User.conversationFile,
+            };
+            stats = {
+              ...message.User.todoStats,
+            };
+            messageCounts = {
+              aiMessages: 0,
+              userMessages: 1,
+            };
+          }
+          // Because of the body.every check above, this should never happen.
+          else {
+            continue;
+          }
+
+          // Update the user_stats table with the stats corresponding to the selected period.
+          await updateCurrentPeriodStats(
+            user.id,
+            messageFragments.application,
+            new Date(Date.now()),
+            { ...stats, ...messageCounts }
+          );
+          // Update the message_stats with the new message, skipping it if it already exists.
+          await db.messageStats.createMany({
+            data: [
+              {
+                hash: chunk.hash,
+                ...messageFragments,
+                ...stats,
+                conversationFile: messageFragments.conversationFile || "",
+              },
+            ],
+            skipDuplicates: true,
+          });
+        }
+      } catch (error) {
+        console.error("Async processing error:", error);
+      }
+    })();
 
     return NextResponse.json({
       success: true,
