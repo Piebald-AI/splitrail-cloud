@@ -20,7 +20,7 @@ const NavLink = ({ path, label }: { path: string; label: string }) => {
   return (
     <NavigationMenuItem>
       <NavigationMenuLink
-        className={cn(navigationMenuTriggerStyle(), "text-md transition-all", {
+        className={cn(navigationMenuTriggerStyle(), "transition-all", {
           "bg-gradient-to-br from-primary to-[#307850] hover:opacity-90 !text-white hover:!text-white":
             pathname === path,
         })}
