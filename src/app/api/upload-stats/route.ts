@@ -3,11 +3,8 @@ import { db } from "@/lib/db";
 import {
   StatKeys,
   type ConversationMessage,
-  type ApplicationType,
-  PeriodType,
   DbUserStats,
   Periods,
-  TodoStatKeys,
   DbMessageStats,
 } from "@/types";
 import {
@@ -22,6 +19,7 @@ import {
   getYearStart,
   getYearEnd,
 } from "@/lib/dateUtils";
+import { unsupportedMethod } from "@/lib/routeUtils";
 
 export async function POST(request: NextRequest) {
   try {
@@ -93,19 +91,43 @@ export async function POST(request: NextRequest) {
       },
     })) as DbUserStats[];
     let messages: DbMessageStats[] = [];
+    let messageDict: Record<string, ConversationMessage> = {};
 
-    // So the process is:
-    //  * Loop through the messages.  Currently, the maximum is 6,000 per request.
-    //  * For each message, process the consolidated stats.
-    //  * Loop through periods and update or insert as needed.
-    //  * Add the message to the messages array for bulk upsertion later.
+    // Format all messages in a format that the DB will accept, and record each message in a dict
+    // so that later, when we loop over insertedMessages, we can use the original message to get
+    // the stats.
     for (const message of body) {
       const { stats, ...rest } = message;
+      messages.push({
+        ...rest,
+        ...stats,
+        userId: user.id,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+      messageDict[message.hash] = message;
+    }
+
+    // Insert the messages, skipping duplicates.
+    const insertedMessages = await db.messageStats.createManyAndReturn({
+      data: messages,
+      skipDuplicates: true,
+    });
+
+    // Pre-aggregate the stats into rows based on combinations of user ID, application, and period.
+    // The process is:
+    //  * Loop through the inserted messages.  createManyAndReturn only returns the messages that
+    //    were inserted, NOT the ones that were duplicate (skipped), which ensures that we're not
+    //    adding stats to the pre-aggregated stats that were previously added.
+    //  * Loop through periods and update or insert as needed.
+    //  * Add the message to the messages array for bulk upsertion later.
+    for (const message of insertedMessages) {
+      const { stats, ...rest } = messageDict[message.hash];
       const isAssistantMessage = rest.role === "assistant";
 
       // Loop through periods.
       for (const period of Periods) {
-        // Attempt to find a row that has this period and application.
+        // Attempt to find a row with this period and application.
         let stat = allStats.find(
           (stat) =>
             stat.period === period && stat.application === message.application
@@ -149,17 +171,9 @@ export async function POST(request: NextRequest) {
           });
         }
       }
-
-      // Add the message to the messages array for bulk insertion (duplicates skipped) later.
-      messages.push({
-        ...stats,
-        ...rest,
-        userId: user.id,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      });
     }
 
+    // Now upsert the pre-aggregated stats.
     await db.$transaction(
       allStats.map((stat) =>
         db.userStats.upsert({
@@ -175,12 +189,6 @@ export async function POST(request: NextRequest) {
         })
       )
     );
-
-    // Update the message_stats with the new messages, skipping it if it already exists.
-    await db.messageStats.createMany({
-      data: messages,
-      skipDuplicates: true,
-    });
 
     return NextResponse.json({
       success: true,
@@ -203,15 +211,6 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// Handle unsupported methods
-export async function GET() {
-  return NextResponse.json({ error: "Method not allowed" }, { status: 405 });
-}
-
-export async function PUT() {
-  return NextResponse.json({ error: "Method not allowed" }, { status: 405 });
-}
-
-export async function DELETE() {
-  return NextResponse.json({ error: "Method not allowed" }, { status: 405 });
-}
+export const GET = unsupportedMethod;
+export const PUT = unsupportedMethod;
+export const DELETE = unsupportedMethod;

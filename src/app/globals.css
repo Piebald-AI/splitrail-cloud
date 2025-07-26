@@ -129,8 +129,3 @@ html, body, .root {
   --sidebar-ring: oklch(0.527 0.154 150.069);
   --logo-color: #c6f2db;
 }
-
-html, body, .root {
-  width: 100%;
-  height: 100%;
-}

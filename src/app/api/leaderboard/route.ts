@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { StatKeys, type ApplicationType, type PeriodType } from "@/types";
+import { unsupportedMethod } from "@/lib/routeUtils";
 
 export async function GET(request: NextRequest) {
   try {
@@ -177,15 +178,6 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// Handle unsupported methods
-export async function POST() {
-  return NextResponse.json({ error: "Method not allowed" }, { status: 405 });
-}
-
-export async function PUT() {
-  return NextResponse.json({ error: "Method not allowed" }, { status: 405 });
-}
-
-export async function DELETE() {
-  return NextResponse.json({ error: "Method not allowed" }, { status: 405 });
-}
+export const POST = unsupportedMethod;
+export const PUT = unsupportedMethod;
+export const DELETE = unsupportedMethod;
