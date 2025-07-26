@@ -100,14 +100,19 @@ export async function POST(request: NextRequest) {
     //  * Loop through periods and update or insert as needed.
     //  * Add the message to the messages array for bulk upsertion later.
     for (const message of body) {
-      const { stats, model, application, ...rest } = message;
-      const isAssistantMessage = message.role === "assistant";
+      const { stats, ...rest } = message;
+      const isAssistantMessage = rest.role === "assistant";
 
+      // Loop through periods.
       for (const period of Periods) {
+        // Attempt to find a row that has this period and application.
         let stat = allStats.find(
-          (stat) => stat.period === period && stat.application === application
+          (stat) =>
+            stat.period === period && stat.application === message.application
         );
+        // If we've found it, then we're going to add the new stats to the old ones.
         if (stat) {
+          // StatKeys is a list of all numeric statistic keys that should be added up.
           for (const key of StatKeys) {
             // assistantMessages and userMessages DO NOT come from the CLI.  They're populated right
             // here in the route.
@@ -120,18 +125,21 @@ export async function POST(request: NextRequest) {
               stat[key] += stats[key];
             }
           }
+          // If it's an assistant message, increment assistantMessages.
           if (isAssistantMessage && stat.assistantMessages) {
             stat.assistantMessages += 1;
           } else if (!isAssistantMessage && stat.userMessages) {
             stat.userMessages += 1;
           }
           stat.updatedAt = new Date();
-        } else {
+        }
+        // Otherwise, if we haven't found it, then we're going to create a new row.
+        else {
           allStats.push({
             ...stats,
+            ...rest,
             userId: user.id,
             period,
-            application: application,
             periodStart: periodStarts[period],
             periodEnd: periodEnds[period],
             assistantMessages: isAssistantMessage ? 1 : 0,
@@ -142,20 +150,16 @@ export async function POST(request: NextRequest) {
         }
       }
 
+      // Add the message to the messages array for bulk insertion (duplicates skipped) later.
       messages.push({
         ...stats,
         ...rest,
-        model: model,
-        application: application,
         userId: user.id,
-        role: isAssistantMessage ? "assistant" : "user",
         createdAt: new Date(),
         updatedAt: new Date(),
       });
     }
 
-
-    console.log(allStats);
     await db.$transaction(
       allStats.map((stat) =>
         db.userStats.upsert({
