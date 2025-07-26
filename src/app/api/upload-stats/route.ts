@@ -2,8 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import {
   StatKeys,
-  UserStats,
-  type UploadStatsRequest,
+  type ConversationMessage,
   type ApplicationType,
   PeriodType,
   DbUserStats,
@@ -23,130 +22,6 @@ import {
   getYearStart,
   getYearEnd,
 } from "@/lib/dateUtils";
-import { MessageStats } from "@prisma/client";
-
-async function updateCurrentPeriodStats(
-  userId: string,
-  application: ApplicationType,
-  eventDate: Date,
-  stats: Partial<UserStats>
-) {
-  // Update all period stats in parallel
-  await Promise.all([
-    updatePeriodStats(
-      userId,
-      application,
-      "hourly",
-      getHourStart(eventDate),
-      getHourEnd(eventDate),
-      stats
-    ),
-    updatePeriodStats(
-      userId,
-      application,
-      "daily",
-      getDayStart(eventDate),
-      getDayEnd(eventDate),
-      stats
-    ),
-    updatePeriodStats(
-      userId,
-      application,
-      "weekly",
-      getWeekStart(eventDate),
-      getWeekEnd(eventDate),
-      stats
-    ),
-    updatePeriodStats(
-      userId,
-      application,
-      "monthly",
-      getMonthStart(eventDate),
-      getMonthEnd(eventDate),
-      stats
-    ),
-    updatePeriodStats(
-      userId,
-      application,
-      "yearly",
-      getYearStart(eventDate),
-      getYearEnd(eventDate),
-      stats
-    ),
-    updatePeriodStats(userId, application, "all-time", null, null, stats),
-  ]);
-}
-
-async function updatePeriodStats(
-  userId: string,
-  application: ApplicationType,
-  period: string,
-  periodStart: Date | null,
-  periodEnd: Date | null,
-  stats: Partial<UserStats>
-) {
-  const existingStats = await db.userStats.findUnique({
-    where: {
-      userId_period_application: {
-        userId,
-        period,
-        application,
-      },
-    },
-  });
-
-  // If there are existing stats, and the existing period start is not equal to the new period
-  // start (i.e. a new period has begun).
-  if (
-    !existingStats ||
-    (periodStart &&
-      existingStats.periodStart &&
-      existingStats.periodStart.getTime() !== periodStart.getTime())
-  ) {
-    const statsData = {
-      application,
-      period,
-      periodStart,
-      periodEnd,
-      // Get all the stats whose keys are in StatKeys.
-      ...Object.fromEntries(
-        Object.entries(stats).filter(([key]) =>
-          (StatKeys as readonly string[]).includes(key)
-        )
-      ),
-    };
-
-    // New period - replace existing stats
-    await db.userStats.upsert({
-      where: {
-        userId_period_application: {
-          userId,
-          period,
-          application,
-        },
-      },
-      create: { userId, ...statsData },
-      update: statsData,
-    });
-  } else {
-    // Add incoming stats to existing stats.
-    const newStats: Partial<UserStats> = {};
-    StatKeys.forEach((key) => {
-      newStats[key] = existingStats[key] + (stats[key] ?? 0);
-    });
-
-    await db.userStats.update({
-      where: {
-        userId_period_application: {
-          userId,
-          period,
-          application,
-        },
-      },
-      data: newStats,
-    });
-  }
-}
 
 export async function POST(request: NextRequest) {
   try {
@@ -175,7 +50,7 @@ export async function POST(request: NextRequest) {
     });
 
     const user = apiToken.user;
-    const body: UploadStatsRequest = await request.json();
+    const body: ConversationMessage[] = await request.json();
 
     // Before asynchronously processing the data, validate the request.
     if (!body || !Array.isArray(body)) {
@@ -184,10 +59,13 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     } else if (
-      !body.every((chunk) => "AI" in chunk.message || "User" in chunk.message)
+      !body.every(
+        (message) =>
+          message && typeof message === "object" && "stats" in message
+      )
     ) {
       return NextResponse.json(
-        { error: "Invalid message format (expected 'AI' or 'User' root key)" },
+        { error: "Invalid message format" },
         { status: 400 }
       );
     }
@@ -218,132 +96,81 @@ export async function POST(request: NextRequest) {
 
     // So the process is:
     //  * Loop through the messages.  Currently, the maximum is 6,000 per request.
-    //  * For each message, check if it's an AI or User message.
+    //  * For each message, process the consolidated stats.
     //  * Loop through periods and update or insert as needed.
     //  * Add the message to the messages array for bulk upsertion later.
     for (const message of body) {
-      if ("AI" in message.message && message.message.AI) {
-        const {
-          generalStats,
-          fileOperations,
-          todoStats,
-          compositionStats,
-          ...rest
-        } = message.message.AI;
-        const stats = {
-          ...generalStats,
-          ...fileOperations,
-          ...todoStats,
-          ...compositionStats,
-        };
-        for (const period of Periods) {
-          let stat = allStats.find(
-            (stat) =>
-              stat.period === period && stat.application === rest.application
-          );
-          if (stat) {
-            for (const key of StatKeys) {
-              // aiMessages and userMessages DO NOT come from the CLI.  They're populated right
-              // here in the route.
-              if (key !== "aiMessages" && key !== "userMessages" && stat[key]) {
-                stat[key] += stats[key];
-              }
+      const { stats, model, application, ...rest } = message;
+      const isAssistantMessage = message.role === "assistant";
+
+      for (const period of Periods) {
+        let stat = allStats.find(
+          (stat) => stat.period === period && stat.application === application
+        );
+        if (stat) {
+          for (const key of StatKeys) {
+            // assistantMessages and userMessages DO NOT come from the CLI.  They're populated right
+            // here in the route.
+            if (
+              key !== "assistantMessages" &&
+              key !== "userMessages" &&
+              stat[key] &&
+              stats[key]
+            ) {
+              stat[key] += stats[key];
             }
-            if (stat.aiMessages) {
-              stat.aiMessages += 1;
-            }
-            stat.updatedAt = new Date();
-          } else {
-            allStats.push({
-              ...stats,
-              userId: user.id,
-              period,
-              application: rest.application,
-              periodStart: periodStarts[period],
-              periodEnd: periodEnds[period],
-              aiMessages: 1,
-              userMessages: 0,
-              createdAt: new Date(),
-              updatedAt: new Date(),
-            });
           }
-          messages.push({
+          if (isAssistantMessage && stat.assistantMessages) {
+            stat.assistantMessages += 1;
+          } else if (!isAssistantMessage && stat.userMessages) {
+            stat.userMessages += 1;
+          }
+          stat.updatedAt = new Date();
+        } else {
+          allStats.push({
             ...stats,
-            ...rest,
             userId: user.id,
-            type: "AI",
+            period,
+            application: application,
+            periodStart: periodStarts[period],
+            periodEnd: periodEnds[period],
+            assistantMessages: isAssistantMessage ? 1 : 0,
+            userMessages: isAssistantMessage ? 0 : 1,
             createdAt: new Date(),
             updatedAt: new Date(),
           });
         }
-      } else if ("User" in message.message && message.message.User) {
-        const { todoStats, ...rest } = message.message.User;
-        const stats = {
-          ...todoStats,
-        };
-        for (const period of Periods) {
-          let stat = allStats.find(
-            (stat) =>
-              stat.period === period && stat.application === rest.application
-          );
-          if (stat) {
-            for (const key of TodoStatKeys) {
-              if (stat[key]) stat[key] += stats[key];
-            }
-            if (stat.userMessages) stat.userMessages += 1;
-            stat.updatedAt = new Date();
-          } else {
-            allStats.push({
-              ...stats,
-              userId: user.id,
-              period,
-              application: rest.application,
-              periodStart: periodStarts[period],
-              periodEnd: periodEnds[period],
-              aiMessages: 0,
-              userMessages: 1,
-              createdAt: new Date(),
-              updatedAt: new Date(),
-            });
-          }
-          messages.push({
-            ...stats,
-            ...rest,
-            userId: user.id,
-            type: "User",
-            model: "",
-            createdAt: new Date(),
-            updatedAt: new Date(),
-          });
-        }
-      } else {
-        continue;
       }
+
+      messages.push({
+        ...stats,
+        ...rest,
+        model: model,
+        application: application,
+        userId: user.id,
+        role: isAssistantMessage ? "assistant" : "user",
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
     }
 
-    const stat = allStats[0];
 
-    // Clean the stat object - remove NaN values and replace with appropriate defaults
-    const cleanedStat = {
-      ...stat,
-      todosCreated: isNaN(stat.todosCreated ?? 0) ? 0 : stat.todosCreated,
-      todosCompleted: isNaN(stat.todosCompleted ?? 0) ? 0 : stat.todosCompleted,
-      todosInProgress: isNaN(stat.todosInProgress ?? 0) ? 0 : stat.todosInProgress,
-      todoWrites: isNaN(stat.todoWrites ?? 0) ? 0 : stat.todoWrites,
-      todoReads: isNaN(stat.todoReads ?? 0) ? 0 : stat.todoReads,
-    };
-
-    await db.userStats.upsert({
-      where: {
-        userId_period_application: {
-          userId: cleanedStat.userId,
-          period: cleanedStat.period,
-          application: cleanedStat.application ?? "",
-        },
-      },
-      update: cleanedStat,
-      create: cleanedStat,
-    });
+    console.log(allStats);
+    await db.$transaction(
+      allStats.map((stat) =>
+        db.userStats.upsert({
+          where: {
+            userId_period_application: {
+              userId: stat.userId,
+              period: stat.period,
+              application: stat.application,
+            },
+          },
+          update: stat,
+          create: stat,
+        })
+      )
+    );
 
     // Update the message_stats with the new messages, skipping it if it already exists.
     await db.messageStats.createMany({

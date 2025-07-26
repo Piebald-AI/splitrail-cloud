@@ -36,7 +36,7 @@ model MessageStats {
   hash                  String    @id
   userId                String
   application           String    @default("claude_code") // "claude_code", "gemini_cli", "codex_cli"
-  type                  String    // "AI" or "User"
+  role                  String    // "assistant" or "user"
   timestamp             String
   projectHash           String
   inputTokens           Int?
@@ -95,7 +95,7 @@ model UserStats {
   periodStart           DateTime?
   periodEnd             DateTime?
   toolCalls             Int      @default(0)
-  aiMessages            Int      @default(0)
+  assistantMessages     Int      @default(0)
   userMessages          Int      @default(0)
   inputTokens           Int      @default(0)
   outputTokens          Int      @default(0)

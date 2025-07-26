@@ -68,7 +68,7 @@ export const StatKeys = [
   ...CompositionStatKeys,
   ...TodoStatKeys,
   ...GeneralStatKeys,
-  "aiMessages",
+  "assistantMessages",
   "userMessages",
 ] as const;
 
@@ -87,11 +87,13 @@ export type TodoStats = Record<(typeof TodoStatKeys)[number], number>;
 
 export type GeneralStats = Record<(typeof GeneralStatKeys)[number], number>;
 
-export type UserStats = Record<(typeof StatKeys)[number], number>;
+export type Stats = Record<(typeof StatKeys)[number], number>;
+
+export type UserStats = Stats;
 
 export type UserStatsPeriods = {
   period: string;
-  application?: ApplicationType;
+  application: ApplicationType;
   periodStart?: Date;
   periodEnd?: Date;
 }
@@ -105,14 +107,14 @@ export type DbUserStats = Partial<UserStats> & UserStatsPeriods & {
   createdAt: Date;
 };
 
-export type DbMessageStats = Omit<Partial<UserStats>, "aiMessages" | "userMessages"> & {
+export type DbMessageStats = Omit<Partial<UserStats>, "assistantMessages" | "userMessages"> & {
   hash: string;
   userId: string;
   application: ApplicationType;
-  type: string;
+  role: string;
   timestamp: string;
   projectHash: string;
-  model: string;
+  model: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -164,34 +166,16 @@ export interface ModelData {
   [modelName: string]: number;
 }
 
-export type AIMessage = {
-  model: string;
-  timestamp: string;
-  hash: string;
-  projectHash: string;
-  application: ApplicationType;
-  generalStats: GeneralStats;
-  fileOperations: FileOperationStats;
-  todoStats: TodoStats;
-  compositionStats: CompositionStats;
-};
-
-export type UserMessage = {
-  timestamp: string;
-  hash: string;
-  projectHash: string;
-  application: ApplicationType;
-  todoStats: TodoStats;
-};
-
 // API request/response types
-export type UploadStatsRequest = {
+export type ConversationMessage = {
+  role: "user" | "assistant";
+  model: string | null;
+  timestamp: string;
   hash: string;
-  message: {
-    AI?: AIMessage;
-    User?: UserMessage;
-  };
-}[];
+  projectHash: string;
+  application: ApplicationType;
+  stats: Stats;
+};
 
 export interface ApiError {
   error: string;
