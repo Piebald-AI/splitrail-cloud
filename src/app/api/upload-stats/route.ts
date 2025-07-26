@@ -122,15 +122,13 @@ export async function POST(request: NextRequest) {
     //  * Loop through periods and update or insert as needed.
     //  * Add the message to the messages array for bulk upsertion later.
     for (const message of insertedMessages) {
-      const { stats, ...rest } = messageDict[message.hash];
-      const isAssistantMessage = rest.role === "assistant";
-
+      const { stats, role, application } = messageDict[message.hash];
+      const isAssistantMessage = role === "assistant";
       // Loop through periods.
       for (const period of Periods) {
         // Attempt to find a row with this period and application.
         const stat = allStats.find(
-          (stat) =>
-            stat.period === period && stat.application === message.application
+          (stat) => stat.period === period && stat.application === application
         );
         // If we've found it, then we're going to add the new stats to the old ones.
         if (stat) {
@@ -141,8 +139,8 @@ export async function POST(request: NextRequest) {
             if (
               key !== "assistantMessages" &&
               key !== "userMessages" &&
-              stat[key] &&
-              stats[key]
+              stat[key] !== undefined &&
+              stats[key] !== undefined
             ) {
               stat[key] += stats[key];
             }
@@ -159,8 +157,8 @@ export async function POST(request: NextRequest) {
         else {
           allStats.push({
             ...stats,
-            ...rest,
             userId: user.id,
+            application,
             period,
             periodStart: periodStarts[period],
             periodEnd: periodEnds[period],
