@@ -54,6 +54,7 @@ function generateStats(baseMultiplier: number, periodMultiplier: number): UserSt
     outputTokens: Math.round((Math.random() * 8000 + 4000) * multiplier * variation),
     cacheCreationTokens: Math.round((Math.random() * 3000 + 1500) * multiplier * variation),
     cacheReadTokens: Math.round((Math.random() * 5000 + 2500) * multiplier * variation),
+    cachedTokens: Math.round((Math.random() * 5000 + 2500) * multiplier * variation),
     cost: Math.round((Math.random() * 75 + 25) * multiplier * variation * 100) / 100,
     filesRead: Math.round((Math.random() * 80 + 30) * multiplier * variation),
     filesAdded: Math.round((Math.random() * 15 + 5) * multiplier * variation),
@@ -124,7 +125,6 @@ async function clearDatabase() {
   await prisma.userStats.deleteMany();
   await prisma.userPreferences.deleteMany();
   await prisma.apiToken.deleteMany();
-  await prisma.account.deleteMany();
   await prisma.session.deleteMany();
   await prisma.user.deleteMany();
   

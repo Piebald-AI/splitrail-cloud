@@ -5,90 +5,25 @@ import {
   UserStats,
   type UploadStatsRequest,
   type ApplicationType,
+  PeriodType,
+  DbUserStats,
+  Periods,
+  TodoStatKeys,
+  DbMessageStats,
 } from "@/types";
-
-function getHourStart(date: Date): Date {
-  return new Date(
-    date.getFullYear(),
-    date.getMonth(),
-    date.getDate(),
-    date.getHours(),
-    0,
-    0,
-    0
-  );
-}
-
-function getDayStart(date: Date): Date {
-  return new Date(
-    date.getFullYear(),
-    date.getMonth(),
-    date.getDate(),
-    0,
-    0,
-    0,
-    0
-  );
-}
-
-function getWeekStart(date: Date): Date {
-  const d = new Date(date);
-  const day = d.getDay();
-  const diff = d.getDate() - day + (day === 0 ? -6 : 1);
-  return new Date(d.getFullYear(), d.getMonth(), diff, 0, 0, 0, 0);
-}
-
-function getMonthStart(date: Date): Date {
-  return new Date(date.getFullYear(), date.getMonth(), 1, 0, 0, 0, 0);
-}
-
-function getYearStart(date: Date): Date {
-  return new Date(date.getFullYear(), 0, 1, 0, 0, 0, 0);
-}
-
-function getHourEnd(date: Date): Date {
-  return new Date(
-    date.getFullYear(),
-    date.getMonth(),
-    date.getDate(),
-    date.getHours(),
-    59,
-    59,
-    999
-  );
-}
-
-function getDayEnd(date: Date): Date {
-  return new Date(
-    date.getFullYear(),
-    date.getMonth(),
-    date.getDate(),
-    23,
-    59,
-    59,
-    999
-  );
-}
-
-function getWeekEnd(date: Date): Date {
-  const weekStart = getWeekStart(date);
-  return new Date(
-    weekStart.getTime() +
-      6 * 24 * 60 * 60 * 1000 +
-      23 * 60 * 60 * 1000 +
-      59 * 60 * 1000 +
-      59 * 1000 +
-      999
-  );
-}
-
-function getMonthEnd(date: Date): Date {
-  return new Date(date.getFullYear(), date.getMonth() + 1, 0, 23, 59, 59, 999);
-}
-
-function getYearEnd(date: Date): Date {
-  return new Date(date.getFullYear(), 11, 31, 23, 59, 59, 999);
-}
+import {
+  getHourStart,
+  getHourEnd,
+  getDayStart,
+  getDayEnd,
+  getWeekStart,
+  getWeekEnd,
+  getMonthStart,
+  getMonthEnd,
+  getYearStart,
+  getYearEnd,
+} from "@/lib/dateUtils";
+import { MessageStats } from "@prisma/client";
 
 async function updateCurrentPeriodStats(
   userId: string,
@@ -224,11 +159,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const token = authHeader.substring(7);
-
-    // Validate token and get user.
     const apiToken = await db.apiToken.findUnique({
-      where: { token },
+      where: { token: authHeader.substring(7) },
       include: { user: true },
     });
 
@@ -243,7 +175,6 @@ export async function POST(request: NextRequest) {
     });
 
     const user = apiToken.user;
-
     const body: UploadStatsRequest = await request.json();
 
     // Before asynchronously processing the data, validate the request.
@@ -261,78 +192,164 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Process data asynchronously without awaiting
-    (async () => {
-      try {
-        for (const chunk of body) {
-          const message = chunk.message;
-          let stats;
-          let messageFragments;
-          let messageCounts;
+    const periodStarts = {
+      hourly: getHourStart(new Date()),
+      daily: getDayStart(new Date()),
+      weekly: getWeekStart(new Date()),
+      monthly: getMonthStart(new Date()),
+      yearly: getYearStart(new Date()),
+      "all-time": undefined,
+    };
+    const periodEnds = {
+      hourly: getHourEnd(new Date()),
+      daily: getDayEnd(new Date()),
+      weekly: getWeekEnd(new Date()),
+      monthly: getMonthEnd(new Date()),
+      yearly: getYearEnd(new Date()),
+      "all-time": undefined,
+    };
 
-          if ("AI" in message && message.AI) {
-            messageFragments = {
+    let allStats = (await db.userStats.findMany({
+      where: {
+        userId: user.id,
+      },
+    })) as DbUserStats[];
+    let messages: DbMessageStats[] = [];
+
+    // So the process is:
+    //  * Loop through the messages.  Currently, the maximum is 6,000 per request.
+    //  * For each message, check if it's an AI or User message.
+    //  * Loop through periods and update or insert as needed.
+    //  * Add the message to the messages array for bulk upsertion later.
+    for (const message of body) {
+      if ("AI" in message.message && message.message.AI) {
+        const {
+          generalStats,
+          fileOperations,
+          todoStats,
+          compositionStats,
+          ...rest
+        } = message.message.AI;
+        const stats = {
+          ...generalStats,
+          ...fileOperations,
+          ...todoStats,
+          ...compositionStats,
+        };
+        for (const period of Periods) {
+          let stat = allStats.find(
+            (stat) =>
+              stat.period === period && stat.application === rest.application
+          );
+          if (stat) {
+            for (const key of StatKeys) {
+              // aiMessages and userMessages DO NOT come from the CLI.  They're populated right
+              // here in the route.
+              if (key !== "aiMessages" && key !== "userMessages" && stat[key]) {
+                stat[key] += stats[key];
+              }
+            }
+            if (stat.aiMessages) {
+              stat.aiMessages += 1;
+            }
+            stat.updatedAt = new Date();
+          } else {
+            allStats.push({
+              ...stats,
               userId: user.id,
-              application: message.AI.application,
-              type: "AI",
-              timestamp: message.AI.timestamp,
-              conversationFile: message.AI.conversationFile,
-            };
-            stats = {
-              ...message.AI.generalStats,
-              ...message.AI.fileOperations,
-              ...message.AI.todoStats,
-              ...message.AI.compositionStats,
-            };
-            messageCounts = {
+              period,
+              application: rest.application,
+              periodStart: periodStarts[period],
+              periodEnd: periodEnds[period],
               aiMessages: 1,
               userMessages: 0,
-            };
-          } else if ("User" in message && message.User) {
-            messageFragments = {
-              userId: user.id,
-              application: message.User.application,
-              type: "User",
-              timestamp: message.User.timestamp,
-              conversationFile: message.User.conversationFile,
-            };
-            stats = {
-              ...message.User.todoStats,
-            };
-            messageCounts = {
-              aiMessages: 0,
-              userMessages: 1,
-            };
+              createdAt: new Date(),
+              updatedAt: new Date(),
+            });
           }
-          // Because of the body.every check above, this should never happen.
-          else {
-            continue;
-          }
-
-          // Update the user_stats table with the stats corresponding to the selected period.
-          await updateCurrentPeriodStats(
-            user.id,
-            messageFragments.application,
-            new Date(Date.now()),
-            { ...stats, ...messageCounts }
-          );
-          // Update the message_stats with the new message, skipping it if it already exists.
-          await db.messageStats.createMany({
-            data: [
-              {
-                hash: chunk.hash,
-                ...messageFragments,
-                ...stats,
-                conversationFile: messageFragments.conversationFile || "",
-              },
-            ],
-            skipDuplicates: true,
+          messages.push({
+            ...stats,
+            ...rest,
+            userId: user.id,
+            type: "AI",
+            createdAt: new Date(),
+            updatedAt: new Date(),
           });
         }
-      } catch (error) {
-        console.error("Async processing error:", error);
+      } else if ("User" in message.message && message.message.User) {
+        const { todoStats, ...rest } = message.message.User;
+        const stats = {
+          ...todoStats,
+        };
+        for (const period of Periods) {
+          let stat = allStats.find(
+            (stat) =>
+              stat.period === period && stat.application === rest.application
+          );
+          if (stat) {
+            for (const key of TodoStatKeys) {
+              if (stat[key]) stat[key] += stats[key];
+            }
+            if (stat.userMessages) stat.userMessages += 1;
+            stat.updatedAt = new Date();
+          } else {
+            allStats.push({
+              ...stats,
+              userId: user.id,
+              period,
+              application: rest.application,
+              periodStart: periodStarts[period],
+              periodEnd: periodEnds[period],
+              aiMessages: 0,
+              userMessages: 1,
+              createdAt: new Date(),
+              updatedAt: new Date(),
+            });
+          }
+          messages.push({
+            ...stats,
+            ...rest,
+            userId: user.id,
+            type: "User",
+            model: "",
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          });
+        }
+      } else {
+        continue;
       }
-    })();
+    }
+
+    const stat = allStats[0];
+
+    // Clean the stat object - remove NaN values and replace with appropriate defaults
+    const cleanedStat = {
+      ...stat,
+      todosCreated: isNaN(stat.todosCreated ?? 0) ? 0 : stat.todosCreated,
+      todosCompleted: isNaN(stat.todosCompleted ?? 0) ? 0 : stat.todosCompleted,
+      todosInProgress: isNaN(stat.todosInProgress ?? 0) ? 0 : stat.todosInProgress,
+      todoWrites: isNaN(stat.todoWrites ?? 0) ? 0 : stat.todoWrites,
+      todoReads: isNaN(stat.todoReads ?? 0) ? 0 : stat.todoReads,
+    };
+
+    await db.userStats.upsert({
+      where: {
+        userId_period_application: {
+          userId: cleanedStat.userId,
+          period: cleanedStat.period,
+          application: cleanedStat.application ?? "",
+        },
+      },
+      update: cleanedStat,
+      create: cleanedStat,
+    });
+
+    // Update the message_stats with the new messages, skipping it if it already exists.
+    await db.messageStats.createMany({
+      data: messages,
+      skipDuplicates: true,
+    });
 
     return NextResponse.json({
       success: true,

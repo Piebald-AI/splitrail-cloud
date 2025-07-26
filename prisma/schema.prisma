@@ -25,20 +25,20 @@ model User {
   messageStats  MessageStats[]
   preferences   UserPreferences?
   sessions      Session[]
-  accounts      Account[]
   apiTokens     ApiToken[]
   folderProjects FolderProject[]
   
   @@map("users")
 }
 
+// NOTE: If you're updating this table, make sure to update the types in src/types/index.ts too.
 model MessageStats {
   hash                  String    @id
   userId                String
   application           String    @default("claude_code") // "claude_code", "gemini_cli", "codex_cli"
   type                  String    // "AI" or "User"
   timestamp             String
-  conversationFile      String
+  projectHash           String
   inputTokens           Int?
   outputTokens          Int?
   cacheCreationTokens   Int?
@@ -86,6 +86,7 @@ model MessageStats {
   @@map("message_stats")
 }
 
+// NOTE: If you're updating this table, make sure to update the types in src/types/index.ts too.
 model UserStats {
   id                    String   @id @default(cuid())
   userId                String
@@ -159,27 +160,6 @@ model UserPreferences {
   user                  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   
   @@map("user_preferences")
-}
-
-// NextAuth.js models
-model Account {
-  id                String  @id @default(cuid())
-  userId            String
-  type              String
-  provider          String
-  providerAccountId String
-  refresh_token     String? @db.Text
-  access_token      String? @db.Text
-  expires_at        Int?
-  token_type        String?
-  scope             String?
-  id_token          String? @db.Text
-  session_state     String?
-  
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  @@unique([provider, providerAccountId])
-  @@map("accounts")
 }
 
 model Session {

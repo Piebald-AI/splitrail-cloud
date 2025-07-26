@@ -3,6 +3,18 @@ import { type User } from "@prisma/client";
 // Application types for CLI/agentic development tools
 export type ApplicationType = "claude_code" | "gemini_cli" | "codex_cli";
 
+// Period types
+export const Periods = [
+  "hourly",
+  "daily",
+  "weekly",
+  "monthly",
+  "yearly",
+  "all-time",
+] as const;
+
+export type PeriodType = (typeof Periods)[number];
+
 // Using strings for stat keys instead of manually spelling them out in the interfaces so that in
 // the routes that update the database we can use these keys to determine what to update.
 
@@ -46,6 +58,7 @@ export const GeneralStatKeys = [
   "outputTokens",
   "cacheCreationTokens",
   "cacheReadTokens",
+  "cachedTokens",
   "cost",
   "toolCalls",
 ] as const;
@@ -76,11 +89,32 @@ export type GeneralStats = Record<(typeof GeneralStatKeys)[number], number>;
 
 export type UserStats = Record<(typeof StatKeys)[number], number>;
 
-export interface UserStatsWithPeriods extends UserStats {
+export type UserStatsPeriods = {
   period: string;
   application?: ApplicationType;
   periodStart?: Date;
   periodEnd?: Date;
+}
+
+export type UserStatsWithPeriods = UserStats & UserStatsPeriods;
+
+export type DbUserStats = Partial<UserStats> & UserStatsPeriods & {
+  id?: string;
+  userId: string;
+  updatedAt: Date;
+  createdAt: Date;
+};
+
+export type DbMessageStats = Omit<Partial<UserStats>, "aiMessages" | "userMessages"> & {
+  hash: string;
+  userId: string;
+  application: ApplicationType;
+  type: string;
+  timestamp: string;
+  projectHash: string;
+  model: string;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 // Extended types for API responses
@@ -133,9 +167,9 @@ export interface ModelData {
 export type AIMessage = {
   model: string;
   timestamp: string;
-  hash: string | null;
+  hash: string;
+  projectHash: string;
   application: ApplicationType;
-  conversationFile: string;
   generalStats: GeneralStats;
   fileOperations: FileOperationStats;
   todoStats: TodoStats;
@@ -144,8 +178,9 @@ export type AIMessage = {
 
 export type UserMessage = {
   timestamp: string;
+  hash: string;
+  projectHash: string;
   application: ApplicationType;
-  conversationFile: string;
   todoStats: TodoStats;
 };
 

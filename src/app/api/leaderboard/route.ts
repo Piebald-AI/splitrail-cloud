@@ -1,14 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { StatKeys, type ApplicationType } from "@/types";
-
-type PeriodType =
-  | "hourly"
-  | "daily"
-  | "weekly"
-  | "monthly"
-  | "yearly"
-  | "all-time";
+import { StatKeys, type ApplicationType, type PeriodType } from "@/types";
 
 export async function GET(request: NextRequest) {
   try {
