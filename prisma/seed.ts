@@ -48,7 +48,7 @@ function generateStats(baseMultiplier: number, periodMultiplier: number): UserSt
   
   return {
     toolCalls: Math.round((Math.random() * 25 + 10) * multiplier * variation),
-    aiMessages: Math.round((Math.random() * 40 + 20) * multiplier * variation),
+    assistantMessages: Math.round((Math.random() * 40 + 20) * multiplier * variation),
     userMessages: Math.round((Math.random() * 40 + 20) * multiplier * variation),
     inputTokens: Math.round((Math.random() * 15000 + 8000) * multiplier * variation),
     outputTokens: Math.round((Math.random() * 8000 + 4000) * multiplier * variation),

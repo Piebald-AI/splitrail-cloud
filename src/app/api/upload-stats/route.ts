@@ -85,13 +85,13 @@ export async function POST(request: NextRequest) {
       "all-time": undefined,
     };
 
-    let allStats = (await db.userStats.findMany({
+    const allStats = (await db.userStats.findMany({
       where: {
         userId: user.id,
       },
     })) as DbUserStats[];
-    let messages: DbMessageStats[] = [];
-    let messageDict: Record<string, ConversationMessage> = {};
+    const messages: DbMessageStats[] = [];
+    const messageDict: Record<string, ConversationMessage> = {};
 
     // Format all messages in a format that the DB will accept, and record each message in a dict
     // so that later, when we loop over insertedMessages, we can use the original message to get
@@ -128,7 +128,7 @@ export async function POST(request: NextRequest) {
       // Loop through periods.
       for (const period of Periods) {
         // Attempt to find a row with this period and application.
-        let stat = allStats.find(
+        const stat = allStats.find(
           (stat) =>
             stat.period === period && stat.application === message.application
         );
