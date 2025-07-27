@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { StatKeys, type ApplicationType, type PeriodType } from "@/types";
+import {
+  Periods,
+  StatKeys,
+  type ApplicationType,
+  type PeriodType,
+} from "@/types";
 import { unsupportedMethod } from "@/lib/routeUtils";
 
 export async function GET(request: NextRequest) {
@@ -25,22 +30,12 @@ export async function GET(request: NextRequest) {
       500
     ); // Max 500
 
-    const validPeriods = [
-      "hourly",
-      "daily",
-      "weekly",
-      "monthly",
-      "yearly",
-      "all-time",
-    ];
-
     // Validate parameters
-    if (!validPeriods.includes(period)) {
+    if (!Periods.includes(period)) {
       return NextResponse.json(
         {
           error:
-            "Invalid period parameter. Must be one of: " +
-            validPeriods.join(", "),
+            "Invalid period parameter. Must be one of: " + Periods.join(", "),
         },
         { status: 400 }
       );
@@ -162,6 +157,11 @@ export async function GET(request: NextRequest) {
       pageSize,
       period,
       applications,
+    };
+
+    // @ts-ignore
+    BigInt.prototype.toJSON = function () {
+      return { $bigint: this.toString() };
     };
 
     return NextResponse.json({

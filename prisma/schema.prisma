@@ -39,41 +39,41 @@ model MessageStats {
   role                  String    // "assistant" or "user"
   timestamp             String
   projectHash           String
-  inputTokens           Int?
-  outputTokens          Int?
-  cacheCreationTokens   Int?
-  cacheReadTokens       Int?
-  cachedTokens          Int?
+  inputTokens           BigInt
+  outputTokens          BigInt
+  cacheCreationTokens   BigInt
+  cacheReadTokens       BigInt
+  cachedTokens          BigInt
   cost                  Float?
   model                 String?
-  toolCalls             Int?
+  toolCalls             BigInt
   fileTypes             Json?
-  terminalCommands      Int?
-  fileSearches          Int?
-  fileContentSearches   Int?
-  filesRead             Int?
-  filesAdded            Int?
-  filesEdited           Int?
-  filesDeleted          Int?
-  linesRead             Int?
-  linesEdited           Int?
-  linesAdded            Int?
-  linesDeleted          Int?
-  bytesRead             Int?
-  bytesAdded            Int?
-  bytesEdited           Int?
-  bytesDeleted          Int?
-  codeLines             Int?
-  docsLines             Int?
-  dataLines             Int?
-  mediaLines            Int?
-  configLines           Int?
-  otherLines            Int?
-  todosCreated          Int       @default(0)
-  todosCompleted        Int       @default(0)
-  todosInProgress       Int       @default(0)
-  todoWrites            Int       @default(0)
-  todoReads             Int       @default(0)
+  terminalCommands      BigInt
+  fileSearches          BigInt
+  fileContentSearches   BigInt
+  filesRead             BigInt
+  filesAdded            BigInt
+  filesEdited           BigInt
+  filesDeleted          BigInt
+  linesRead             BigInt
+  linesEdited           BigInt
+  linesAdded            BigInt
+  linesDeleted          BigInt
+  bytesRead             BigInt
+  bytesAdded            BigInt
+  bytesEdited           BigInt
+  bytesDeleted          BigInt
+  codeLines             BigInt
+  docsLines             BigInt
+  dataLines             BigInt
+  mediaLines            BigInt
+  configLines           BigInt
+  otherLines            BigInt
+  todosCreated          BigInt    @default(0)
+  todosCompleted        BigInt    @default(0)
+  todosInProgress       BigInt    @default(0)
+  todoWrites            BigInt    @default(0)
+  todoReads             BigInt    @default(0)
   
   createdAt             DateTime  @default(now())
   updatedAt             DateTime  @updatedAt
@@ -90,45 +90,45 @@ model MessageStats {
 model UserStats {
   id                    String   @id @default(cuid())
   userId                String
-  application           String   @default("claude_code") // "claude_code", "gemini_cli", "codex_cli"
+  application           String   // "claude_code", "gemini_cli", "codex_cli"
   period                String   // "hourly", "daily", "weekly", "monthly", "yearly", "all-time"
   periodStart           DateTime?
   periodEnd             DateTime?
-  toolCalls             Int      @default(0)
-  assistantMessages     Int      @default(0)
-  userMessages          Int      @default(0)
-  inputTokens           Int      @default(0)
-  outputTokens          Int      @default(0)
-  cacheCreationTokens   Int      @default(0)
-  cacheReadTokens       Int      @default(0)
-  cachedTokens          Int      @default(0)
+  toolCalls             BigInt   @default(0)
+  assistantMessages     BigInt   @default(0)
+  userMessages          BigInt   @default(0)
+  inputTokens           BigInt   @default(0)
+  outputTokens          BigInt   @default(0)
+  cacheCreationTokens   BigInt   @default(0)
+  cacheReadTokens       BigInt   @default(0)
+  cachedTokens          BigInt   @default(0)
   cost                  Float    @default(0)
-  filesRead             Int      @default(0)
-  filesAdded            Int      @default(0)
-  filesEdited           Int      @default(0)
-  filesDeleted          Int      @default(0)
-  linesRead             Int      @default(0)
-  linesAdded            Int      @default(0)
-  linesEdited           Int      @default(0)
-  linesDeleted          Int      @default(0)
-  bytesRead             Int      @default(0)
-  bytesAdded            Int      @default(0)
-  bytesEdited           Int      @default(0)
-  bytesDeleted          Int      @default(0)
-  codeLines             Int      @default(0)
-  docsLines             Int      @default(0)
-  dataLines             Int      @default(0)
-  mediaLines            Int      @default(0)
-  configLines           Int      @default(0)
-  otherLines            Int      @default(0)
-  terminalCommands      Int      @default(0)
-  fileSearches          Int      @default(0)
-  fileContentSearches   Int      @default(0)
-  todosCreated          Int      @default(0)
-  todosCompleted        Int      @default(0)
-  todosInProgress       Int      @default(0)
-  todoWrites            Int      @default(0)
-  todoReads             Int      @default(0)
+  filesRead             BigInt   @default(0)
+  filesAdded            BigInt   @default(0)
+  filesEdited           BigInt   @default(0)
+  filesDeleted          BigInt   @default(0)
+  linesRead             BigInt   @default(0)
+  linesAdded            BigInt   @default(0)
+  linesEdited           BigInt   @default(0)
+  linesDeleted          BigInt   @default(0)
+  bytesRead             BigInt   @default(0)
+  bytesAdded            BigInt   @default(0)
+  bytesEdited           BigInt   @default(0)
+  bytesDeleted          BigInt   @default(0)
+  codeLines             BigInt   @default(0)
+  docsLines             BigInt   @default(0)
+  dataLines             BigInt   @default(0)
+  mediaLines            BigInt   @default(0)
+  configLines           BigInt   @default(0)
+  otherLines            BigInt   @default(0)
+  terminalCommands      BigInt   @default(0)
+  fileSearches          BigInt   @default(0)
+  fileContentSearches   BigInt   @default(0)
+  todosCreated          BigInt   @default(0)
+  todosCompleted        BigInt   @default(0)
+  todosInProgress       BigInt   @default(0)
+  todoWrites            BigInt   @default(0)
+  todoReads             BigInt   @default(0)
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
   user                  User     @relation(fields: [userId], references: [id], onDelete: Cascade)

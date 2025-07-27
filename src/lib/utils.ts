@@ -27,17 +27,21 @@ export function formatCurrency(
 }
 
 // Format large numbers (e.g., 1000 -> 1k, 1000000 -> 1M)
-export function formatLargeNumber(num: number): string {
-  if (num >= 1000000000) {
-    return (num / 1000000000).toFixed(1) + "B";
+export function formatLargeNumber(num: number | { $bigint: string }): string {
+  if (typeof num === "number") {
+    if (num >= 1000000000) return (num / 1000000000).toFixed(1) + "B";
+    if (num >= 1000000) return (num / 1000000).toFixed(1) + "M";
+    if (num >= 1000) return (num / 1000).toFixed(1) + "k";
+    return num.toString();
+  } else {
+    const numValue = BigInt(num.$bigint);
+    if (numValue >= 1000000000)
+      return (numValue / BigInt(1000000000)).toString() + "B";
+    if (numValue >= 1000000)
+      return (numValue / BigInt(1000000)).toString() + "M";
+    if (numValue >= 1000) return (numValue / BigInt(1000)).toString() + "k";
+    return numValue.toString();
   }
-  if (num >= 1000000) {
-    return (num / 1000000).toFixed(1) + "M";
-  }
-  if (num >= 1000) {
-    return (num / 1000).toFixed(1) + "k";
-  }
-  return num.toString();
 }
 
 // Format dates with locale awareness
