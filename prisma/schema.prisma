@@ -91,7 +91,7 @@ model UserStats {
   id                    String   @id @default(cuid())
   userId                String
   application           String   // "claude_code", "gemini_cli", "codex_cli"
-  period                String   // "hourly", "daily", "weekly", "monthly", "yearly", "all-time"
+  period                String   // "hourly", "daily", "weekly", "monthly", "yearly"
   periodStart           DateTime?
   periodEnd             DateTime?
   toolCalls             BigInt   @default(0)

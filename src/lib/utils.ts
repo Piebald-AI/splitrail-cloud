@@ -33,7 +33,7 @@ export function formatLargeNumber(num: number | { $bigint: string }): string {
     if (num >= 1000000) return (num / 1000000).toFixed(1) + "M";
     if (num >= 1000) return (num / 1000).toFixed(1) + "k";
     return num.toString();
-  } else {
+  } else if (typeof num === "object" && num.$bigint) {
     const numValue = BigInt(num.$bigint);
     if (numValue >= 1000000000)
       return (numValue / BigInt(1000000000)).toString() + "B";
@@ -42,6 +42,7 @@ export function formatLargeNumber(num: number | { $bigint: string }): string {
     if (numValue >= 1000) return (numValue / BigInt(1000)).toString() + "k";
     return numValue.toString();
   }
+  return "";
 }
 
 // Format dates with locale awareness

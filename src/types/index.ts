@@ -1,7 +1,6 @@
 import { type User } from "@prisma/client";
 
-// Application types for CLI/agentic development tools
-export type ApplicationType = "claude_code" | "gemini_cli" | "codex_cli";
+export const Applications = ["claude_code", "gemini_cli", "codex_cli"] as const;
 
 // Period types
 export const Periods = [
@@ -9,16 +8,16 @@ export const Periods = [
   "daily",
   "weekly",
   "monthly",
-  "yearly",
-  "all-time",
+  "yearly"
 ] as const;
 
+export type ApplicationType = (typeof Applications)[number];
 export type PeriodType = (typeof Periods)[number];
 
 // Using strings for stat keys instead of manually spelling them out in the interfaces so that in
 // the routes that update the database we can use these keys to determine what to update.
 
-export const FileOperationStatKeys = [
+export const BigIntStatKeys = [
   "filesRead",
   "filesAdded",
   "filesEdited",
@@ -34,103 +33,96 @@ export const FileOperationStatKeys = [
   "terminalCommands",
   "fileSearches",
   "fileContentSearches",
-] as const;
-
-export const CompositionStatKeys = [
   "codeLines",
   "docsLines",
   "dataLines",
   "mediaLines",
   "configLines",
   "otherLines",
-] as const;
-
-export const TodoStatKeys = [
   "todosCreated",
   "todosCompleted",
   "todosInProgress",
   "todoReads",
   "todoWrites",
-] as const;
-
-export const GeneralStatKeys = [
   "inputTokens",
   "outputTokens",
   "cacheCreationTokens",
   "cacheReadTokens",
   "cachedTokens",
-  "cost",
   "toolCalls",
-] as const;
-
-export const StatKeys = [
-  ...FileOperationStatKeys,
-  ...CompositionStatKeys,
-  ...TodoStatKeys,
-  ...GeneralStatKeys,
   "assistantMessages",
   "userMessages",
 ] as const;
 
-// CLI data structure (mirrors Rust types)
-export type FileOperationStats = Record<
-  (typeof FileOperationStatKeys)[number],
-  number
->;
+export const FloatStatKeys = ["cost"] as const;
 
-export type CompositionStats = Record<
-  (typeof CompositionStatKeys)[number],
-  number
->;
+export const StatKeys = [...BigIntStatKeys, ...FloatStatKeys];
 
-export type TodoStats = Record<(typeof TodoStatKeys)[number], number>;
+export type Stats = Record<(typeof FloatStatKeys)[number], number> &
+  Record<(typeof BigIntStatKeys)[number], bigint>;
 
-export type GeneralStats = Record<(typeof GeneralStatKeys)[number], number>;
+export type StatsFromAPI = Record<(typeof FloatStatKeys)[number], number> &
+  Record<(typeof BigIntStatKeys)[number], Record<"$bigint", string>>;
 
-export type Stats = Record<(typeof StatKeys)[number], number>;
+export type DbStats = Record<(typeof FloatStatKeys)[number], number> &
+  Record<(typeof BigIntStatKeys)[number], string>;
 
 export type UserStats = Stats;
 
 export type UserStatsPeriods = {
   period: string;
   application: ApplicationType;
-  periodStart?: Date;
-  periodEnd?: Date;
-}
+  periodStart: Date;
+  periodEnd: Date;
+};
 
 export type UserStatsWithPeriods = UserStats & UserStatsPeriods;
 
-export type DbUserStats = Partial<UserStats> & UserStatsPeriods & {
-  id?: string;
-  userId: string;
-  updatedAt: Date;
-  createdAt: Date;
-};
+export type DbUserStats = Stats &
+  UserStatsPeriods & {
+    id?: string;
+    userId: string;
+    updatedAt: Date;
+    createdAt: Date;
+  };
 
-export type DbMessageStats = Omit<Partial<UserStats>, "assistantMessages" | "userMessages"> & {
+export type DbMessageStats = Omit<
+  UserStats,
+  "assistantMessages" | "userMessages"
+> & {
   hash: string;
   userId: string;
   application: ApplicationType;
-  role: string;
+  role: "user" | "assistant";
   timestamp: string;
   projectHash: string;
   model: string | null;
   createdAt: Date;
   updatedAt: Date;
-}
+};
+
+export type UserWithStatsFromAPI = User &
+  StatsFromAPI & {
+    id: string;
+    displayName: string;
+    email: string;
+    createdAt: Date;
+    rank: number;
+  };
 
 // Extended types for API responses
-export interface UserWithStats extends User, UserStats {
-  id: string;
-  displayName: string;
-  email: string;
-  createdAt: Date;
-  rank: number;
-}
+export type UserWithStats = User &
+  UserStats & {
+    id: string;
+    displayName: string;
+    email: string;
+    createdAt: Date;
+    rank: number;
+  };
 
-export interface UserWithPeriods extends UserWithStats {
+export type UserWithPeriods = UserWithStats & {
   userStats: Array<UserStatsWithPeriods>;
-}
+};
 
 export interface LeaderboardData {
   users: UserWithStats[];
@@ -241,22 +233,6 @@ export interface CreateProjectRequest {
 export interface AssociateFolderRequest {
   folder: string;
   projectId: string;
-}
-
-export interface DailyStats {
-  date: string;
-  cost: number;
-  cachedTokens: number;
-  inputTokens: number;
-  outputTokens: number;
-  userMessages: number;
-  aiMessages: number;
-  toolCalls: number;
-  conversations: number;
-  models: Record<string, number>;
-  fileOperations: FileOperationStats;
-  todoStats: TodoStats;
-  maxFlowLengthSeconds: number;
 }
 
 // Chart data types

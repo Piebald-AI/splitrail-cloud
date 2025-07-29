@@ -42,46 +42,50 @@ const sampleUsers = [
   }
 ];
 
+function generateNumber(dynamicMin: number, staticMin: number, multiplier: number, variation: number): bigint {
+  return BigInt(Math.round(Math.random() * (dynamicMin + staticMin) * multiplier * variation));
+}
+
 function generateStats(baseMultiplier: number, periodMultiplier: number): UserStats {
-  const multiplier = baseMultiplier * periodMultiplier;
-  const variation = Math.random() * 0.4 + 0.8; // 0.8 to 1.2 variation
+  const m = baseMultiplier * periodMultiplier;
+  const v = Math.random() * 0.4 + 0.8; // 0.8 to 1.2 variation
   
   return {
-    toolCalls: Math.round((Math.random() * 25 + 10) * multiplier * variation),
-    assistantMessages: Math.round((Math.random() * 40 + 20) * multiplier * variation),
-    userMessages: Math.round((Math.random() * 40 + 20) * multiplier * variation),
-    inputTokens: Math.round((Math.random() * 15000 + 8000) * multiplier * variation),
-    outputTokens: Math.round((Math.random() * 8000 + 4000) * multiplier * variation),
-    cacheCreationTokens: Math.round((Math.random() * 3000 + 1500) * multiplier * variation),
-    cacheReadTokens: Math.round((Math.random() * 5000 + 2500) * multiplier * variation),
-    cachedTokens: Math.round((Math.random() * 5000 + 2500) * multiplier * variation),
-    cost: Math.round((Math.random() * 75 + 25) * multiplier * variation * 100) / 100,
-    filesRead: Math.round((Math.random() * 80 + 30) * multiplier * variation),
-    filesAdded: Math.round((Math.random() * 15 + 5) * multiplier * variation),
-    filesEdited: Math.round((Math.random() * 25 + 10) * multiplier * variation),
-    filesDeleted: Math.round((Math.random() * 15 + 5) * multiplier * variation),
-    linesRead: Math.round((Math.random() * 8000 + 3000) * multiplier * variation),
-    linesAdded: Math.round((Math.random() * 600 + 200) * multiplier * variation),
-    linesEdited: Math.round((Math.random() * 800 + 300) * multiplier * variation),
-    linesDeleted: Math.round((Math.random() * 600 + 200) * multiplier * variation),
-    bytesRead: Math.round((Math.random() * 150000 + 50000) * multiplier * variation),
-    bytesAdded: Math.round((Math.random() * 30000 + 10000) * multiplier * variation),
-    bytesEdited: Math.round((Math.random() * 30000 + 10000) * multiplier * variation),
-    bytesDeleted: Math.round((Math.random() * 25000 + 8000) * multiplier * variation),
-    codeLines: Math.round((Math.random() * 600 + 200) * multiplier * variation),
-    docsLines: Math.round((Math.random() * 600 + 200) * multiplier * variation),
-    dataLines: Math.round((Math.random() * 600 + 200) * multiplier * variation),
-    mediaLines: Math.round((Math.random() * 600 + 200) * multiplier * variation),
-    configLines: Math.round((Math.random() * 600 + 200) * multiplier * variation),
-    otherLines: Math.round((Math.random() * 600 + 200) * multiplier * variation),
-    terminalCommands: Math.round((Math.random() * 15 + 5) * multiplier * variation),
-    fileSearches: Math.round((Math.random() * 12 + 3) * multiplier * variation),
-    fileContentSearches: Math.round((Math.random() * 18 + 5) * multiplier * variation),
-    todosCreated: Math.round((Math.random() * 8 + 2) * multiplier * variation),
-    todosCompleted: Math.round((Math.random() * 12 + 4) * multiplier * variation),
-    todosInProgress: Math.round((Math.random() * 4 + 1) * multiplier * variation),
-    todoWrites: Math.round((Math.random() * 10 + 3) * multiplier * variation),
-    todoReads: Math.round((Math.random() * 15 + 5) * multiplier * variation),
+    toolCalls: generateNumber(25, 10, m, v),
+    assistantMessages: generateNumber(40, 20, m, v),
+    userMessages: generateNumber(40, 20, m, v),
+    inputTokens: generateNumber(15000, 8000, m, v),
+    outputTokens: generateNumber(8000, 4000, m, v),
+    cacheCreationTokens: generateNumber(3000, 1500, m, v),
+    cacheReadTokens: generateNumber(5000, 2500, m, v),
+    cachedTokens: generateNumber(5000, 2500, m, v),
+    cost: Number(generateNumber(75, 25, m, v) / BigInt(100)),
+    filesRead: generateNumber(80, 30, m, v),
+    filesAdded: generateNumber(15, 5, m, v),
+    filesEdited: generateNumber(25, 10, m, v),
+    filesDeleted: generateNumber(15, 5, m, v),
+    linesRead: generateNumber(8000, 3000, m, v),
+    linesAdded: generateNumber(600, 200, m, v),
+    linesEdited: generateNumber(800, 300, m, v),
+    linesDeleted: generateNumber(600, 200, m, v),
+    bytesRead: generateNumber(150000, 50000, m, v),
+    bytesAdded: generateNumber(30000, 10000, m, v),
+    bytesEdited: generateNumber(30000, 10000, m, v),
+    bytesDeleted: generateNumber(25000, 8000, m, v),
+    codeLines: generateNumber(600, 200, m, v),
+    docsLines: generateNumber(600, 200, m, v),
+    dataLines: generateNumber(600, 200, m, v),
+    mediaLines: generateNumber(600, 200, m, v),
+    configLines: generateNumber(600, 200, m, v),
+    otherLines: generateNumber(600, 200, m, v),
+    terminalCommands: generateNumber(15, 5, m, v),
+    fileSearches: generateNumber(12, 3, m, v),
+    fileContentSearches: generateNumber(18, 5, m, v),
+    todosCreated: generateNumber(8, 2, m, v),
+    todosCompleted: generateNumber(12, 4, m, v),
+    todosInProgress: generateNumber(4, 1, m, v),
+    todoWrites: generateNumber(10, 3, m, v),
+    todoReads: generateNumber(15, 5, m, v),
   };
 }
 
@@ -176,7 +180,6 @@ async function createPeriodStats(users: Array<{ id: string; multiplier: number }
     weekly: 6.5,   // About 6.5 days worth of activity
     monthly: 22,   // About 22 working days
     yearly: 250,   // About 250 working days
-    "all-time": 500,  // Lifetime accumulated (about 2 years)
   };
   
   for (const user of users) {
@@ -187,7 +190,6 @@ async function createPeriodStats(users: Array<{ id: string; multiplier: number }
       { period: "weekly", multiplier: periodMultipliers.weekly, start: periods.weekly.start, end: periods.weekly.end },
       { period: "monthly", multiplier: periodMultipliers.monthly, start: periods.monthly.start, end: periods.monthly.end },
       { period: "yearly", multiplier: periodMultipliers.yearly, start: periods.yearly.start, end: periods.yearly.end },
-      { period: "all-time", multiplier: periodMultipliers["all-time"], start: null, end: null },
     ];
 
     for (const config of periodConfigs) {
@@ -240,7 +242,6 @@ async function main() {
   console.log("  • Weekly (current week)");
   console.log("  • Monthly (current month)");
   console.log("  • Yearly (current year)");
-  console.log("  • All-time (lifetime s)");
 }
 
 main()

@@ -8,14 +8,7 @@ import {
   DropdownMenuCheckboxItem,
 } from "@/components/ui/dropdown-menu";
 import { ChevronDown } from "lucide-react";
-
-type PeriodType =
-  | "hourly"
-  | "daily"
-  | "weekly"
-  | "monthly"
-  | "yearly"
-  | "all-time";
+import { PeriodType } from "@/types";
 
 interface PeriodDropdownProps {
   period: PeriodType;
@@ -29,16 +22,13 @@ export function PeriodDropdown({ period, setPeriod }: PeriodDropdownProps) {
     { value: "weekly", label: "This Week" },
     { value: "monthly", label: "This Month" },
     { value: "yearly", label: "This Year" },
-    { value: "all-time", label: "All Time" },
   ] as const;
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button variant="outline">
-          {period === "all-time"
-            ? "All Time"
-            : period.charAt(0).toUpperCase() + period.slice(1)}{" "}
+          {periodOptions.find((p) => p.value === period)?.label}{" "}
           <ChevronDown className="ml-2 h-4 w-4" />
         </Button>
       </DropdownMenuTrigger>

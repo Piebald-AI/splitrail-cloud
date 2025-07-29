@@ -1,3 +1,5 @@
+import { PeriodType } from "@/types";
+
 export function getHourStart(date: Date): Date {
   return new Date(
     date.getFullYear(),
@@ -80,3 +82,23 @@ export function getMonthEnd(date: Date): Date {
 export function getYearEnd(date: Date): Date {
   return new Date(date.getFullYear(), 11, 31, 23, 59, 59, 999);
 }
+
+export const getPeriodStart = (period: PeriodType): Date => {
+  return {
+    hourly: getHourStart(new Date()),
+    daily: getDayStart(new Date()),
+    weekly: getWeekStart(new Date()),
+    monthly: getMonthStart(new Date()),
+    yearly: getYearStart(new Date()),
+  }[period];
+};
+
+export const getPeriodEnd = (period: PeriodType): Date => {
+  return {
+    hourly: getHourEnd(new Date()),
+    daily: getDayEnd(new Date()),
+    weekly: getWeekEnd(new Date()),
+    monthly: getMonthEnd(new Date()),
+    yearly: getYearEnd(new Date()),
+  }[period];
+};

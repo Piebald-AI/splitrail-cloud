@@ -70,7 +70,7 @@ The CLI tracks comprehensive development metrics:
 
 ### Key Models
 - **User**: GitHub-authenticated users with preferences
-- **UserStats**: Aggregated statistics across multiple time periods (hourly, daily, weekly, monthly, yearly, all-time)
+- **UserStats**: Aggregated statistics across multiple time periods (hourly, daily, weekly, monthly, yearly)
 - **MessageStats**: Raw message-level statistics from CLI uploads
 - **ApiToken**: CLI authentication tokens (prefixed with "st_")
 - **Project**: User projects that can be associated with local folders
@@ -112,7 +112,7 @@ Required environment variables (see deployment docs for details):
 ### Leaderboard
 - Competitive rankings based on usage metrics
 - Multiple sorting options (cost, tokens, lines of code)
-- Time-based filtering (daily, weekly, monthly, all-time)
+- Time-based filtering (daily, weekly, monthly, yearly)
 
 ### User Profiles
 - Detailed personal analytics with charts

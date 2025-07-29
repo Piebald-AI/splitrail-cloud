@@ -7,18 +7,7 @@ import {
   Periods,
   DbMessageStats,
 } from "@/types";
-import {
-  getHourStart,
-  getHourEnd,
-  getDayStart,
-  getDayEnd,
-  getWeekStart,
-  getWeekEnd,
-  getMonthStart,
-  getMonthEnd,
-  getYearStart,
-  getYearEnd,
-} from "@/lib/dateUtils";
+import { getPeriodStart, getPeriodEnd } from "@/lib/dateUtils";
 import { unsupportedMethod } from "@/lib/routeUtils";
 
 export async function POST(request: NextRequest) {
@@ -67,23 +56,6 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
-
-    const periodStarts = {
-      hourly: getHourStart(new Date()),
-      daily: getDayStart(new Date()),
-      weekly: getWeekStart(new Date()),
-      monthly: getMonthStart(new Date()),
-      yearly: getYearStart(new Date()),
-      "all-time": undefined,
-    };
-    const periodEnds = {
-      hourly: getHourEnd(new Date()),
-      daily: getDayEnd(new Date()),
-      weekly: getWeekEnd(new Date()),
-      monthly: getMonthEnd(new Date()),
-      yearly: getYearEnd(new Date()),
-      "all-time": undefined,
-    };
 
     const allStats = (await db.userStats.findMany({
       where: {
@@ -142,14 +114,24 @@ export async function POST(request: NextRequest) {
               stat[key] !== undefined &&
               stats[key] !== undefined
             ) {
-              stat[key] += stats[key];
+              if (
+                typeof stat[key] == "bigint" &&
+                typeof stats[key] == "bigint"
+              ) {
+                (stat[key] as bigint) += stats[key];
+              } else if (
+                typeof stat[key] == "number" &&
+                typeof stats[key] == "number"
+              ) {
+                (stat[key] as number) += stats[key];
+              }
             }
           }
           // If it's an assistant message, increment assistantMessages.
           if (isAssistantMessage && stat.assistantMessages) {
-            stat.assistantMessages += 1;
+            stat.assistantMessages += BigInt(1);
           } else if (!isAssistantMessage && stat.userMessages) {
-            stat.userMessages += 1;
+            stat.userMessages += BigInt(1);
           }
           stat.updatedAt = new Date();
         }
@@ -160,10 +142,10 @@ export async function POST(request: NextRequest) {
             userId: user.id,
             application,
             period,
-            periodStart: periodStarts[period],
-            periodEnd: periodEnds[period],
-            assistantMessages: isAssistantMessage ? 1 : 0,
-            userMessages: isAssistantMessage ? 0 : 1,
+            periodStart: getPeriodStart(period),
+            periodEnd: getPeriodEnd(period),
+            assistantMessages: isAssistantMessage ? BigInt(1) : BigInt(0),
+            userMessages: isAssistantMessage ? BigInt(0) : BigInt(1),
             createdAt: new Date(),
             updatedAt: new Date(),
           });

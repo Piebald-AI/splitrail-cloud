@@ -1,7 +1,7 @@
 "use client";
 
 import { ColumnDef, Column } from "@tanstack/react-table";
-import { type UserWithStats } from "@/types";
+import { UserWithStatsFromAPI } from "@/types";
 import {
   formatCurrency,
   formatLargeNumber,
@@ -19,34 +19,8 @@ import {
   Database,
 } from "lucide-react";
 
-// Ranking Award component
-function RankingAward({ rank }: { rank: number }) {
-  const awardConfig = [
-    {
-      glowClass: "drop-shadow-[0_0_2px_rgba(234,179,8,1)]",
-      iconClass: "text-yellow-500",
-    },
-    {
-      glowClass: "drop-shadow-[0_0_2px_rgba(148,163,184,1)]",
-      iconClass: "text-slate-400",
-    },
-    {
-      glowClass: "drop-shadow-[0_0_2px_rgba(217,119,6,1)]",
-      iconClass: "text-amber-600",
-    },
-  ];
-
-  const config = awardConfig[rank - 1];
-
-  return config ? (
-    <Award className={cn("h-5 w-5", config.iconClass, config.glowClass)} />
-  ) : (
-    <span className="font-medium text-sm">{rank}</span>
-  );
-}
-
 // User avatar component
-function UserAvatarCell({ user }: { user: UserWithStats }) {
+function UserAvatarCell({ user }: { user: UserWithStatsFromAPI }) {
   const displayName = getDisplayName(user, "displayName");
 
   return (
@@ -70,7 +44,11 @@ function UserAvatarCell({ user }: { user: UserWithStats }) {
 }
 
 // Helper function to render sort icon based on state
-function SortIcon({ column }: { column: Column<UserWithStats, unknown> }) {
+function SortIcon({
+  column,
+}: {
+  column: Column<UserWithStatsFromAPI, unknown>;
+}) {
   const sorted = column.getIsSorted();
   if (sorted === "asc") {
     return <ChevronUp className="ml-2 h-4 w-4" />;
@@ -81,13 +59,29 @@ function SortIcon({ column }: { column: Column<UserWithStats, unknown> }) {
   }
 }
 
-export const columns: ColumnDef<UserWithStats>[] = [
+export const columns: ColumnDef<UserWithStatsFromAPI>[] = [
   {
     accessorKey: "rank",
     header: "Rank",
     cell: ({ row }) => (
       <div className="flex items-center justify-center">
-        {row.original && <RankingAward rank={row.original.rank} />}
+        {row.index < 3 ? (
+          <Award
+            className={cn(
+              "h-5 w-5",
+              ["text-yellow-500", "text-slate-400", "text-amber-600"][
+                row.index
+              ],
+              [
+                "drop-shadow-[0_0_2px_rgba(234,179,8,1)]",
+                "drop-shadow-[0_0_2px_rgba(148,163,184,1)]",
+                "drop-shadow-[0_0_2px_rgba(217,119,6,1)]",
+              ][row.index]
+            )}
+          />
+        ) : (
+          <span className="font-medium text-sm">{row.index + 1}</span>
+        )}
       </div>
     ),
     enableSorting: false,
@@ -138,9 +132,12 @@ export const columns: ColumnDef<UserWithStats>[] = [
     },
     cell: ({ row }) => (
       <div className="text-center">
-        {formatLargeNumber(
-          row.original.inputTokens + row.original.outputTokens
-        )}
+        {formatLargeNumber({
+          $bigint: (
+            BigInt(row.original.inputTokens.$bigint) +
+            BigInt(row.original.outputTokens.$bigint)
+          ).toString(),
+        })}
       </div>
     ),
   },

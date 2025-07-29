@@ -23,19 +23,15 @@ import {
 import { Search } from "lucide-react";
 import React from "react";
 import { columns } from "./TableColumns";
-import { type UserWithStats, type ApplicationType } from "@/types";
+import {
+  type UserWithStatsFromAPI,
+  type ApplicationType,
+  PeriodType,
+} from "@/types";
 import { ColumnsDropdown } from "./ColumnsDropdown";
 import { PeriodDropdown } from "./PeriodDropdown";
 import { ApplicationDropdown } from "./ApplicationDropdown";
 import { TablePagination } from "./TablePagination";
-
-type PeriodType =
-  | "hourly"
-  | "daily"
-  | "weekly"
-  | "monthly"
-  | "yearly"
-  | "all-time";
 
 export default function Leaderboard() {
   const [sorting, setSorting] = React.useState<SortingState>([]);
@@ -45,13 +41,13 @@ export default function Leaderboard() {
   const [columnVisibility, setColumnVisibility] =
     React.useState<VisibilityState>({});
   const [rowSelection, setRowSelection] = React.useState({});
-  const [period, setPeriod] = React.useState<PeriodType>("all-time");
+  const [period, setPeriod] = React.useState<PeriodType>("yearly");
   const [apps, setApps] = React.useState<ApplicationType[]>([
     "claude_code",
     "gemini_cli",
     "codex_cli",
   ]);
-  const [data, setData] = React.useState<UserWithStats[]>([]);
+  const [data, setData] = React.useState<UserWithStatsFromAPI[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
 
