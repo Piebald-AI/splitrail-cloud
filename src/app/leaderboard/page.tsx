@@ -20,7 +20,7 @@ import {
   getFilteredRowModel,
   flexRender,
 } from "@tanstack/react-table";
-import { Search } from "lucide-react";
+import { Search, Upload } from "lucide-react";
 import React from "react";
 import { columns } from "./TableColumns";
 import {
@@ -32,8 +32,14 @@ import { ColumnsDropdown } from "./ColumnsDropdown";
 import { PeriodDropdown } from "./PeriodDropdown";
 import { ApplicationDropdown } from "./ApplicationDropdown";
 import { TablePagination } from "./TablePagination";
+import { useSession } from "next-auth/react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Code } from "@/components/ui/code";
+import Link from "next/link";
 
 export default function Leaderboard() {
+  const { data: session } = useSession();
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
     []
@@ -50,6 +56,7 @@ export default function Leaderboard() {
   const [data, setData] = React.useState<UserWithStatsFromAPI[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
+  const [userHasData, setUserHasData] = React.useState<boolean | null>(null);
 
   const fetchLeaderboardData = React.useCallback(async () => {
     try {
@@ -68,7 +75,16 @@ export default function Leaderboard() {
       const result = await response.json();
 
       if (result.success) {
-        setData(result.data?.users || []);
+        const users = result.data?.users || [];
+        setData(users);
+
+        // Check if the current user has data
+        if (session?.user?.username) {
+          const currentUser = users.find(
+            (user: UserWithStatsFromAPI) => user.username === session.user.username
+          );
+          setUserHasData(!!currentUser);
+        }
       } else {
         throw new Error(result.error || "Failed to fetch leaderboard data");
       }
@@ -77,7 +93,7 @@ export default function Leaderboard() {
     } finally {
       setLoading(false);
     }
-  }, [period, apps]);
+  }, [period, apps, session?.user?.username]);
 
   React.useEffect(() => {
     fetchLeaderboardData();
@@ -104,6 +120,49 @@ export default function Leaderboard() {
 
   return (
     <div className="w-full max-w-full">
+      {/* No Data Banner */}
+      {session && userHasData === false && !loading && (
+        <Alert className="mb-6">
+          <Upload className="h-4 w-4" />
+          <AlertTitle>Get Started with Splitrail</AlertTitle>
+          <AlertDescription>
+            <p className="mb-3">
+              You're signed in but haven't uploaded any data yet. Start tracking your development activity with the Splitrail CLI.
+            </p>
+            <div className="space-y-2 text-sm">
+              <p className="font-medium">Quick setup:</p>
+              <ol className="list-decimal list-inside space-y-1 ml-2">
+                <li>
+                  Install Splitrail CLI from{" "}
+                  <a
+                    href="https://github.com/Piebald-AI/splitrail/releases"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-primary hover:underline"
+                  >
+                    GitHub
+                  </a>
+                </li>
+                <li>
+                  Go to <Link href="/settings" className="text-primary hover:underline">Settings</Link> to create an API token
+                </li>
+                <li>
+                  Configure CLI: <Code variant="inline">splitrail config set-token &lt;your-token&gt;</Code>
+                </li>
+                <li>
+                  If you want to use auto-uploading, run <Code variant="inline">splitrail config auto-upload true</Code> and then run <Code variant="inline">splitrail</Code> normally. Otherwise just run <Code variant="inline">splitrail upload</Code>.
+                </li>
+              </ol>
+              <div className="mt-3">
+                <Button asChild size="sm">
+                  <Link href="/settings">Get Started</Link>
+                </Button>
+              </div>
+            </div>
+          </AlertDescription>
+        </Alert>
+      )}
+
       <div className="flex items-center pb-4 flex-row gap-2">
         <div className="relative w-full">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
