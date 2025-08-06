@@ -4,13 +4,6 @@ import { useSession } from "next-auth/react";
 import { useState, useEffect, useCallback } from "react";
 import { type UserPreferencesData } from "@/types";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -20,10 +13,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Checkbox } from "@/components/ui/checkbox";
 import { CLITokenDisplay } from "@/components/cli-token-display";
 import { signOut } from "next-auth/react";
+import { toast } from "sonner";
 
 const SUPPORTED_LOCALES = [
   { code: "en", name: "English", flag: "🇺🇸" },
@@ -72,10 +65,6 @@ export default function SettingsPage() {
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState<{
-    type: "success" | "error";
-    text: string;
-  } | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState({ type: "" });
 
@@ -99,6 +88,7 @@ export default function SettingsPage() {
     }
   }, [session]);
 
+
   useEffect(() => {
     if (session?.user?.id) {
       fetchPreferences();
@@ -112,7 +102,6 @@ export default function SettingsPage() {
 
     try {
       setSaving(true);
-      setMessage(null);
 
       const response = await fetch(`/api/user/${session.user.id}/preferences`, {
         method: "PUT",
@@ -125,18 +114,12 @@ export default function SettingsPage() {
       const data = await response.json();
 
       if (data.success) {
-        setMessage({ type: "success", text: "Settings saved successfully!" });
+        toast.success("Settings saved successfully!");
       } else {
-        setMessage({
-          type: "error",
-          text: data.error || "Failed to save settings",
-        });
+        toast.error(data.error || "Failed to save settings");
       }
     } catch {
-      setMessage({
-        type: "error",
-        text: "An error occurred while saving settings",
-      });
+      toast.error("An error occurred while saving settings");
     } finally {
       setSaving(false);
     }
@@ -154,7 +137,6 @@ export default function SettingsPage() {
 
     try {
       setDeleteLoading(true);
-      setMessage(null);
 
       const response = await fetch(`/api/user/${session.user.id}?type=data`, {
         method: "DELETE",
@@ -163,19 +145,13 @@ export default function SettingsPage() {
       const data = await response.json();
 
       if (data.success) {
-        setMessage({ type: "success", text: "All data deleted successfully!" });
+        toast.success("All data deleted successfully!");
         setDeleteConfirm({ type: "" });
       } else {
-        setMessage({
-          type: "error",
-          text: data.error || "Failed to delete all data",
-        });
+        toast.error(data.error || "Failed to delete all data");
       }
     } catch {
-      setMessage({
-        type: "error",
-        text: "An error occurred while deleting all data",
-      });
+      toast.error("An error occurred while deleting all data");
     } finally {
       setDeleteLoading(false);
     }
@@ -186,7 +162,6 @@ export default function SettingsPage() {
 
     try {
       setDeleteLoading(true);
-      setMessage(null);
 
       const response = await fetch(
         `/api/user/${session.user.id}?type=account`,
@@ -198,26 +173,17 @@ export default function SettingsPage() {
       const data = await response.json();
 
       if (data.success) {
-        setMessage({
-          type: "success",
-          text: "Account deleted successfully! You will be signed out.",
-        });
+        toast.success("Account deleted successfully! You will be signed out.");
         setDeleteConfirm({ type: "" });
         // Sign out the user after successful account deletion
         setTimeout(() => {
           signOut({ callbackUrl: "/" });
         }, 2000);
       } else {
-        setMessage({
-          type: "error",
-          text: data.error || "Failed to delete account",
-        });
+        toast.error(data.error || "Failed to delete account");
       }
     } catch {
-      setMessage({
-        type: "error",
-        text: "An error occurred while deleting account",
-      });
+      toast.error("An error occurred while deleting account");
     } finally {
       setDeleteLoading(false);
     }
@@ -247,297 +213,309 @@ export default function SettingsPage() {
   }
 
   return (
-    <>
-      {message && (
-        <Alert
-          className={`mb-6 ${
-            message.type === "success" ? "border-green-200 bg-green-50" : ""
-          }`}
-          variant={message.type === "success" ? undefined : "destructive"}
-        >
-          <AlertDescription
-            className={message.type === "success" ? "text-green-800" : ""}
-          >
-            {message.text}
-          </AlertDescription>
-        </Alert>
-      )}
-
-      <div className="space-y-6">
-        {/* CLI Integration */}
-        <div>
-          <h2 className="text-lg font-semibold mb-3">CLI Integration</h2>
-          <p className="text-sm text-muted-foreground mb-4">
-            Configure your Splitrail CLI for tracking your development activity
-          </p>
-          <CLITokenDisplay />
-        </div>
-
-        {/* Display Preferences */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Display Preferences</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="displayNamePreference">
-                Display Name Preference
-              </Label>
-              <Select
-                value={preferences.displayNamePreference}
-                onValueChange={(value) =>
-                  handleInputChange(
-                    "displayNamePreference",
-                    value as "displayName" | "username"
-                  )
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select display preference" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="displayName">
-                    Use display name (when available)
-                  </SelectItem>
-                  <SelectItem value="username">Always use username</SelectItem>
-                </SelectContent>
-              </Select>
-              <p className="text-xs text-muted-foreground">
-                Choose how your name appears on the leaderboard
-              </p>
-            </div>
-
-            <div className="space-y-2">
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="optOutPublic"
-                  checked={preferences.optOutPublic}
-                  onCheckedChange={(checked) =>
-                    handleInputChange("optOutPublic", checked)
-                  }
-                />
-                <Label htmlFor="optOutPublic">
-                  Opt out of public leaderboard
-                </Label>
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Hide your profile from the public leaderboard (you can still
-                view your own stats)
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Localization */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Localization</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="language">Language</Label>
-                <Select
-                  value={preferences.locale}
-                  onValueChange={(value) => handleInputChange("locale", value)}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select language" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {SUPPORTED_LOCALES.map((locale) => (
-                      <SelectItem key={locale.code} value={locale.code}>
-                        {locale.flag} {locale.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="currency">Currency</Label>
-                <Select
-                  value={preferences.currency}
-                  onValueChange={(value) =>
-                    handleInputChange("currency", value)
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select currency" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {SUPPORTED_CURRENCIES.map((currency) => (
-                      <SelectItem key={currency.code} value={currency.code}>
-                        {currency.symbol} {currency.name} ({currency.code})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="md:col-span-2 space-y-2">
-                <Label htmlFor="timezone">Timezone</Label>
-                <Select
-                  value={preferences.timezone}
-                  onValueChange={(value) =>
-                    handleInputChange("timezone", value)
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select timezone" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {TIMEZONE_OPTIONS.map((tz) => (
-                      <SelectItem key={tz} value={tz}>
-                        {tz}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Preview */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Preview</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2 text-sm">
-              <div>
-                <span className="font-medium">Display Name:</span>{" "}
-                {preferences.displayNamePreference === "displayName"
-                  ? session.user?.name || session.user?.username || "Unknown"
-                  : session.user?.username || "Unknown"}
-              </div>
-              <div>
-                <span className="font-medium">Currency Format:</span>{" "}
-                {new Intl.NumberFormat(preferences.locale, {
-                  style: "currency",
-                  currency: preferences.currency,
-                }).format(123.45)}
-              </div>
-              <div>
-                <span className="font-medium">Number Format:</span>{" "}
-                {new Intl.NumberFormat(preferences.locale).format(12345.67)}
-              </div>
-              <div>
-                <span className="font-medium">Date Format:</span>{" "}
-                {new Intl.DateTimeFormat(preferences.locale, {
-                  timeZone: preferences.timezone,
-                  year: "numeric",
-                  month: "long",
-                  day: "numeric",
-                }).format(new Date())}
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Save Button */}
-        <div className="flex justify-end">
-          <Button onClick={savePreferences} disabled={saving}>
-            {saving ? "Saving..." : "Save Settings"}
-          </Button>
-        </div>
-
-        {/* Data Management */}
-        <Card className="border-orange-200 bg-orange-50">
-          <CardHeader>
-            <CardTitle className="text-orange-800">Data Management</CardTitle>
-            <CardDescription className="text-orange-700">
-              Manage your data and account settings. These actions cannot be
-              undone.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            {/* Delete All Data */}
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label className="text-orange-800">Delete All Data</Label>
-                <p className="text-sm text-orange-700">
-                  This will delete all your usage data, API tokens, and
-                  preferences, but keep your account active.
+    <div className="container mx-auto py-8 px-6 max-w-4xl">
+      {/* Header */}
+      <div className="border-b pb-8 mb-8">
+        <h1 className="text-3xl font-bold">Settings</h1>
+        <p className="text-muted-foreground mt-2">
+          Manage your account preferences and configure your Splitrail CLI integration.
+        </p>
+      </div>
+            {/* CLI Integration Section */}
+            <div className="mb-12">
+              <div className="mb-6">
+                <h2 className="text-xl font-semibold text-gray-900 mb-2">CLI Integration</h2>
+                <p className="text-sm text-gray-600">
+                  Configure your Splitrail CLI for tracking your development activity
                 </p>
-                <Button
-                  variant="outline"
-                  onClick={() => setDeleteConfirm({ type: "allData" })}
-                  disabled={deleteLoading}
-                >
-                  Delete All Data
-                </Button>
+              </div>
+              <CLITokenDisplay />
+            </div>
+
+            {/* Profile & Display Settings */}
+            <div className="mb-12">
+              <div className="mb-6">
+                <h2 className="text-xl font-semibold text-gray-900 mb-2">Profile & Display</h2>
+                <p className="text-sm text-gray-600">
+                  Control how your profile appears and configure localization settings
+                </p>
               </div>
 
-              {/* Confirmation for delete all data */}
-              {deleteConfirm.type === "allData" && (
-                <Alert className="border-red-200 bg-red-50">
-                  <AlertDescription className="text-red-800">
-                    Are you sure you want to delete ALL your data? This includes
-                    usage statistics, API tokens, and preferences. Your account
-                    will remain active but all data will be lost. This action
-                    cannot be undone.
-                    <div className="mt-2 flex gap-2">
-                      <Button
-                        size="sm"
-                        variant="destructive"
-                        onClick={handleDeleteAllData}
-                        disabled={deleteLoading}
+              <div className="space-y-8">
+                {/* Display Preferences */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-medium text-gray-900">Display Preferences</h3>
+                    
+                    <div className="space-y-3">
+                      <Label htmlFor="displayNamePreference" className="text-sm font-medium">
+                        Display Name Preference
+                      </Label>
+                      <Select
+                        value={preferences.displayNamePreference}
+                        onValueChange={(value) =>
+                          handleInputChange(
+                            "displayNamePreference",
+                            value as "displayName" | "username"
+                          )
+                        }
                       >
-                        {deleteLoading ? "Deleting..." : "Yes, Delete All Data"}
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => setDeleteConfirm({ type: "" })}
-                        disabled={deleteLoading}
-                      >
-                        Cancel
-                      </Button>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select display preference" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="displayName">
+                            Use display name (when available)
+                          </SelectItem>
+                          <SelectItem value="username">Always use username</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <p className="text-xs text-gray-500">
+                        Choose how your name appears on the leaderboard
+                      </p>
                     </div>
-                  </AlertDescription>
-                </Alert>
-              )}
-            </div>
-          </CardContent>
-        </Card>
 
-        {/* Account Deletion */}
-        <Card className="border-red-200 bg-red-50">
-          <CardHeader>
-            <CardTitle className="text-red-800">Danger Zone</CardTitle>
-            <CardDescription className="text-red-700">
-              Permanently delete your account and all associated data.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label className="text-red-800">Delete Account</Label>
-                <p className="text-sm text-red-700">
-                  This will permanently delete your account and all associated
-                  data. You will be signed out and cannot recover this data
-                  (unless you still have it all locally, in which case you can
-                  re-create your account and re-upload it).
+                    <div className="space-y-3">
+                      <div className="flex items-center space-x-2">
+                        <Checkbox
+                          id="optOutPublic"
+                          checked={!preferences.optOutPublic}
+                          onCheckedChange={(checked) =>
+                            handleInputChange("optOutPublic", !checked)
+                          }
+                        />
+                        <Label htmlFor="optOutPublic" className="text-sm font-medium">
+                          Show my profile on the public leaderboard
+                        </Label>
+                      </div>
+                      <p className="text-xs text-gray-500">
+                        Your profile will be visible on the <a href="/leaderboard" className="text-primary hover:underline">Splitrail Leaderboard</a>
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Live Leaderboard Sample */}
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-medium text-gray-900">Live Sample</h3>
+                    <p className="text-sm text-gray-600">How your settings appear on the leaderboard</p>
+                    <div className="border rounded-lg overflow-hidden">
+                      <table className="w-full text-sm">
+                        <thead className="bg-muted/50">
+                          <tr>
+                            <th className="text-left p-3 font-medium">Rank</th>
+                            <th className="text-left p-3 font-medium">User</th>
+                            <th className="text-right p-3 font-medium">Cost</th>
+                            <th className="text-right p-3 font-medium">Tokens</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <tr className="border-t">
+                            <td className="p-3 font-medium">1</td>
+                            <td className="p-3">
+                              <div className="flex items-center gap-2">
+                                {session.user?.image && (
+                                  <img
+                                    src={session.user.image}
+                                    alt="Profile"
+                                    className="w-6 h-6 rounded-full"
+                                  />
+                                )}
+                                <span className="font-medium">
+                                  {preferences.displayNamePreference === "displayName"
+                                    ? session.user?.name || session.user?.username || "Unknown"
+                                    : session.user?.username || "Unknown"}
+                                </span>
+                              </div>
+                            </td>
+                            <td className="p-3 text-right font-mono">
+                              {new Intl.NumberFormat(preferences.locale, {
+                                style: "currency",
+                                currency: preferences.currency,
+                              }).format(42.73)}
+                            </td>
+                            <td className="p-3 text-right font-mono">
+                              {new Intl.NumberFormat(preferences.locale).format(185429)}
+                            </td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Localization Settings */}
+                <div>
+                  <h3 className="text-lg font-medium text-gray-900 mb-4">Localization</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div className="space-y-2">
+                      <Label htmlFor="language" className="text-sm font-medium">Language</Label>
+                      <Select
+                        value={preferences.locale}
+                        onValueChange={(value) => handleInputChange("locale", value)}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select language" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {SUPPORTED_LOCALES.map((locale) => (
+                            <SelectItem key={locale.code} value={locale.code}>
+                              {locale.flag} {locale.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="currency" className="text-sm font-medium">Currency</Label>
+                      <Select
+                        value={preferences.currency}
+                        onValueChange={(value) =>
+                          handleInputChange("currency", value)
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select currency" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {SUPPORTED_CURRENCIES.map((currency) => (
+                            <SelectItem key={currency.code} value={currency.code}>
+                              {currency.symbol} {currency.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="timezone" className="text-sm font-medium">Timezone</Label>
+                      <Select
+                        value={preferences.timezone}
+                        onValueChange={(value) =>
+                          handleInputChange("timezone", value)
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select timezone" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {TIMEZONE_OPTIONS.map((tz) => (
+                            <SelectItem key={tz} value={tz}>
+                              {tz}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Save Button */}
+            <div className="flex justify-end mb-12 pb-8 border-b border-gray-200">
+              <Button onClick={savePreferences} disabled={saving} size="lg" className="px-8">
+                {saving ? "Saving..." : "Save Settings"}
+              </Button>
+            </div>
+
+            {/* Data Management */}
+            <div className="mb-12">
+              <div className="mb-6">
+                <h2 className="text-xl font-semibold text-gray-900 mb-2">Data Management</h2>
+                <p className="text-sm text-gray-600">
+                  Manage your data and account settings. These actions cannot be undone.
                 </p>
-                <Button
-                  variant="destructive"
-                  onClick={() => setDeleteConfirm({ type: "account" })}
-                  disabled={deleteLoading}
-                >
-                  Delete Account
-                </Button>
               </div>
 
-              {/* Confirmation for delete account */}
-              {deleteConfirm.type === "account" && (
-                <Alert className="border-red-200 bg-red-50">
-                  <AlertDescription className="text-red-800">
-                    Are you sure you want to permanently delete your account?
-                    This will delete your account and ALL associated data. You
-                    will be signed out and this action cannot be undone.
-                    <div className="mt-2 flex gap-2">
+              <div className="space-y-6">
+                <div className="p-6 border border-yellow-300 rounded-lg">
+                  <div className="space-y-3">
+                    <div>
+                      <h3 className="text-base font-medium text-yellow-800">Delete All Data</h3>
+                      <p className="text-sm text-yellow-700 mt-1">
+                        This will delete all your usage data, API tokens, and
+                        preferences, but keep your account active.
+                      </p>
+                    </div>
+                    <Button
+                      variant="destructive"
+                      onClick={() => setDeleteConfirm({ type: "allData" })}
+                      disabled={deleteLoading}
+                    >
+                      Delete All Data
+                    </Button>
+                  </div>
+
+                  {/* Confirmation for delete all data */}
+                  {deleteConfirm.type === "allData" && (
+                    <div className="mt-4 p-4 border border-red-300 rounded-lg">
+                      <p className="text-sm text-red-800 mb-4">
+                        Are you sure you want to delete ALL your data? This includes
+                        usage statistics, API tokens, and preferences. Your account
+                        will remain active but all data will be lost. This action
+                        cannot be undone.
+                      </p>
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          onClick={handleDeleteAllData}
+                          disabled={deleteLoading}
+                        >
+                          {deleteLoading ? "Deleting..." : "Yes, Delete All Data"}
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setDeleteConfirm({ type: "" })}
+                          disabled={deleteLoading}
+                        >
+                          Cancel
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Danger Zone */}
+            <div>
+              <div className="mb-6">
+                <h2 className="text-xl font-semibold text-red-600 mb-2">Danger Zone</h2>
+                <p className="text-sm text-gray-600">
+                  Permanently delete your account and all associated data.
+                </p>
+              </div>
+
+              <div className="p-6 border border-red-300 rounded-lg">
+                <div className="space-y-3">
+                  <div>
+                    <h3 className="text-base font-medium text-red-800">Delete Account</h3>
+                    <p className="text-sm text-red-700 mt-1">
+                      This will permanently delete your account and all associated
+                      data. You will be signed out and cannot recover this data.
+                    </p>
+                  </div>
+                  <Button
+                    variant="destructive"
+                    onClick={() => setDeleteConfirm({ type: "account" })}
+                    disabled={deleteLoading}
+                  >
+                    Delete Account
+                  </Button>
+                </div>
+
+                {/* Confirmation for delete account */}
+                {deleteConfirm.type === "account" && (
+                  <div className="mt-4 p-4 border border-red-400 rounded-lg">
+                    <p className="text-sm text-red-900 mb-4">
+                      Are you sure you want to permanently delete your account?
+                      This will delete your account and ALL associated data. You
+                      will be signed out and this action cannot be undone.
+                    </p>
+                    <div className="flex gap-2">
                       <Button
                         size="sm"
                         variant="destructive"
@@ -555,13 +533,10 @@ export default function SettingsPage() {
                         Cancel
                       </Button>
                     </div>
-                  </AlertDescription>
-                </Alert>
-              )}
+                  </div>
+                )}
+              </div>
             </div>
-          </CardContent>
-        </Card>
-      </div>
-    </>
+    </div>
   );
 }
