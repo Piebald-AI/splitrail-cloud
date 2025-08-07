@@ -6,6 +6,16 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Spinner } from "@/components/ui/spinner";
 import { getDisplayName } from "@/lib/utils";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "../ui/dropdown-menu";
+import { Cog, LogOut } from "lucide-react";
+import Link from "next/link";
 
 export function SignInButton() {
   const { data: session, status } = useSession();
@@ -20,67 +30,62 @@ export function SignInButton() {
     }
   };
 
-  const handleSignOut = async () => {
-    setIsLoading(true);
-    try {
-      await signOut();
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   if (status === "loading") {
-    return <Spinner size="sm" />;
+    return <Spinner size="default" className="m-2.5" />;
   }
 
-  if (session) {
+  if (session?.user) {
     return (
-      <div className="flex items-center gap-4">
-        <a
-          href={`https://github.com/${session.user?.username}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex items-center gap-2 hover:opacity-80 transition-opacity"
-        >
-          <Avatar className="h-8 w-8">
-            <AvatarImage
-              src={session.user?.image || undefined}
-              alt={session.user?.name || "User"}
-            />
-            <AvatarFallback className="text-sm font-medium">
-              {session.user?.name?.charAt(0).toUpperCase() || "U"}
-            </AvatarFallback>
-          </Avatar>
-          <div className="text-sm">
-            {session.user?.name && session.user?.username ? (
-              <>
-                <div className="font-medium">
+      <div className="p-1">
+        <DropdownMenu>
+          <DropdownMenuTrigger className="outline-none rounded-full focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] transition">
+            <Avatar className="size-8">
+              <AvatarImage
+                src={session.user.image || undefined}
+                alt={session.user.name || "User"}
+              />
+              <AvatarFallback className="text-sm font-medium">
+                {session.user.name?.charAt(0).toUpperCase() || "U"}
+              </AvatarFallback>
+            </Avatar>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-48">
+            <DropdownMenuLabel className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
+              <Avatar className="size-8">
+                <AvatarImage
+                  src={session.user.image || undefined}
+                  alt={session.user.name || "User"}
+                />
+                <AvatarFallback className="text-sm font-medium">
+                  {session.user.name?.charAt(0).toUpperCase() || "U"}
+                </AvatarFallback>
+              </Avatar>
+              <div className="leading-tight">
+                <p className="font-semibold">
                   {getDisplayName({
                     username: session.user.username,
                     displayName: session.user.name,
                   })}
-                </div>
+                </p>
                 {session.user.name !== session.user.username && (
-                  <div className="text-muted-foreground">
+                  <p className="text-muted-foreground text-sm">
                     @{session.user.username}
-                  </div>
+                  </p>
                 )}
-              </>
-            ) : (
-              <div className="font-medium">
-                {session.user?.name || session.user?.username}
               </div>
-            )}
-          </div>
-        </a>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={handleSignOut}
-          disabled={isLoading}
-        >
-          {isLoading ? "Signing out..." : "Sign out"}
-        </Button>
+            </DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem asChild>
+              <Link href="/settings">
+                <Cog /> Settings
+              </Link>
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => signOut()}>
+              <LogOut /> Sign Out
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     );
   }
@@ -97,7 +102,7 @@ export function SignInButton() {
           fill="currentColor"
         />
       </svg>
-      {isLoading ? "Signing in..." : "Login with GitHub"}
+      {isLoading ? "Signing In..." : "Login with GitHub"}
     </Button>
   );
 }

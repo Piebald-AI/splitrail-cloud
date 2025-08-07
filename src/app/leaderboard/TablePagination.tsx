@@ -10,10 +10,10 @@ import {
   PaginationNext,
 } from "@/components/ui/pagination";
 import { Table } from "@tanstack/react-table";
-import { UserWithStatsFromAPI } from "@/types";
+import { UserWithStats } from "@/types";
 
 interface TablePaginationProps {
-  table: Table<UserWithStatsFromAPI>;
+  table: Table<UserWithStats>;
 }
 
 export function TablePagination({ table }: TablePaginationProps) {

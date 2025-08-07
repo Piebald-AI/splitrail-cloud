@@ -1,8 +1,8 @@
 "use client";
 
 import { useSession } from "next-auth/react";
-import { useState, useEffect, useCallback } from "react";
-import { type UserPreferencesData } from "@/types";
+import { useState, useEffect } from "react";
+import { type UserPreferences } from "@/types";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import {
@@ -17,17 +17,25 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { CLITokenDisplay } from "@/components/cli-token-display";
 import { signOut } from "next-auth/react";
 import { toast } from "sonner";
-
-const SUPPORTED_LOCALES = [
-  { code: "en", name: "English", flag: "🇺🇸" },
-  { code: "zh", name: "中文 (简体)", flag: "🇨🇳" },
-  { code: "ja", name: "日本語", flag: "🇯🇵" },
-  { code: "ko", name: "한국어", flag: "🇰🇷" },
-  { code: "ru", name: "Русский", flag: "🇷🇺" },
-  { code: "fr", name: "Français", flag: "🇫🇷" },
-  { code: "es", name: "Español", flag: "🇪🇸" },
-  { code: "de", name: "Deutsch", flag: "🇩🇪" },
-];
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import Link from "next/link";
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+  Form,
+  FormField,
+  FormControl,
+  FormDescription,
+  FormItem,
+  FormLabel,
+} from "@/components/ui/form";
+import { useForm } from "react-hook-form";
 
 const SUPPORTED_CURRENCIES = [
   { code: "USD", name: "US Dollar", symbol: "$" },
@@ -38,130 +46,147 @@ const SUPPORTED_CURRENCIES = [
   { code: "KRW", name: "Korean Won", symbol: "₩" },
   { code: "CAD", name: "Canadian Dollar", symbol: "C$" },
   { code: "AUD", name: "Australian Dollar", symbol: "A$" },
-];
-
-const TIMEZONE_OPTIONS = [
-  "UTC",
-  "America/New_York",
-  "America/Los_Angeles",
-  "America/Chicago",
-  "Europe/London",
-  "Europe/Paris",
-  "Europe/Berlin",
-  "Asia/Tokyo",
-  "Asia/Shanghai",
-  "Asia/Seoul",
-  "Australia/Sydney",
+  { code: "CHF", name: "Swiss Franc", symbol: "Fr" },
+  { code: "SEK", name: "Swedish Krona", symbol: "kr" },
+  { code: "NOK", name: "Norwegian Krone", symbol: "kr" },
+  { code: "DKK", name: "Danish Krone", symbol: "kr" },
+  { code: "NZD", name: "New Zealand Dollar", symbol: "NZ$" },
+  { code: "SGD", name: "Singapore Dollar", symbol: "S$" },
+  { code: "HKD", name: "Hong Kong Dollar", symbol: "HK$" },
+  { code: "INR", name: "Indian Rupee", symbol: "₹" },
+  { code: "MXN", name: "Mexican Peso", symbol: "$" },
+  { code: "BRL", name: "Brazilian Real", symbol: "R$" },
+  { code: "ZAR", name: "South African Rand", symbol: "R" },
+  { code: "TRY", name: "Turkish Lira", symbol: "₺" },
+  { code: "PLN", name: "Polish Złoty", symbol: "zł" },
+  { code: "CZK", name: "Czech Koruna", symbol: "Kč" },
+  { code: "HUF", name: "Hungarian Forint", symbol: "Ft" },
+  { code: "THB", name: "Thai Baht", symbol: "฿" },
+  { code: "MYR", name: "Malaysian Ringgit", symbol: "RM" },
+  { code: "PHP", name: "Philippine Peso", symbol: "₱" },
+  { code: "IDR", name: "Indonesian Rupiah", symbol: "Rp" },
+  { code: "ILS", name: "Israeli Shekel", symbol: "₪" },
 ];
 
 export default function SettingsPage() {
   const { data: session, status } = useSession();
-  const [preferences, setPreferences] = useState<UserPreferencesData>({
-    displayNamePreference: "displayName",
-    locale: "en",
-    timezone: "UTC",
+  const queryClient = useQueryClient();
+  const [localPreferences, setLocalPreferences] = useState<UserPreferences>({
     currency: "USD",
-    optOutPublic: false,
+    publicProfile: false,
   });
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [deleteLoading, setDeleteLoading] = useState(false);
-  const [deleteConfirm, setDeleteConfirm] = useState({ type: "" });
+  const [deleteDataDialogOpen, setDeleteDataDialogOpen] = useState(false);
+  const [deleteAccountDialogOpen, setDeleteAccountDialogOpen] = useState(false);
 
-  const fetchPreferences = useCallback(async () => {
-    if (!session?.user?.id) return;
+  // RHF setup (initialized empty, will be populated from DB once loaded)
+  const form = useForm<UserPreferences>({
+    defaultValues: {
+      currency: undefined as unknown as string,
+      publicProfile: false,
+    },
+  });
 
-    try {
-      setLoading(true);
+  const { data: preferences, isLoading } = useQuery({
+    queryKey: ["preferences", session?.user?.id],
+    queryFn: async () => {
+      if (!session?.user?.id) throw new Error("No user session");
+
       const response = await fetch(`/api/user/${session.user.id}/preferences`);
+      if (!response.ok) throw new Error("Failed to fetch preferences");
 
-      if (response.ok) {
-        const data = await response.json();
-        if (data.success) {
-          setPreferences(data.data);
-        }
+      const data = await response.json();
+      if (data.success) {
+        return data.data as UserPreferences;
       }
-    } catch (error) {
-      console.error("Error fetching preferences:", error);
-    } finally {
-      setLoading(false);
-    }
-  }, [session]);
+      throw new Error("Failed to fetch preferences");
+    },
+    enabled: !!session?.user?.id,
+  });
 
-
+  // Initialize RHF defaults from DB once the query succeeds
   useEffect(() => {
-    if (session?.user?.id) {
-      fetchPreferences();
-    } else if (status !== "loading") {
-      setLoading(false);
+    if (preferences) {
+      // Ensure we keep local copy for non-form usage if any
+      setLocalPreferences(preferences);
+      form.reset(preferences);
     }
-  }, [session, status, fetchPreferences]);
+  }, [preferences, form]);
 
-  const savePreferences = async () => {
-    if (!session?.user?.id) return;
-
-    try {
-      setSaving(true);
+  const savePreferencesMutation = useMutation({
+    mutationFn: async (prefs: UserPreferences) => {
+      if (!session?.user?.id) throw new Error("No user session");
 
       const response = await fetch(`/api/user/${session.user.id}/preferences`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(preferences),
+        body: JSON.stringify(prefs),
       });
 
       const data = await response.json();
-
-      if (data.success) {
-        toast.success("Settings saved successfully!");
-      } else {
-        toast.error(data.error || "Failed to save settings");
+      if (!data.success) {
+        throw new Error(data.error || "Failed to save settings");
       }
-    } catch {
-      toast.error("An error occurred while saving settings");
-    } finally {
-      setSaving(false);
-    }
-  };
+      return data.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["preferences", session?.user?.id],
+      });
+      // Always invalidate leaderboard query when settings are saved
+      queryClient.invalidateQueries({
+        queryKey: ["leaderboard"],
+      });
+      toast.success("Settings saved successfully!");
+    },
+    onError: (error) => {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "An error occurred while saving settings"
+      );
+    },
+  });
 
   const handleInputChange = (
-    field: keyof UserPreferencesData,
+    field: keyof UserPreferences,
     value: string | number | boolean
   ) => {
-    setPreferences((prev) => ({ ...prev, [field]: value }));
+    setLocalPreferences((prev) => ({ ...prev, [field]: value }));
   };
 
-  const handleDeleteAllData = async () => {
-    if (!session?.user?.id) return;
-
-    try {
-      setDeleteLoading(true);
+  const deleteDataMutation = useMutation({
+    mutationFn: async () => {
+      if (!session?.user?.id) throw new Error("No user session");
 
       const response = await fetch(`/api/user/${session.user.id}?type=data`, {
         method: "DELETE",
       });
 
       const data = await response.json();
-
-      if (data.success) {
-        toast.success("All data deleted successfully!");
-        setDeleteConfirm({ type: "" });
-      } else {
-        toast.error(data.error || "Failed to delete all data");
+      if (!data.success) {
+        throw new Error(data.error || "Failed to delete all data");
       }
-    } catch {
-      toast.error("An error occurred while deleting all data");
-    } finally {
-      setDeleteLoading(false);
-    }
-  };
+      return data;
+    },
+    onSuccess: () => {
+      toast.success("All data deleted successfully!");
+      setDeleteDataDialogOpen(false);
+      queryClient.invalidateQueries();
+    },
+    onError: (error) => {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "An error occurred while deleting all data"
+      );
+    },
+  });
 
-  const handleDeleteAccount = async () => {
-    if (!session?.user?.id) return;
-
-    try {
-      setDeleteLoading(true);
+  const deleteAccountMutation = useMutation({
+    mutationFn: async () => {
+      if (!session?.user?.id) throw new Error("No user session");
 
       const response = await fetch(
         `/api/user/${session.user.id}?type=account`,
@@ -171,25 +196,29 @@ export default function SettingsPage() {
       );
 
       const data = await response.json();
-
-      if (data.success) {
-        toast.success("Account deleted successfully! You will be signed out.");
-        setDeleteConfirm({ type: "" });
-        // Sign out the user after successful account deletion
-        setTimeout(() => {
-          signOut({ callbackUrl: "/" });
-        }, 2000);
-      } else {
-        toast.error(data.error || "Failed to delete account");
+      if (!data.success) {
+        throw new Error(data.error || "Failed to delete account");
       }
-    } catch {
-      toast.error("An error occurred while deleting account");
-    } finally {
-      setDeleteLoading(false);
-    }
-  };
+      return data;
+    },
+    onSuccess: () => {
+      toast.success("Account deleted successfully! You will be signed out.");
+      setDeleteAccountDialogOpen(false);
+      // Sign out the user after successful account deletion
+      setTimeout(() => {
+        signOut({ callbackUrl: "/" });
+      }, 2000);
+    },
+    onError: (error) => {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "An error occurred while deleting account"
+      );
+    },
+  });
 
-  if (status === "loading" || loading) {
+  if (status === "loading" || isLoading) {
     return (
       <div className="container mx-auto p-6">
         <div className="text-center">
@@ -212,331 +241,257 @@ export default function SettingsPage() {
     );
   }
 
+  function onSubmit(values: UserPreferences) {
+    // Update local state and persist via existing mutation
+    setLocalPreferences(values);
+    savePreferencesMutation.mutate(values);
+  }
+
   return (
-    <div className="container mx-auto py-8 px-6 max-w-4xl">
-      {/* Header */}
-      <div className="border-b pb-8 mb-8">
-        <h1 className="text-3xl font-bold">Settings</h1>
-        <p className="text-muted-foreground mt-2">
-          Manage your account preferences and configure your Splitrail CLI integration.
-        </p>
+    <div className="container mx-auto">
+      <h1 className="text-3xl font-bold mb-12">Settings</h1>
+
+      {/* CLI Integration Section */}
+      <div className="mb-12 border-b border-border pb-12">
+        <h2 className="text-xl font-semibold text-gray-900 mb-4">
+          CLI Integration
+        </h2>
+        <CLITokenDisplay />
       </div>
-            {/* CLI Integration Section */}
-            <div className="mb-12">
-              <div className="mb-6">
-                <h2 className="text-xl font-semibold text-gray-900 mb-2">CLI Integration</h2>
-                <p className="text-sm text-gray-600">
-                  Configure your Splitrail CLI for tracking your development activity
-                </p>
-              </div>
-              <CLITokenDisplay />
-            </div>
 
-            {/* Profile & Display Settings */}
-            <div className="mb-12">
-              <div className="mb-6">
-                <h2 className="text-xl font-semibold text-gray-900 mb-2">Profile & Display</h2>
-                <p className="text-sm text-gray-600">
-                  Control how your profile appears and configure localization settings
-                </p>
-              </div>
+      {/* Profile & Display Settings */}
+      <div className="mb-12 border-b border-border pb-12">
+        <h2 className="text-xl font-semibold text-gray-900 mb-4">
+          Profile &amp; Display
+        </h2>
 
-              <div className="space-y-8">
-                {/* Display Preferences */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                  <div className="space-y-4">
-                    <h3 className="text-lg font-medium text-gray-900">Display Preferences</h3>
-                    
-                    <div className="space-y-3">
-                      <Label htmlFor="displayNamePreference" className="text-sm font-medium">
-                        Display Name Preference
-                      </Label>
-                      <Select
-                        value={preferences.displayNamePreference}
-                        onValueChange={(value) =>
-                          handleInputChange(
-                            "displayNamePreference",
-                            value as "displayName" | "username"
-                          )
-                        }
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select display preference" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="displayName">
-                            Use display name (when available)
-                          </SelectItem>
-                          <SelectItem value="username">Always use username</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <p className="text-xs text-gray-500">
-                        Choose how your name appears on the leaderboard
-                      </p>
-                    </div>
-
-                    <div className="space-y-3">
-                      <div className="flex items-center space-x-2">
+        <Form {...form}>
+          {/* Make sure RHF has a value after preferences load */}
+          <form onSubmit={form.handleSubmit(onSubmit)}>
+            <div className="flex flex-col space-y-8">
+              <FormField
+                control={form.control}
+                name="publicProfile"
+                render={({ field }) => (
+                  <FormItem>
+                    <div className="flex flex-row items-center gap-2">
+                      <FormControl>
                         <Checkbox
-                          id="optOutPublic"
-                          checked={!preferences.optOutPublic}
-                          onCheckedChange={(checked) =>
-                            handleInputChange("optOutPublic", !checked)
-                          }
+                          id="publicProfile"
+                          checked={!!field.value}
+                          onCheckedChange={(checked) => {
+                            const booleanValue = checked === true;
+                            field.onChange(booleanValue);
+                            handleInputChange("publicProfile", booleanValue);
+                          }}
                         />
-                        <Label htmlFor="optOutPublic" className="text-sm font-medium">
-                          Show my profile on the public leaderboard
-                        </Label>
-                      </div>
-                      <p className="text-xs text-gray-500">
-                        Your profile will be visible on the <a href="/leaderboard" className="text-primary hover:underline">Splitrail Leaderboard</a>
-                      </p>
+                      </FormControl>
+                      <FormLabel htmlFor="publicProfile" className="text-sm">
+                        Show my summarized usage data on the Splitrail
+                        Leaderboard
+                      </FormLabel>
                     </div>
-                  </div>
+                    <FormDescription>
+                      By enabling this option you agree to share your usage
+                      statistics publicly on the{" "}
+                      <Link href="/leaderboard" className="text-primary">
+                        Splitrail Leaderboard
+                      </Link>
+                      .
+                    </FormDescription>
+                  </FormItem>
+                )}
+              />
 
-                  {/* Live Leaderboard Sample */}
-                  <div className="space-y-4">
-                    <h3 className="text-lg font-medium text-gray-900">Live Sample</h3>
-                    <p className="text-sm text-gray-600">How your settings appear on the leaderboard</p>
-                    <div className="border rounded-lg overflow-hidden">
-                      <table className="w-full text-sm">
-                        <thead className="bg-muted/50">
-                          <tr>
-                            <th className="text-left p-3 font-medium">Rank</th>
-                            <th className="text-left p-3 font-medium">User</th>
-                            <th className="text-right p-3 font-medium">Cost</th>
-                            <th className="text-right p-3 font-medium">Tokens</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          <tr className="border-t">
-                            <td className="p-3 font-medium">1</td>
-                            <td className="p-3">
-                              <div className="flex items-center gap-2">
-                                {session.user?.image && (
-                                  <img
-                                    src={session.user.image}
-                                    alt="Profile"
-                                    className="w-6 h-6 rounded-full"
-                                  />
-                                )}
-                                <span className="font-medium">
-                                  {preferences.displayNamePreference === "displayName"
-                                    ? session.user?.name || session.user?.username || "Unknown"
-                                    : session.user?.username || "Unknown"}
-                                </span>
-                              </div>
-                            </td>
-                            <td className="p-3 text-right font-mono">
-                              {new Intl.NumberFormat(preferences.locale, {
-                                style: "currency",
-                                currency: preferences.currency,
-                              }).format(42.73)}
-                            </td>
-                            <td className="p-3 text-right font-mono">
-                              {new Intl.NumberFormat(preferences.locale).format(185429)}
-                            </td>
-                          </tr>
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Localization Settings */}
-                <div>
-                  <h3 className="text-lg font-medium text-gray-900 mb-4">Localization</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div className="space-y-2">
-                      <Label htmlFor="language" className="text-sm font-medium">Language</Label>
+              {/* Currency */}
+              <FormField
+                control={form.control}
+                name="currency"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Currency</FormLabel>
+                    <FormControl>
+                      {/* Avoid passing undefined to shadcn Select; fall back to DB or 'USD' */}
                       <Select
-                        value={preferences.locale}
-                        onValueChange={(value) => handleInputChange("locale", value)}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select language" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {SUPPORTED_LOCALES.map((locale) => (
-                            <SelectItem key={locale.code} value={locale.code}>
-                              {locale.flag} {locale.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="currency" className="text-sm font-medium">Currency</Label>
-                      <Select
-                        value={preferences.currency}
-                        onValueChange={(value) =>
-                          handleInputChange("currency", value)
+                        value={
+                          (field.value as string | undefined) ??
+                          (preferences?.currency as string | undefined) ??
+                          "USD"
                         }
+                        onValueChange={(value) => {
+                          field.onChange(value);
+                          handleInputChange("currency", value);
+                        }}
                       >
-                        <SelectTrigger>
+                        <SelectTrigger className="w-56">
                           <SelectValue placeholder="Select currency" />
                         </SelectTrigger>
-                        <SelectContent>
+                        <SelectContent className="w-56">
                           {SUPPORTED_CURRENCIES.map((currency) => (
-                            <SelectItem key={currency.code} value={currency.code}>
+                            <SelectItem
+                              key={currency.code}
+                              value={currency.code}
+                            >
                               {currency.symbol} {currency.name}
                             </SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="timezone" className="text-sm font-medium">Timezone</Label>
-                      <Select
-                        value={preferences.timezone}
-                        onValueChange={(value) =>
-                          handleInputChange("timezone", value)
-                        }
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select timezone" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {TIMEZONE_OPTIONS.map((tz) => (
-                            <SelectItem key={tz} value={tz}>
-                              {tz}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                </div>
-              </div>
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
             </div>
-
-            {/* Save Button */}
-            <div className="flex justify-end mb-12 pb-8 border-b border-gray-200">
-              <Button onClick={savePreferences} disabled={saving} size="lg" className="px-8">
-                {saving ? "Saving..." : "Save Settings"}
+            <div className="mt-6">
+              <Button
+                type="submit"
+                disabled={savePreferencesMutation.isPending}
+              >
+                {savePreferencesMutation.isPending ? "Saving..." : "Save"}
               </Button>
             </div>
+          </form>
+        </Form>
+      </div>
 
-            {/* Data Management */}
-            <div className="mb-12">
-              <div className="mb-6">
-                <h2 className="text-xl font-semibold text-gray-900 mb-2">Data Management</h2>
-                <p className="text-sm text-gray-600">
-                  Manage your data and account settings. These actions cannot be undone.
+      {/* Data Management */}
+      <div className="mb-12">
+        <h2 className="text-xl font-semibold text-gray-900 mb-4">
+          Data Management
+        </h2>
+
+        <div className="space-y-6">
+          <div className="p-6 border border-yellow-300 bg-yellow-50 rounded-lg">
+            <div className="space-y-3">
+              <div>
+                <h3 className="text-base font-medium text-yellow-800">
+                  Delete All Data
+                </h3>
+                <p className="text-sm text-yellow-700 mt-1">
+                  This will delete all your usage data, API tokens, and
+                  preferences, but keep your account active.
                 </p>
               </div>
-
-              <div className="space-y-6">
-                <div className="p-6 border border-yellow-300 rounded-lg">
-                  <div className="space-y-3">
-                    <div>
-                      <h3 className="text-base font-medium text-yellow-800">Delete All Data</h3>
-                      <p className="text-sm text-yellow-700 mt-1">
-                        This will delete all your usage data, API tokens, and
-                        preferences, but keep your account active.
-                      </p>
-                    </div>
-                    <Button
-                      variant="destructive"
-                      onClick={() => setDeleteConfirm({ type: "allData" })}
-                      disabled={deleteLoading}
-                    >
-                      Delete All Data
-                    </Button>
-                  </div>
-
-                  {/* Confirmation for delete all data */}
-                  {deleteConfirm.type === "allData" && (
-                    <div className="mt-4 p-4 border border-red-300 rounded-lg">
-                      <p className="text-sm text-red-800 mb-4">
-                        Are you sure you want to delete ALL your data? This includes
-                        usage statistics, API tokens, and preferences. Your account
-                        will remain active but all data will be lost. This action
-                        cannot be undone.
-                      </p>
-                      <div className="flex gap-2">
-                        <Button
-                          size="sm"
-                          variant="destructive"
-                          onClick={handleDeleteAllData}
-                          disabled={deleteLoading}
-                        >
-                          {deleteLoading ? "Deleting..." : "Yes, Delete All Data"}
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => setDeleteConfirm({ type: "" })}
-                          disabled={deleteLoading}
-                        >
-                          Cancel
-                        </Button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
+              <Button
+                variant="destructive"
+                onClick={() => setDeleteDataDialogOpen(true)}
+                disabled={
+                  deleteDataMutation.isPending ||
+                  deleteAccountMutation.isPending
+                }
+              >
+                Delete All Data
+              </Button>
             </div>
+          </div>
+        </div>
+      </div>
 
-            {/* Danger Zone */}
+      {/* Danger Zone */}
+      <div>
+        <h2 className="text-xl font-semibold text-red-600 mb-4">Danger Zone</h2>
+
+        <div className="p-6 border border-red-300 bg-red-50 rounded-lg">
+          <div className="space-y-3">
             <div>
-              <div className="mb-6">
-                <h2 className="text-xl font-semibold text-red-600 mb-2">Danger Zone</h2>
-                <p className="text-sm text-gray-600">
-                  Permanently delete your account and all associated data.
-                </p>
-              </div>
-
-              <div className="p-6 border border-red-300 rounded-lg">
-                <div className="space-y-3">
-                  <div>
-                    <h3 className="text-base font-medium text-red-800">Delete Account</h3>
-                    <p className="text-sm text-red-700 mt-1">
-                      This will permanently delete your account and all associated
-                      data. You will be signed out and cannot recover this data.
-                    </p>
-                  </div>
-                  <Button
-                    variant="destructive"
-                    onClick={() => setDeleteConfirm({ type: "account" })}
-                    disabled={deleteLoading}
-                  >
-                    Delete Account
-                  </Button>
-                </div>
-
-                {/* Confirmation for delete account */}
-                {deleteConfirm.type === "account" && (
-                  <div className="mt-4 p-4 border border-red-400 rounded-lg">
-                    <p className="text-sm text-red-900 mb-4">
-                      Are you sure you want to permanently delete your account?
-                      This will delete your account and ALL associated data. You
-                      will be signed out and this action cannot be undone.
-                    </p>
-                    <div className="flex gap-2">
-                      <Button
-                        size="sm"
-                        variant="destructive"
-                        onClick={handleDeleteAccount}
-                        disabled={deleteLoading}
-                      >
-                        {deleteLoading ? "Deleting..." : "Yes, Delete Account"}
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => setDeleteConfirm({ type: "" })}
-                        disabled={deleteLoading}
-                      >
-                        Cancel
-                      </Button>
-                    </div>
-                  </div>
-                )}
-              </div>
+              <h3 className="text-base font-medium text-red-800">
+                Delete Account
+              </h3>
+              <p className="text-sm text-red-700 mt-1">
+                This will permanently delete your account and all associated
+                data. You will be signed out and cannot recover this data.
+              </p>
             </div>
+            <Button
+              variant="destructive"
+              onClick={() => setDeleteAccountDialogOpen(true)}
+              disabled={
+                deleteDataMutation.isPending || deleteAccountMutation.isPending
+              }
+            >
+              Delete Account
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      {/* Delete Data Dialog */}
+      <AlertDialog
+        open={deleteDataDialogOpen}
+        onOpenChange={setDeleteDataDialogOpen}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete All Data</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete ALL your data? This includes usage
+              statistics, API tokens, and preferences. Your account will remain
+              active but all data will be lost. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setDeleteDataDialogOpen(false)}
+              disabled={
+                deleteDataMutation.isPending || deleteAccountMutation.isPending
+              }
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => deleteDataMutation.mutate()}
+              disabled={
+                deleteDataMutation.isPending || deleteAccountMutation.isPending
+              }
+            >
+              {deleteDataMutation.isPending
+                ? "Deleting..."
+                : "Yes, Delete All Data"}
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete Account Dialog */}
+      <AlertDialog
+        open={deleteAccountDialogOpen}
+        onOpenChange={setDeleteAccountDialogOpen}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Account</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to permanently delete your account? This
+              will delete your account and ALL associated data. You will be
+              signed out and this action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setDeleteAccountDialogOpen(false)}
+              disabled={
+                deleteDataMutation.isPending || deleteAccountMutation.isPending
+              }
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => deleteAccountMutation.mutate()}
+              disabled={
+                deleteDataMutation.isPending || deleteAccountMutation.isPending
+              }
+            >
+              {deleteAccountMutation.isPending
+                ? "Deleting..."
+                : "Yes, Delete Account"}
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

@@ -1,17 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import {
-  StatKeys,
+  DbStatKeys,
   type ConversationMessage,
-  DbUserStats,
   Periods,
-  DbMessageStats,
 } from "@/types";
 import { getPeriodStart, getPeriodEnd } from "@/lib/dateUtils";
 import { unsupportedMethod } from "@/lib/routeUtils";
+import { Prisma } from "@prisma/client";
 
 export async function POST(request: NextRequest) {
   try {
+    console.log("/api/upload-stats POST", {
+      method: request.method,
+      url: request.url,
+      ip: request.headers.get("x-forwarded-for") || "unknown",
+      ua: request.headers.get("user-agent"),
+    });
     // Get auth token from header
     const authHeader = request.headers.get("authorization");
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
@@ -57,27 +62,65 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const allStats = (await db.userStats.findMany({
+    // Extract unique applications from messages to limit DB query
+    const applications = new Set<string>();
+    for (const message of body) {
+      applications.add(message.application);
+    }
+    
+    // Only fetch stats for relevant applications and periods
+    const existingStats = await db.userStats.findMany({
       where: {
         userId: user.id,
+        application: {
+          in: Array.from(applications)
+        }
       },
-    })) as DbUserStats[];
-    const messages: DbMessageStats[] = [];
+    });
+    
+    // Create a map for faster lookups
+    const existingStatsMap = new Map<string, typeof existingStats[0]>();
+    for (const stat of existingStats) {
+      existingStatsMap.set(`${stat.period}_${stat.application}`, stat);
+    }
+    
+    const statsToUpsert: Array<Partial<Prisma.UserStatsUncheckedCreateInput & { id?: string }>> = [];
+    const messages: Array<Prisma.MessageStatsUncheckedCreateInput> = [];
     const messageDict: Record<string, ConversationMessage> = {};
 
     // Format all messages in a format that the DB will accept, and record each message in a dict
     // so that later, when we loop over insertedMessages, we can use the original message to get
     // the stats.
     for (const message of body) {
-      const { stats, ...rest } = message;
-      messages.push({
+      const { stats, date, ...rest } = message;
+      // Build the dbMessage object with all required fields
+      const dbMessage: Record<string, unknown> = {
         ...rest,
-        ...stats,
+        date: new Date(date),
         userId: user.id,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      });
-      messageDict[message.hash] = message;
+      };
+      
+      // Convert stats for database - batch process known keys
+      if (stats.cost !== undefined && stats.cost !== null) dbMessage.cost = stats.cost;
+      
+      // Process BigInt fields in a single pass
+      const bigIntFields = ['toolCalls', 'inputTokens', 'outputTokens', 'cacheCreationTokens', 'cacheReadTokens', 
+        'cachedTokens', 'filesRead', 'filesAdded', 'filesEdited', 'filesDeleted',
+        'linesRead', 'linesAdded', 'linesEdited', 'linesDeleted', 'bytesRead', 
+        'bytesAdded', 'bytesEdited', 'bytesDeleted', 'codeLines', 'docsLines', 
+        'dataLines', 'mediaLines', 'configLines', 'otherLines', 'terminalCommands',
+        'fileSearches', 'fileContentSearches', 'todosCreated', 'todosCompleted', 
+        'todosInProgress', 'todoWrites', 'todoReads'];
+      
+      for (const field of bigIntFields) {
+        const value = stats[field as keyof typeof stats];
+        if (value !== undefined && value !== null) {
+          dbMessage[field] = BigInt(Math.round(Number(value)));
+        }
+      }
+      
+      messages.push(dbMessage as Prisma.MessageStatsUncheckedCreateInput);
+      messageDict[message.globalHash] = message;
     }
 
     // Insert the messages, skipping duplicates.
@@ -86,89 +129,153 @@ export async function POST(request: NextRequest) {
       skipDuplicates: true,
     });
 
-    // Pre-aggregate the stats into rows based on combinations of user ID, application, and period.
-    // The process is:
-    //  * Loop through the inserted messages.  createManyAndReturn only returns the messages that
-    //    were inserted, NOT the ones that were duplicate (skipped), which ensures that we're not
-    //    adding stats to the pre-aggregated stats that were previously added.
-    //  * Loop through periods and update or insert as needed.
-    //  * Add the message to the messages array for bulk upsertion later.
+    // Create accumulator maps to aggregate stats efficiently
+    const statAccumulators = new Map<string, Record<string, number>>();
+    const messageCounters = new Map<string, { assistant: number, user: number }>();
+    
+    // Process inserted messages to accumulate stats
     for (const message of insertedMessages) {
-      const { stats, role, application } = messageDict[message.hash];
+      const { stats, role, application } = messageDict[message.globalHash];
       const isAssistantMessage = role === "assistant";
-      // Loop through periods.
+      
+      // Process each period
       for (const period of Periods) {
-        // Attempt to find a row with this period and application.
-        const stat = allStats.find(
-          (stat) => stat.period === period && stat.application === application
-        );
-        // If we've found it, then we're going to add the new stats to the old ones.
-        if (stat) {
-          // StatKeys is a list of all numeric statistic keys that should be added up.
-          for (const key of StatKeys) {
-            // assistantMessages and userMessages DO NOT come from the CLI.  They're populated right
-            // here in the route.
-            if (
-              key !== "assistantMessages" &&
-              key !== "userMessages" &&
-              stat[key] !== undefined &&
-              stats[key] !== undefined
-            ) {
-              if (
-                typeof stat[key] == "bigint" &&
-                typeof stats[key] == "bigint"
-              ) {
-                (stat[key] as bigint) += stats[key];
-              } else if (
-                typeof stat[key] == "number" &&
-                typeof stats[key] == "number"
-              ) {
-                (stat[key] as number) += stats[key];
-              }
-            }
-          }
-          // If it's an assistant message, increment assistantMessages.
-          if (isAssistantMessage && stat.assistantMessages) {
-            stat.assistantMessages += BigInt(1);
-          } else if (!isAssistantMessage && stat.userMessages) {
-            stat.userMessages += BigInt(1);
-          }
-          stat.updatedAt = new Date();
+        const key = `${period}_${application}`;
+        
+        // Initialize accumulator if needed
+        if (!statAccumulators.has(key)) {
+          statAccumulators.set(key, {});
+          messageCounters.set(key, { assistant: 0, user: 0 });
         }
-        // Otherwise, if we haven't found it, then we're going to create a new row.
-        else {
-          allStats.push({
-            ...stats,
-            userId: user.id,
-            application,
-            period,
-            periodStart: getPeriodStart(period),
-            periodEnd: getPeriodEnd(period),
-            assistantMessages: isAssistantMessage ? BigInt(1) : BigInt(0),
-            userMessages: isAssistantMessage ? BigInt(0) : BigInt(1),
-            createdAt: new Date(),
-            updatedAt: new Date(),
-          });
+        
+        const accumulator = statAccumulators.get(key)!;
+        const counter = messageCounters.get(key)!;
+        
+        // Accumulate stats - process all defined values
+        for (const statKey of DbStatKeys) {
+          if (statKey !== "assistantMessages" && statKey !== "userMessages" && stats[statKey] !== undefined && stats[statKey] !== null) {
+            accumulator[statKey] = (accumulator[statKey] || 0) + Number(stats[statKey]);
+          }
+        }
+        
+        // Count messages
+        if (isAssistantMessage) {
+          counter.assistant++;
+        } else {
+          counter.user++;
         }
       }
     }
+    
+    // Build upsert operations from accumulated data
+    const now = new Date();
+    for (const [key, accumulator] of statAccumulators) {
+      const [period, application] = key.split('_');
+      const counter = messageCounters.get(key)!;
+      const existingStat = existingStatsMap.get(key);
+      
+      if (existingStat) {
+        // Update existing stat - build update object with only changed fields
+        const updates: Partial<Prisma.UserStatsUncheckedCreateInput> & { id: string } = {
+          id: existingStat.id,
+          userId: user.id,
+          period,
+          application,
+          periodStart: existingStat.periodStart,
+          periodEnd: existingStat.periodEnd,
+          createdAt: existingStat.createdAt,
+          updatedAt: now,
+        };
+        
+        // Add accumulated values to existing stats
+        for (const statKey of DbStatKeys) {
+          if (statKey === "assistantMessages") {
+            updates.assistantMessages = BigInt(existingStat.assistantMessages) + BigInt(counter.assistant);
+          } else if (statKey === "userMessages") {
+            updates.userMessages = BigInt(existingStat.userMessages) + BigInt(counter.user);
+          } else if (accumulator[statKey] !== undefined) {
+            const existing = existingStat[statKey] || 0;
+            if (statKey === 'cost') {
+              updates.cost = Number(existing) + accumulator[statKey];
+            } else {
+              // All other stats are BigInt fields
+              const bigIntKey = statKey as Exclude<typeof statKey, 'cost' | 'assistantMessages' | 'userMessages'>;
+              updates[bigIntKey] = BigInt(existing) + BigInt(accumulator[statKey]);
+            }
+          } else {
+            // Copy existing value when no new data
+            if (statKey === 'cost') {
+              updates.cost = existingStat.cost;
+            } else {
+              const bigIntKey = statKey as Exclude<typeof statKey, 'cost'>;
+              updates[bigIntKey] = existingStat[bigIntKey];
+            }
+          }
+        }
+        
+        statsToUpsert.push(updates);
+      } else {
+        // Create new stat entry
+        const newStat: Prisma.UserStatsUncheckedCreateInput = {
+          userId: user.id,
+          application,
+          period,
+          periodStart: getPeriodStart(period as (typeof Periods)[number]),
+          periodEnd: getPeriodEnd(period as (typeof Periods)[number]),
+          assistantMessages: BigInt(counter.assistant),
+          userMessages: BigInt(counter.user),
+          createdAt: now,
+          updatedAt: now,
+        };
+        
+        // Add accumulated stats with proper types
+        for (const statKey of DbStatKeys) {
+          if (statKey !== "assistantMessages" && statKey !== "userMessages" && accumulator[statKey] !== undefined) {
+            const value = accumulator[statKey];
+            if (statKey === 'cost') {
+              newStat.cost = Number(value);
+            } else {
+              // All other stats are BigInt fields
+              const bigIntKey = statKey as Exclude<typeof statKey, 'cost' | 'assistantMessages' | 'userMessages'>;
+              newStat[bigIntKey] = BigInt(value);
+            }
+          }
+        }
+        
+        statsToUpsert.push(newStat);
+      }
+    }
 
-    // Now upsert the pre-aggregated stats.
-    await db.$transaction(
-      allStats.map((stat) =>
-        db.userStats.upsert({
-          where: {
-            userId_period_application: {
-              userId: stat.userId,
-              period: stat.period,
-              application: stat.application,
-            },
-          },
-          update: stat,
-          create: stat,
-        })
-      )
-    );
+    // Batch upserts by operation type for better performance
+    if (statsToUpsert.length > 0) {
+      await db.$transaction(async (tx) => {
+        await Promise.all(
+          statsToUpsert.map(stat => {
+            if (stat.id) {
+              // Update existing record
+              return tx.userStats.update({
+                where: { id: stat.id },
+                data: stat
+              });
+            } else {
+              // Upsert for new records to handle race conditions
+              const { userId, period, application, ...data } = stat;
+              return tx.userStats.upsert({
+                where: {
+                  userId_period_application: {
+                    userId: userId!,
+                    period: period!,
+                    application: application!
+                  }
+                },
+                update: data,
+                create: stat as Prisma.UserStatsUncheckedCreateInput
+              });
+            }
+          })
+        );
+      });
+    }
 
     return NextResponse.json({
       success: true,

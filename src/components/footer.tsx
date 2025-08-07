@@ -5,15 +5,17 @@ import Image from "next/image";
 import { ExternalLink } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { useSession } from "next-auth/react";
 
 function Footer() {
   const pathname = usePathname();
+  const { data: session } = useSession();
 
   return (
     <footer
       className={cn(
         "justify-between text-sm flex flex-row py-2",
-        pathname === "/" ? "px-12" : "px-6 container mx-auto"
+        pathname === "/" && !session ? "px-12" : "px-6 container mx-auto"
       )}
     >
       <p className="flex items-center text-muted-foreground">
@@ -41,7 +43,7 @@ function Footer() {
         </svg>
         <span>GitHub:</span>
         <Link
-          href="https://github.com/piebald-ai/splitrail"
+          href="https://github.com/Piebald-AI/splitrail"
           className="text-primary font-medium flex flex-row gap-1.5"
         >
           Splitrail
@@ -49,10 +51,10 @@ function Footer() {
         </Link>
         <span>&bull;</span>
         <Link
-          href="https://github.com/piebald-ai/splitrail-leaderboard"
+          href="https://github.com/Piebald-AI/splitrail-cloud"
           className="text-primary font-medium flex flex-row gap-1.5"
         >
-          Leaderboard
+          Cloud
           <ExternalLink className="text-muted-foreground/50 size-4" />
         </Link>
       </div>

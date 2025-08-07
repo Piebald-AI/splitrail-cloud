@@ -129,3 +129,9 @@ html, body, .root {
   --sidebar-ring: oklch(0.527 0.154 150.069);
   --logo-color: #c6f2db;
 }
+
+html body[data-scroll-locked] {  
+  --removed-body-scroll-bar-size: 0 !important;  
+  margin-right: 0 !important;  
+  overflow-y: auto !important;  
+}

@@ -1,4 +1,4 @@
-# Splitrail Leaderboard
+# Splitrail Cloud
 
 ## Project Overview
 This is a Next.js web application that serves as a leaderboard for [Splitrail](https://github.com/Piebald-AI/splitrail) - an analyzer for agentic AI coding tool usage. The application tracks and displays usage statistics for developers using AI development tools like Claude Code.
@@ -139,3 +139,7 @@ Required environment variables (see deployment docs for details):
 - GitHub Issues: Project repository
 - Email: support@piebald.ai
 - Forum: https://piebald.discourse.group
+
+## Development Memories
+- Always use `pnpm`, not `npm` or `yarn`.
+- Never run the dev server.

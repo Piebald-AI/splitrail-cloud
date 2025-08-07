@@ -1,5 +1,7 @@
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
+import { format as dateFnsFormat } from "date-fns";
+import { Prisma } from "@prisma/client";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -27,32 +29,33 @@ export function formatCurrency(
 }
 
 // Format large numbers (e.g., 1000 -> 1k, 1000000 -> 1M)
-export function formatLargeNumber(num: number | { $bigint: string }): string {
+export function formatLargeNumber(
+  num: number | string,
+  locale: string = "en-US"
+): string {
+  let value: number;
+  
   if (typeof num === "number") {
-    if (num >= 1000000000) return (num / 1000000000).toFixed(1) + "B";
-    if (num >= 1000000) return (num / 1000000).toFixed(1) + "M";
-    if (num >= 1000) return (num / 1000).toFixed(1) + "k";
-    return num.toString();
-  } else if (typeof num === "object" && num.$bigint) {
-    const numValue = BigInt(num.$bigint);
-    if (numValue >= 1000000000)
-      return (numValue / BigInt(1000000000)).toString() + "B";
-    if (numValue >= 1000000)
-      return (numValue / BigInt(1000000)).toString() + "M";
-    if (numValue >= 1000) return (numValue / BigInt(1000)).toString() + "k";
-    return numValue.toString();
+    value = num;
+  } else if (typeof num === "string") {
+    value = Number(num);
+  } else {
+    throw new Error("Invalid number format");
   }
-  return "";
+
+  return new Intl.NumberFormat(locale, {
+    notation: "compact",
+    maximumFractionDigits: 2,
+  }).format(value);
 }
 
-// Format dates with locale awareness
+// Format dates using date-fns
 export function formatDate(
   date: Date | string,
-  locale: string = "en-US",
-  options: Intl.DateTimeFormatOptions = {}
+  formatString: string = "PPP"
 ): string {
   const dateObj = typeof date === "string" ? new Date(date) : date;
-  return new Intl.DateTimeFormat(locale, options).format(dateObj);
+  return dateFnsFormat(dateObj, formatString);
 }
 
 // Get relative time (e.g., "2 days ago")
@@ -146,15 +149,11 @@ export function isValidApiToken(token: string): boolean {
   return /^st_[a-zA-Z0-9]{20,}$/.test(token);
 }
 
-// Get display name based on user preference
+// Get display name: use displayName when present, else username
 export function getDisplayName(
-  user: { username: string; displayName: string | null },
-  preference: "displayName" | "username" = "displayName"
+  user: { username: string; displayName: string | null | undefined }
 ): string {
-  if (preference === "displayName" && user.displayName) {
-    return user.displayName;
-  }
-  return user.username;
+  return user.displayName || user.username;
 }
 
 // Calculate streak days
@@ -208,3 +207,18 @@ export function truncate(text: string, maxLength: number): string {
   if (text.length <= maxLength) return text;
   return text.substring(0, maxLength - 3) + "...";
 }
+
+// Converts a `Prisma.Decimal` or `BigInt` to a `Number`, if possible.
+export const n = (value: bigint | Prisma.Decimal) => {
+  if (
+    Prisma.Decimal.isDecimal(value)
+      ? value.lt(Number.MIN_SAFE_INTEGER) || value.gt(Number.MAX_SAFE_INTEGER)
+      : value < Number.MIN_SAFE_INTEGER || value > Number.MAX_SAFE_INTEGER
+  ) {
+    throw new Error(
+      `Value is unsafe for BigInt -> Number conversion: ${value}`
+    );
+  }
+
+  return Number(value);
+};

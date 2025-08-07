@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { auth } from "@/auth";
 import { db } from "@/lib/db";
 
 export async function GET(
@@ -8,7 +7,7 @@ export async function GET(
   { params }: { params: Promise<{ userId: string }> }
 ) {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await auth();
     const { userId } = await params;
 
     // Users can only access their own preferences
@@ -22,15 +21,12 @@ export async function GET(
     });
 
     if (!preferences) {
-      // Return default preferences if none exist
+      // Return default preferences if none exist (no locale/timezone in app storage)
       const defaultPreferences = {
-        displayNamePreference: "displayName",
-        locale: "en",
-        timezone: "UTC",
         currency: "USD",
-        optOutPublic: false,
+        publicProfile: false,
       };
-
+  
       return NextResponse.json({
         success: true,
         data: defaultPreferences,
@@ -40,11 +36,8 @@ export async function GET(
     return NextResponse.json({
       success: true,
       data: {
-        displayNamePreference: preferences.displayNamePreference,
-        locale: preferences.locale,
-        timezone: preferences.timezone,
         currency: preferences.currency,
-        optOutPublic: preferences.optOutPublic,
+        publicProfile: preferences.publicProfile,
       },
     });
   } catch (error) {
@@ -62,7 +55,7 @@ export async function PUT(
   { params }: { params: Promise<{ userId: string }> }
 ) {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await auth();
     const { userId } = await params;
 
     // Users can only update their own preferences
@@ -72,29 +65,21 @@ export async function PUT(
 
     const body = await request.json();
 
-    // Validate input
-    const { displayNamePreference, locale, timezone, currency, optOutPublic } =
-      body;
-
-    if (
-      !displayNamePreference ||
-      !locale ||
-      !timezone ||
-      !currency ||
-      typeof optOutPublic !== "boolean"
-    ) {
-      return NextResponse.json(
-        { error: "Invalid input data" },
-        { status: 400 }
-      );
-    }
-
-    // Validate enum values
-    if (!["displayName", "username"].includes(displayNamePreference)) {
-      return NextResponse.json(
-        { error: "Invalid displayNamePreference value" },
-        { status: 400 }
-      );
+    // Extract the fields that were provided (no locale/timezone)
+    const updateData: {
+      currency?: string;
+      publicProfile?: boolean;
+    } = {};
+    
+    if ("currency" in body) updateData.currency = body.currency;
+    if ("publicProfile" in body) {
+      if (typeof body.publicProfile !== "boolean") {
+        return NextResponse.json(
+          { error: "publicProfile must be a boolean" },
+          { status: 400 }
+        );
+      }
+      updateData.publicProfile = body.publicProfile;
     }
 
     // Update or create preferences
@@ -102,18 +87,11 @@ export async function PUT(
       where: { userId },
       create: {
         userId,
-        displayNamePreference,
-        locale,
-        timezone,
-        currency,
-        optOutPublic,
+        currency: updateData.currency || "USD",
+        publicProfile: updateData.publicProfile ?? false,
       },
       update: {
-        displayNamePreference,
-        locale,
-        timezone,
-        currency,
-        optOutPublic,
+        ...updateData,
         updatedAt: new Date(),
       },
     });
@@ -121,11 +99,8 @@ export async function PUT(
     return NextResponse.json({
       success: true,
       data: {
-        displayNamePreference: preferences.displayNamePreference,
-        locale: preferences.locale,
-        timezone: preferences.timezone,
         currency: preferences.currency,
-        optOutPublic: preferences.optOutPublic,
+        publicProfile: preferences.publicProfile,
       },
     });
   } catch (error) {

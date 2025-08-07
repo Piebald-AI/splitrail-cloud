@@ -1,17 +1,14 @@
-// import NextAuth from 'next-auth'
+import { type DefaultSession } from "next-auth";
 import { type UserPreferences } from "@prisma/client";
 
 declare module "next-auth" {
-  interface Session {
+  interface Session extends DefaultSession {
     user: {
       id: string;
-      name?: string | null;
-      email?: string | null;
-      image?: string | null;
-      username?: string;
-      githubId?: string;
+      username: string;
+      githubId: string;
       preferences?: UserPreferences | null;
-    };
+    } & DefaultSession["user"];
   }
 
   interface User {
@@ -19,7 +16,7 @@ declare module "next-auth" {
     name?: string | null;
     email?: string | null;
     image?: string | null;
-    username?: string;
+    username: string;
     githubId?: string;
     preferences?: UserPreferences | null;
   }
@@ -27,7 +24,7 @@ declare module "next-auth" {
 
 declare module "next-auth/jwt" {
   interface JWT {
-    username?: string;
+    username: string;
     githubId?: string;
   }
 }

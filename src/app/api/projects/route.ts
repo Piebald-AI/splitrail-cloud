@@ -14,6 +14,11 @@ export async function GET() {
                 id: true,
                 username: true,
                 displayName: true,
+                preferences: {
+                  select: {
+                    publicProfile: true,
+                  },
+                },
               },
             },
           },
@@ -21,9 +26,17 @@ export async function GET() {
       },
     });
 
+    // Filter out folder projects from users who haven't opted in to public profiles
+    const projectsWithPrivacy = projects.map((project) => ({
+      ...project,
+      folderProjects: project.folderProjects.filter(
+        (fp) => fp.user.preferences?.publicProfile === true
+      ),
+    }));
+
     return NextResponse.json({
       success: true,
-      data: projects,
+      data: projectsWithPrivacy,
     });
   } catch (error) {
     console.error("Get projects error:", error);

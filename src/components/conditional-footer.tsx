@@ -32,7 +32,7 @@ export function ConditionalFooter() {
         </svg>
         <span>GitHub:</span>
         <Link
-          href="https://github.com/piebald-ai/splitrail"
+          href="https://github.com/Piebald-AI/splitrail"
           className="text-primary font-medium flex flex-row gap-1.5"
         >
           Splitrail
@@ -40,7 +40,7 @@ export function ConditionalFooter() {
         </Link>
         <span>&bull;</span>
         <Link
-          href="https://github.com/piebald-ai/splitrail-leaderboard"
+          href="https://github.com/Piebald-AI/splitrail-cloud"
           className="text-primary font-medium flex flex-row gap-1.5"
         >
           Leaderboard

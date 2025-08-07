@@ -3,12 +3,12 @@
 import { useSession } from "next-auth/react";
 import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Code } from "@/components/ui/code";
 import { Trash2, Eye, EyeOff, Copy, Plus } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { formatDate } from "@/lib/utils";
 
 interface ApiToken {
   id: string;
@@ -258,7 +258,7 @@ export function CLITokenDisplay() {
                     <div className="flex items-center gap-2 mb-2">
                       <span className="font-medium text-sm">{token.name}</span>
                       <span className="text-xs text-muted-foreground">
-                        Created {new Date(token.createdAt).toLocaleDateString()}
+                        Created {formatDate(token.createdAt, "PPP")}
                       </span>
                     </div>
 
@@ -299,7 +299,7 @@ export function CLITokenDisplay() {
 
                     {token.lastUsed && (
                       <p className="text-xs text-muted-foreground mt-1">
-                        Last used: {new Date(token.lastUsed).toLocaleString()}
+                        Last used: {formatDate(token.lastUsed, "PPPpp")}
                       </p>
                     )}
                   </div>
@@ -309,35 +309,6 @@ export function CLITokenDisplay() {
           })}
         </div>
       )}
-
-      {/* Setup Instructions */}
-      <Card className="bg-muted/50">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base">Setup Instructions</CardTitle>
-        </CardHeader>
-        <CardContent className="pt-0">
-          <ol className="space-y-2 list-decimal list-inside text-sm">
-            <li>Copy one of your API tokens above</li>
-            <li>
-              Configure Splitrail CLI with:{" "}
-              <Code variant="inline">
-                splitrail config set-token &lt;your-token&gt;
-              </Code>
-            </li>
-            <li>
-              Set server URL:{" "}
-              <Code variant="inline">
-                splitrail config set-server{" "}
-                {typeof window !== "undefined" ? window.location.origin : ""}
-              </Code>
-            </li>
-            <li>
-              Run <Code variant="inline">splitrail upload</Code> to start
-              tracking!
-            </li>
-          </ol>
-        </CardContent>
-      </Card>
     </div>
   );
 }

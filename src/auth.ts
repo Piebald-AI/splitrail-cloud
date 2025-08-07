@@ -1,6 +1,5 @@
-import { NextAuthOptions } from "next-auth";
-// import { PrismaAdapter } from '@auth/prisma-adapter'
-import GitHubProvider from "next-auth/providers/github";
+import NextAuth from "next-auth";
+import GitHub from "next-auth/providers/github";
 import { db } from "@/lib/db";
 
 interface GitHubProfile {
@@ -9,17 +8,17 @@ interface GitHubProfile {
   name: string | null;
   email: string | null;
   avatar_url: string;
+  [key: string]: unknown;
 }
 
-export const authOptions: NextAuthOptions = {
-  // Remove the adapter to use JWT-only auth
-  // adapter: PrismaAdapter(db),
+export const { auth, handlers, signIn, signOut } = NextAuth({
   pages: {
-    signIn: "/auth/signin",
     error: "/auth/error",
   },
+  debug: process.env.NODE_ENV === "development",
+  trustHost: true, // Allow non-localhost hosts
   providers: [
-    GitHubProvider({
+    GitHub({
       clientId: process.env.GITHUB_ID!,
       clientSecret: process.env.GITHUB_SECRET!,
       profile(profile) {
@@ -48,7 +47,7 @@ export const authOptions: NextAuthOptions = {
     async jwt({ token, account, profile }) {
       if (account?.provider === "github" && profile) {
         // Create or update user in database
-        const githubProfile = profile as GitHubProfile;
+        const githubProfile = profile as unknown as GitHubProfile;
         try {
           const dbUser = await db.user.upsert({
             where: { githubId: githubProfile.id.toString() },
@@ -60,11 +59,10 @@ export const authOptions: NextAuthOptions = {
               email: githubProfile.email,
               preferences: {
                 create: {
-                  displayNamePreference: "displayName",
                   locale: "en",
                   timezone: "UTC",
                   currency: "USD",
-                  optOutPublic: false,
+                  publicProfile: false,
                 },
               },
             },
@@ -89,5 +87,5 @@ export const authOptions: NextAuthOptions = {
   session: {
     strategy: "jwt",
   },
-  secret: process.env.NEXTAUTH_SECRET,
-};
+  secret: process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET,
+});

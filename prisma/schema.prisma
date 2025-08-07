@@ -33,12 +33,14 @@ model User {
 
 // NOTE: If you're updating this table, make sure to update the types in src/types/index.ts too.
 model MessageStats {
-  hash                  String    @id
+  globalHash            String    @id
   userId                String
   application           String    @default("claude_code") // "claude_code", "gemini_cli", "codex_cli"
   role                  String    // "assistant" or "user"
-  timestamp             String
+  date                  DateTime
   projectHash           String
+  conversationHash      String
+  localHash             String?
   inputTokens           BigInt
   outputTokens          BigInt
   cacheCreationTokens   BigInt
@@ -75,14 +77,11 @@ model MessageStats {
   todoWrites            BigInt    @default(0)
   todoReads             BigInt    @default(0)
   
-  createdAt             DateTime  @default(now())
-  updatedAt             DateTime  @updatedAt
-  
   user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   
-  @@index([userId, timestamp])
-  @@index([timestamp])
-  @@index([application, timestamp])
+  @@index([userId, date])
+  @@index([date])
+  @@index([application, date])
   @@map("message_stats")
 }
 
@@ -142,16 +141,17 @@ model UserPreferences {
   id                    String   @id @default(cuid())
   userId                String   @unique
   
-  // Display preferences
-  displayNamePreference String   @default("displayName") // "displayName" | "username"
   
   // Localization
   locale                String   @default("en")
   timezone              String   @default("UTC")
   currency              String   @default("USD")
   
-  // Privacy settings
-  optOutPublic          Boolean  @default(false)
+  // Privacy settings – whether the user's profile and aggregated statistics
+  // are publicly visible on the Splitrail Cloud leaderboard. Users are opted
+  // out by default and must explicitly enable the visibility from their
+  // profile page.
+  publicProfile         Boolean  @default(false)
   
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
@@ -231,5 +231,3 @@ model FolderProject {
   @@unique([userId, folder])
   @@map("folder_projects")
 }
-
-

@@ -7,6 +7,7 @@ import { Analytics } from "@vercel/analytics/next";
 import Navbar from "@/components/navbar";
 import Main from "@/components/main";
 import { ThemeProvider } from "next-themes";
+import ClientProviders from "./client-providers";
 
 const figtree = Figtree({
   variable: "--font-figtree",
@@ -23,9 +24,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Splitrail",
+  title: "Splitrail Cloud",
   description:
-    "Blazing fast, single-executable, cross-platform, agentic development monitor ",
+    "Sync your agentic development stats across your devices and show off via our leaderboard.",
 };
 
 export default function RootLayout({
@@ -40,13 +41,13 @@ export default function RootLayout({
       >
         <ThemeProvider attribute="class" enableSystem>
           <AuthSessionProvider>
-            <div className="w-full bg-background grid min-h-full grid-rows-[auto_1fr_auto]">
-              <Navbar />
-
-              <Main>{children}</Main>
-
-              <Footer />
-            </div>
+            <ClientProviders>
+              <div className="w-full grid min-h-full grid-rows-[auto_1fr_auto]">
+                <Navbar />
+                <Main>{children}</Main>
+                <Footer />
+              </div>
+            </ClientProviders>
           </AuthSessionProvider>
         </ThemeProvider>
         <Analytics />

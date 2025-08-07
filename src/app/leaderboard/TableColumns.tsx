@@ -1,18 +1,15 @@
 "use client";
 
-import { ColumnDef, Column } from "@tanstack/react-table";
-import { UserWithStatsFromAPI } from "@/types";
+import { ColumnDef } from "@tanstack/react-table";
+import { UserWithStats } from "@/types";
 import {
   formatCurrency,
   formatLargeNumber,
   getDisplayName,
   cn,
 } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
-  ChevronUp,
-  ChevronDown,
   Award,
   Code,
   FileText,
@@ -20,8 +17,8 @@ import {
 } from "lucide-react";
 
 // User avatar component
-function UserAvatarCell({ user }: { user: UserWithStatsFromAPI }) {
-  const displayName = getDisplayName(user, "displayName");
+function UserAvatarCell({ user }: { user: UserWithStats }) {
+  const displayName = getDisplayName(user);
 
   return (
     <div className="flex items-center gap-3">
@@ -43,47 +40,34 @@ function UserAvatarCell({ user }: { user: UserWithStatsFromAPI }) {
   );
 }
 
-// Helper function to render sort icon based on state
-function SortIcon({
-  column,
-}: {
-  column: Column<UserWithStatsFromAPI, unknown>;
-}) {
-  const sorted = column.getIsSorted();
-  if (sorted === "asc") {
-    return <ChevronUp className="ml-2 h-4 w-4" />;
-  } else if (sorted === "desc") {
-    return <ChevronDown className="ml-2 h-4 w-4" />;
-  } else {
-    return null;
-  }
-}
-
-export const columns: ColumnDef<UserWithStatsFromAPI>[] = [
+export const createColumns = (currency: string = "USD", locale: string = "en"): ColumnDef<UserWithStats>[] => [
   {
     accessorKey: "rank",
     header: "Rank",
-    cell: ({ row }) => (
-      <div className="flex items-center justify-center">
-        {row.index < 3 ? (
-          <Award
-            className={cn(
-              "h-5 w-5",
-              ["text-yellow-500", "text-slate-400", "text-amber-600"][
-                row.index
-              ],
-              [
-                "drop-shadow-[0_0_2px_rgba(234,179,8,1)]",
-                "drop-shadow-[0_0_2px_rgba(148,163,184,1)]",
-                "drop-shadow-[0_0_2px_rgba(217,119,6,1)]",
-              ][row.index]
-            )}
-          />
-        ) : (
-          <span className="font-medium text-sm">{row.index + 1}</span>
-        )}
-      </div>
-    ),
+    cell: ({ row }) => {
+      const rank = row.original.rank;
+      return (
+        <div className="flex items-center justify-center">
+          {rank <= 3 ? (
+            <Award
+              className={cn(
+                "h-5 w-5",
+                ["text-yellow-500", "text-slate-400", "text-amber-600"][
+                  rank - 1
+                ],
+                [
+                  "drop-shadow-[0_0_2px_rgba(234,179,8,1)]",
+                  "drop-shadow-[0_0_2px_rgba(148,163,184,1)]",
+                  "drop-shadow-[0_0_2px_rgba(217,119,6,1)]",
+                ][rank - 1]
+              )}
+            />
+          ) : (
+            <span className="font-medium text-sm">{rank}</span>
+          )}
+        </div>
+      );
+    },
     enableSorting: false,
   },
   {
@@ -98,64 +82,19 @@ export const columns: ColumnDef<UserWithStatsFromAPI>[] = [
   },
   {
     accessorKey: "cost",
-    header: ({ column }) => {
-      return (
-        <Button
-          variant="ghost"
-          size="sm"
-          className="h-auto px-1 py-0"
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-        >
-          Cost
-          <SortIcon column={column} />
-        </Button>
-      );
-    },
+    header: "Cost",
     cell: ({ getValue }) => (
-      <div className="text-center">{formatCurrency(getValue() as number)}</div>
+      <div className="text-center">{formatCurrency(getValue() as number, currency, locale)}</div>
     ),
   },
   {
     accessorKey: "tokens",
-    header: ({ column }) => {
-      return (
-        <Button
-          variant="ghost"
-          size="sm"
-          className="h-auto px-1 py-0"
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-        >
-          Tokens
-          <SortIcon column={column} />
-        </Button>
-      );
-    },
-    cell: ({ row }) => (
-      <div className="text-center">
-        {formatLargeNumber({
-          $bigint: (
-            BigInt(row.original.inputTokens.$bigint) +
-            BigInt(row.original.outputTokens.$bigint)
-          ).toString(),
-        })}
-      </div>
-    ),
+    header: "Tokens",
+    cell: ({ row }) => formatLargeNumber(row.original.tokens),
   },
   {
     accessorKey: "linesAdded",
-    header: ({ column }) => {
-      return (
-        <Button
-          variant="ghost"
-          size="sm"
-          className="h-auto px-1 py-0"
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-        >
-          Lines Added
-          <SortIcon column={column} />
-        </Button>
-      );
-    },
+    header: "Lines Added",
     cell: ({ getValue }) => (
       <div className="text-green-600 text-center font-medium">
         +{formatLargeNumber(getValue() as number)}
@@ -164,19 +103,7 @@ export const columns: ColumnDef<UserWithStatsFromAPI>[] = [
   },
   {
     accessorKey: "linesDeleted",
-    header: ({ column }) => {
-      return (
-        <Button
-          variant="ghost"
-          size="sm"
-          className="h-auto px-1 py-0"
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-        >
-          Lines Deleted
-          <SortIcon column={column} />
-        </Button>
-      );
-    },
+    header: "Lines Deleted",
     cell: ({ getValue }) => (
       <div className="text-red-600 text-center font-medium">
         -{formatLargeNumber(getValue() as number)}
@@ -185,19 +112,7 @@ export const columns: ColumnDef<UserWithStatsFromAPI>[] = [
   },
   {
     accessorKey: "linesEdited",
-    header: ({ column }) => {
-      return (
-        <Button
-          variant="ghost"
-          size="sm"
-          className="h-auto px-1 py-0"
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-        >
-          Lines Edited
-          <SortIcon column={column} />
-        </Button>
-      );
-    },
+    header: "Lines Edited",
     cell: ({ getValue }) => (
       <div className="text-blue-600 text-center font-medium">
         ~{formatLargeNumber(getValue() as number)}
@@ -206,19 +121,7 @@ export const columns: ColumnDef<UserWithStatsFromAPI>[] = [
   },
   {
     accessorKey: "codeLines",
-    header: ({ column }) => {
-      return (
-        <Button
-          variant="ghost"
-          size="sm"
-          className="h-auto px-1 py-0"
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-        >
-          Code
-          <SortIcon column={column} />
-        </Button>
-      );
-    },
+    header: "Code",
     cell: ({ getValue }) => (
       <div className="flex items-center gap-1 justify-center text-purple-600 font-medium">
         <Code className="size-4" />
@@ -228,19 +131,7 @@ export const columns: ColumnDef<UserWithStatsFromAPI>[] = [
   },
   {
     accessorKey: "docsLines",
-    header: ({ column }) => {
-      return (
-        <Button
-          variant="ghost"
-          size="sm"
-          className="h-auto px-1 py-0"
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-        >
-          Docs
-          <SortIcon column={column} />
-        </Button>
-      );
-    },
+    header: "Docs",
     cell: ({ getValue }) => (
       <div className="flex items-center gap-1 justify-center text-orange-600 font-medium">
         <FileText className="size-4" />
@@ -250,19 +141,7 @@ export const columns: ColumnDef<UserWithStatsFromAPI>[] = [
   },
   {
     accessorKey: "dataLines",
-    header: ({ column }) => {
-      return (
-        <Button
-          variant="ghost"
-          size="sm"
-          className="h-auto px-1 py-0"
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-        >
-          Data
-          <SortIcon column={column} />
-        </Button>
-      );
-    },
+    header: "Data",
     cell: ({ getValue }) => (
       <div className="flex items-center gap-1 justify-center text-cyan-600 font-medium">
         <Database className="size-4" />
@@ -272,19 +151,7 @@ export const columns: ColumnDef<UserWithStatsFromAPI>[] = [
   },
   {
     accessorKey: "todosCompleted",
-    header: ({ column }) => {
-      return (
-        <Button
-          variant="ghost"
-          size="sm"
-          className="h-auto px-1 py-0"
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-        >
-          Tasks Completed
-          <SortIcon column={column} />
-        </Button>
-      );
-    },
+    header: "Tasks Completed",
     cell: ({ getValue }) => (
       <div className="text-center">
         {formatLargeNumber(getValue() as number)}
