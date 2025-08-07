@@ -8,6 +8,7 @@ import Navbar from "@/components/navbar";
 import Main from "@/components/main";
 import { ThemeProvider } from "next-themes";
 import ClientProviders from "./client-providers";
+import { Toaster } from "@/components/ui/sonner";
 
 const figtree = Figtree({
   variable: "--font-figtree",
@@ -42,6 +43,7 @@ export default function RootLayout({
         <ThemeProvider attribute="class" enableSystem>
           <AuthSessionProvider>
             <ClientProviders>
+              <Toaster richColors position="bottom-right" />
               <div className="w-full grid min-h-full grid-rows-[auto_1fr_auto]">
                 <Navbar />
                 <Main>{children}</Main>

@@ -10,8 +10,9 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { AlertCircle, Home, ArrowLeft } from "lucide-react";
+import { AlertCircle, Home, RotateCw } from "lucide-react";
 import Link from "next/link";
+import { signIn } from "next-auth/react";
 
 const errorMessages = {
   Configuration: {
@@ -57,11 +58,9 @@ function AuthErrorContent() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex flex-col gap-2">
-              <Button asChild className="w-full">
-                <Link href="/api/auth/signin">
-                  <ArrowLeft className="mr-2 h-4 w-4" />
-                  Try Again
-                </Link>
+              <Button className="w-full" onClick={() => signIn("github")}>
+                <RotateCw className="mr-2 h-4 w-4" />
+                Try Again
               </Button>
               <Button variant="outline" asChild className="w-full">
                 <Link href="/">

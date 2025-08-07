@@ -96,7 +96,7 @@ export const createColumns = (currency: string = "USD", locale: string = "en"): 
     accessorKey: "linesAdded",
     header: "Lines Added",
     cell: ({ getValue }) => (
-      <div className="text-green-600 text-center font-medium">
+      <div className="text-green-600 dark:text-green-400 text-center font-medium">
         +{formatLargeNumber(getValue() as number)}
       </div>
     ),
@@ -105,7 +105,7 @@ export const createColumns = (currency: string = "USD", locale: string = "en"): 
     accessorKey: "linesDeleted",
     header: "Lines Deleted",
     cell: ({ getValue }) => (
-      <div className="text-red-600 text-center font-medium">
+      <div className="text-red-600 dark:text-red-400 text-center font-medium">
         -{formatLargeNumber(getValue() as number)}
       </div>
     ),
@@ -114,7 +114,7 @@ export const createColumns = (currency: string = "USD", locale: string = "en"): 
     accessorKey: "linesEdited",
     header: "Lines Edited",
     cell: ({ getValue }) => (
-      <div className="text-blue-600 text-center font-medium">
+      <div className="text-blue-600 dark:text-blue-400 text-center font-medium">
         ~{formatLargeNumber(getValue() as number)}
       </div>
     ),
@@ -123,7 +123,7 @@ export const createColumns = (currency: string = "USD", locale: string = "en"): 
     accessorKey: "codeLines",
     header: "Code",
     cell: ({ getValue }) => (
-      <div className="flex items-center gap-1 justify-center text-purple-600 font-medium">
+      <div className="flex items-center gap-1 justify-center text-purple-600 dark:text-purple-400 font-medium">
         <Code className="size-4" />
         {formatLargeNumber(getValue() as number)}
       </div>
@@ -133,7 +133,7 @@ export const createColumns = (currency: string = "USD", locale: string = "en"): 
     accessorKey: "docsLines",
     header: "Docs",
     cell: ({ getValue }) => (
-      <div className="flex items-center gap-1 justify-center text-orange-600 font-medium">
+      <div className="flex items-center gap-1 justify-center text-orange-600 dark:text-orange-400 font-medium">
         <FileText className="size-4" />
         {formatLargeNumber(getValue() as number)}
       </div>
@@ -143,7 +143,7 @@ export const createColumns = (currency: string = "USD", locale: string = "en"): 
     accessorKey: "dataLines",
     header: "Data",
     cell: ({ getValue }) => (
-      <div className="flex items-center gap-1 justify-center text-cyan-600 font-medium">
+      <div className="flex items-center gap-1 justify-center text-cyan-600 dark:text-cyan-500 font-medium">
         <Database className="size-4" />
         {formatLargeNumber(getValue() as number)}
       </div>

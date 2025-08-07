@@ -44,7 +44,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Build WHERE clause for applications and username filter
-    let whereConditions = [Prisma.sql`user_preferences."publicProfile" = TRUE`];
+    const whereConditions = [Prisma.sql`user_preferences."publicProfile" = TRUE`];
     
     if (applicationParam !== "all") {
       whereConditions.push(Prisma.sql`message_stats."application" = ANY(${applications})`);
@@ -140,6 +140,7 @@ export async function GET(request: NextRequest) {
     const totalCountResult = await db.$queryRaw<[{ count: bigint }]>`
       SELECT COUNT(DISTINCT message_stats."userId")::bigint as count
       FROM message_stats
+      INNER JOIN users ON message_stats."userId" = users.id
       INNER JOIN user_preferences ON message_stats."userId" = user_preferences."userId"
       WHERE ${whereClause}
     `;

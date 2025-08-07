@@ -4,7 +4,6 @@ import { useSession } from "next-auth/react";
 import { useState, useEffect } from "react";
 import { type UserPreferences } from "@/types";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -71,10 +70,6 @@ const SUPPORTED_CURRENCIES = [
 export default function SettingsPage() {
   const { data: session, status } = useSession();
   const queryClient = useQueryClient();
-  const [localPreferences, setLocalPreferences] = useState<UserPreferences>({
-    currency: "USD",
-    publicProfile: false,
-  });
   const [deleteDataDialogOpen, setDeleteDataDialogOpen] = useState(false);
   const [deleteAccountDialogOpen, setDeleteAccountDialogOpen] = useState(false);
 
@@ -106,8 +101,6 @@ export default function SettingsPage() {
   // Initialize RHF defaults from DB once the query succeeds
   useEffect(() => {
     if (preferences) {
-      // Ensure we keep local copy for non-form usage if any
-      setLocalPreferences(preferences);
       form.reset(preferences);
     }
   }, [preferences, form]);
@@ -148,13 +141,6 @@ export default function SettingsPage() {
       );
     },
   });
-
-  const handleInputChange = (
-    field: keyof UserPreferences,
-    value: string | number | boolean
-  ) => {
-    setLocalPreferences((prev) => ({ ...prev, [field]: value }));
-  };
 
   const deleteDataMutation = useMutation({
     mutationFn: async () => {
@@ -242,8 +228,6 @@ export default function SettingsPage() {
   }
 
   function onSubmit(values: UserPreferences) {
-    // Update local state and persist via existing mutation
-    setLocalPreferences(values);
     savePreferencesMutation.mutate(values);
   }
 
@@ -253,17 +237,13 @@ export default function SettingsPage() {
 
       {/* CLI Integration Section */}
       <div className="mb-12 border-b border-border pb-12">
-        <h2 className="text-xl font-semibold text-gray-900 mb-4">
-          CLI Integration
-        </h2>
+        <h2 className="text-xl font-semibold mb-4">CLI Integration</h2>
         <CLITokenDisplay />
       </div>
 
       {/* Profile & Display Settings */}
       <div className="mb-12 border-b border-border pb-12">
-        <h2 className="text-xl font-semibold text-gray-900 mb-4">
-          Profile &amp; Display
-        </h2>
+        <h2 className="text-xl font-semibold mb-4">Profile &amp; Display</h2>
 
         <Form {...form}>
           {/* Make sure RHF has a value after preferences load */}
@@ -282,7 +262,6 @@ export default function SettingsPage() {
                           onCheckedChange={(checked) => {
                             const booleanValue = checked === true;
                             field.onChange(booleanValue);
-                            handleInputChange("publicProfile", booleanValue);
                           }}
                         />
                       </FormControl>
@@ -320,7 +299,6 @@ export default function SettingsPage() {
                         }
                         onValueChange={(value) => {
                           field.onChange(value);
-                          handleInputChange("currency", value);
                         }}
                       >
                         <SelectTrigger className="w-56">
@@ -356,24 +334,22 @@ export default function SettingsPage() {
 
       {/* Data Management */}
       <div className="mb-12">
-        <h2 className="text-xl font-semibold text-gray-900 mb-4">
-          Data Management
-        </h2>
+        <h2 className="text-xl font-semibold mb-4">Data Management</h2>
 
         <div className="space-y-6">
-          <div className="p-6 border border-yellow-300 bg-yellow-50 rounded-lg">
+          <div className="p-6 border border-yellow-300 dark:border-yellow-700 bg-yellow-50 dark:bg-yellow-950 rounded-lg">
             <div className="space-y-3">
               <div>
-                <h3 className="text-base font-medium text-yellow-800">
+                <h3 className="text-base font-medium text-yellow-800 dark:text-yellow-200">
                   Delete All Data
                 </h3>
-                <p className="text-sm text-yellow-700 mt-1">
+                <p className="text-sm text-yellow-700 dark:text-yellow-400 mt-1">
                   This will delete all your usage data, API tokens, and
                   preferences, but keep your account active.
                 </p>
               </div>
               <Button
-                variant="destructive"
+                variant="warning"
                 onClick={() => setDeleteDataDialogOpen(true)}
                 disabled={
                   deleteDataMutation.isPending ||
@@ -389,15 +365,14 @@ export default function SettingsPage() {
 
       {/* Danger Zone */}
       <div>
-        <h2 className="text-xl font-semibold text-red-600 mb-4">Danger Zone</h2>
-
-        <div className="p-6 border border-red-300 bg-red-50 rounded-lg">
+        <h2 className="text-xl font-semibold text-red-600 dark:text-red-400 mb-4">Danger Zone</h2>
+        <div className="p-6 border border-red-300 dark:border-red-700 bg-red-50 dark:bg-red-950 rounded-lg">
           <div className="space-y-3">
             <div>
-              <h3 className="text-base font-medium text-red-800">
+              <h3 className="text-base font-medium text-red-800 dark:text-red-200">
                 Delete Account
               </h3>
-              <p className="text-sm text-red-700 mt-1">
+              <p className="text-sm text-red-700 dark:text-red-400 mt-1">
                 This will permanently delete your account and all associated
                 data. You will be signed out and cannot recover this data.
               </p>
@@ -440,15 +415,13 @@ export default function SettingsPage() {
               Cancel
             </Button>
             <Button
-              variant="destructive"
+              variant="warning"
               onClick={() => deleteDataMutation.mutate()}
               disabled={
                 deleteDataMutation.isPending || deleteAccountMutation.isPending
               }
             >
-              {deleteDataMutation.isPending
-                ? "Deleting..."
-                : "Yes, Delete All Data"}
+              {deleteDataMutation.isPending ? "Deleting..." : "Delete"}
             </Button>
           </AlertDialogFooter>
         </AlertDialogContent>

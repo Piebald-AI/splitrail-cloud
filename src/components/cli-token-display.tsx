@@ -7,7 +7,7 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Trash2, Eye, EyeOff, Copy, Plus } from "lucide-react";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { toast } from "sonner";
 import { formatDate } from "@/lib/utils";
 
 interface ApiToken {
@@ -26,10 +26,7 @@ export function CLITokenDisplay() {
   const [copiedTokens, setCopiedTokens] = useState<Set<string>>(new Set());
   const [newTokenName, setNewTokenName] = useState("");
   const [creatingToken, setCreatingToken] = useState(false);
-  const [message, setMessage] = useState<{
-    type: "success" | "error";
-    text: string;
-  } | null>(null);
+  // Removed local alert message state in favor of Sonner toasts
 
   const fetchTokens = useCallback(async () => {
     if (!session) return;
@@ -42,14 +39,11 @@ export function CLITokenDisplay() {
       if (data.success) {
         setTokens(data.data.tokens);
       } else {
-        setMessage({
-          type: "error",
-          text: data.error || "Failed to fetch tokens",
-        });
+        toast.error(data.error || "Failed to fetch tokens");
       }
     } catch (error) {
       console.error("Error fetching tokens:", error);
-      setMessage({ type: "error", text: "Failed to fetch tokens" });
+      toast.error("Failed to fetch tokens");
     } finally {
       setLoading(false);
     }
@@ -59,7 +53,6 @@ export function CLITokenDisplay() {
     if (!session) return;
 
     setCreatingToken(true);
-    setMessage(null);
     try {
       const response = await fetch("/api/user/token", {
         method: "POST",
@@ -74,16 +67,13 @@ export function CLITokenDisplay() {
         setTokens((prev) => [data.data.token, ...prev]);
         setVisibleTokens((prev) => new Set([...prev, data.data.token.id]));
         setNewTokenName("");
-        setMessage({ type: "success", text: "Token created successfully!" });
+        toast.success("Token created successfully!");
       } else {
-        setMessage({
-          type: "error",
-          text: data.error || "Failed to create token",
-        });
+        toast.error(data.error || "Failed to create token");
       }
     } catch (error) {
       console.error("Error creating token:", error);
-      setMessage({ type: "error", text: "Failed to create token" });
+      toast.error("Failed to create token");
     } finally {
       setCreatingToken(false);
     }
@@ -105,16 +95,13 @@ export function CLITokenDisplay() {
           newSet.delete(tokenId);
           return newSet;
         });
-        setMessage({ type: "success", text: "Token deleted successfully!" });
+        toast.success("Token deleted successfully!");
       } else {
-        setMessage({
-          type: "error",
-          text: data.error || "Failed to delete token",
-        });
+        toast.error(data.error || "Failed to delete token");
       }
     } catch (error) {
       console.error("Error deleting token:", error);
-      setMessage({ type: "error", text: "Failed to delete token" });
+      toast.error("Failed to delete token");
     }
   };
 
@@ -171,12 +158,7 @@ export function CLITokenDisplay() {
     }
   }, [session, fetchTokens]);
 
-  useEffect(() => {
-    if (message) {
-      const timer = setTimeout(() => setMessage(null), 5000);
-      return () => clearTimeout(timer);
-    }
-  }, [message]);
+  // Removed message effect as Sonner toasts handle their own lifecycle
 
   if (!session) {
     return (
@@ -190,18 +172,6 @@ export function CLITokenDisplay() {
 
   return (
     <div className="space-y-6">
-      {message && (
-        <Alert
-          className={`${message.type === "success" ? "border-green-200 bg-green-50" : ""}`}
-          variant={message.type === "success" ? undefined : "destructive"}
-        >
-          <AlertDescription
-            className={message.type === "success" ? "text-green-800" : ""}
-          >
-            {message.text}
-          </AlertDescription>
-        </Alert>
-      )}
 
       {/* Create New Token */}
       <div className="space-y-4">

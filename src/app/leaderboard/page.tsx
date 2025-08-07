@@ -121,7 +121,7 @@ export default function Leaderboard() {
 
   // Separate query to check if the logged-in user has any data
   const { data: userHasData } = useQuery({
-    queryKey: ["userHasData", session?.user?.id, apps],
+    queryKey: ["userHasData", session?.user?.id],
     queryFn: async () => {
       if (!session?.user?.id) return null;
 
@@ -136,6 +136,7 @@ export default function Leaderboard() {
       return result.success && result.data?.stats !== null;
     },
     enabled: !!session?.user?.id,
+    staleTime: 5 * 60 * 1000, // 5 minutes - reduce refetching
   });
 
   // Transform data with currency conversion
@@ -196,7 +197,7 @@ export default function Leaderboard() {
       <h1 className="font-bold text-3xl">Leaderboard</h1>
 
       {/* No Data Banner */}
-      {session && userHasData === false && !isLoading && (
+      {session && userHasData === false && (
         <Alert>
           <Rocket />
           <AlertTitle>Get Started with Splitrail</AlertTitle>
