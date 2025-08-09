@@ -100,7 +100,7 @@ export async function GET(request: NextRequest) {
           COALESCE(SUM(message_stats."docsLines"), 0) as "docsLines",
           COALESCE(SUM(message_stats."dataLines"), 0) as "dataLines",
           COALESCE(SUM(message_stats."todosCompleted"), 0) as "todosCompleted",
-          ROW_NUMBER() OVER (ORDER BY COALESCE(SUM(message_stats."cost"), 0) DESC) as rank
+          ROW_NUMBER() OVER (ORDER BY COALESCE(SUM(message_stats."cost"), 0) DESC, users."createdAt" ASC) as rank
         FROM users
         INNER JOIN user_preferences ON users.id = user_preferences."userId"
         LEFT JOIN message_stats ON users.id = message_stats."userId" ${applicationFilter}
