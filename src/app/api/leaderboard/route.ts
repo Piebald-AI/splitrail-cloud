@@ -43,12 +43,8 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Build WHERE clause for applications and username filter
+    // Build WHERE clause for username filter and public profile
     const whereConditions = [Prisma.sql`user_preferences."publicProfile" = TRUE`];
-    
-    if (applicationParam !== "all") {
-      whereConditions.push(Prisma.sql`message_stats."application" = ANY(${applications})`);
-    }
     
     if (usernameFilter) {
       const searchPattern = `%${usernameFilter}%`;
@@ -58,6 +54,11 @@ export async function GET(request: NextRequest) {
     }
     
     const whereClause = Prisma.sql`${Prisma.join(whereConditions, ' AND ')}`;
+    
+    // Build application filter for LEFT JOIN
+    const applicationFilter = applicationParam !== "all"
+      ? Prisma.sql`AND message_stats."application" = ANY(${applications})`
+      : Prisma.sql``;
 
     // Query aggregated stats directly from message_stats table
     const rawResults = await db.$queryRaw<
@@ -90,19 +91,19 @@ export async function GET(request: NextRequest) {
           users."avatarUrl",
           users."email",
           users."createdAt",
-          SUM(message_stats."cost") as cost,
-          SUM(message_stats."cachedTokens" + message_stats."inputTokens" + message_stats."outputTokens") as tokens,
-          SUM(message_stats."linesAdded") as "linesAdded",
-          SUM(message_stats."linesDeleted") as "linesDeleted",
-          SUM(message_stats."linesEdited") as "linesEdited",
-          SUM(message_stats."codeLines") as "codeLines",
-          SUM(message_stats."docsLines") as "docsLines",
-          SUM(message_stats."dataLines") as "dataLines",
-          SUM(message_stats."todosCompleted") as "todosCompleted",
-          ROW_NUMBER() OVER (ORDER BY SUM(message_stats."cost") DESC) as rank
-        FROM message_stats
-        INNER JOIN users ON message_stats."userId" = users.id
-        INNER JOIN user_preferences ON message_stats."userId" = user_preferences."userId"
+          COALESCE(SUM(message_stats."cost"), 0) as cost,
+          COALESCE(SUM(message_stats."cachedTokens" + message_stats."inputTokens" + message_stats."outputTokens"), 0) as tokens,
+          COALESCE(SUM(message_stats."linesAdded"), 0) as "linesAdded",
+          COALESCE(SUM(message_stats."linesDeleted"), 0) as "linesDeleted",
+          COALESCE(SUM(message_stats."linesEdited"), 0) as "linesEdited",
+          COALESCE(SUM(message_stats."codeLines"), 0) as "codeLines",
+          COALESCE(SUM(message_stats."docsLines"), 0) as "docsLines",
+          COALESCE(SUM(message_stats."dataLines"), 0) as "dataLines",
+          COALESCE(SUM(message_stats."todosCompleted"), 0) as "todosCompleted",
+          ROW_NUMBER() OVER (ORDER BY COALESCE(SUM(message_stats."cost"), 0) DESC) as rank
+        FROM users
+        INNER JOIN user_preferences ON users.id = user_preferences."userId"
+        LEFT JOIN message_stats ON users.id = message_stats."userId" ${applicationFilter}
         WHERE ${whereClause}
         GROUP BY users.id, users."githubId", users."username", users."displayName", users."avatarUrl", users."email", users."createdAt"
       )
@@ -138,10 +139,9 @@ export async function GET(request: NextRequest) {
 
     // Get total count
     const totalCountResult = await db.$queryRaw<[{ count: bigint }]>`
-      SELECT COUNT(DISTINCT message_stats."userId")::bigint as count
-      FROM message_stats
-      INNER JOIN users ON message_stats."userId" = users.id
-      INNER JOIN user_preferences ON message_stats."userId" = user_preferences."userId"
+      SELECT COUNT(DISTINCT users.id)::bigint as count
+      FROM users
+      INNER JOIN user_preferences ON users.id = user_preferences."userId"
       WHERE ${whereClause}
     `;
 
