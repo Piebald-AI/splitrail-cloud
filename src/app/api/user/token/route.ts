@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
+import { randomBytes } from "crypto";
 
 export async function GET() {
   try {
@@ -57,10 +58,7 @@ export async function POST(request: NextRequest) {
       throw new Error("Maximum number of tokens (50) reached");
     }
 
-    const tokenString =
-      "st_" +
-      Math.random().toString(36).substring(2, 15) +
-      Math.random().toString(36).substring(2, 15);
+    const tokenString = "st_" + randomBytes(24).toString("base64url");
 
     const token = await db.apiToken.create({
       data: {
