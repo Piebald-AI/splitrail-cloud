@@ -140,11 +140,6 @@ model UserStats {
 model UserPreferences {
   id                    String   @id @default(cuid())
   userId                String   @unique
-  
-  
-  // Localization
-  locale                String   @default("en")
-  timezone              String   @default("UTC")
   currency              String   @default("USD")
   
   // Privacy settings – whether the user's profile and aggregated statistics

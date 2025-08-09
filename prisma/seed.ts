@@ -566,8 +566,6 @@ async function createUsers() {
           email: userData.email,
           preferences: {
             create: {
-              locale: "en",
-              timezone: "UTC",
               currency: "USD",
               publicProfile: true,
             },

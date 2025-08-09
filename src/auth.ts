@@ -59,8 +59,6 @@ export const { auth, handlers, signIn, signOut } = NextAuth({
               email: githubProfile.email,
               preferences: {
                 create: {
-                  locale: "en",
-                  timezone: "UTC",
                   currency: "USD",
                   publicProfile: false,
                 },

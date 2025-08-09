@@ -114,8 +114,6 @@ CREATE TABLE "user_stats" (
 CREATE TABLE "user_preferences" (
     "id" TEXT NOT NULL,
     "userId" TEXT NOT NULL,
-    "locale" TEXT NOT NULL DEFAULT 'en',
-    "timezone" TEXT NOT NULL DEFAULT 'UTC',
     "currency" TEXT NOT NULL DEFAULT 'USD',
     "publicProfile" BOOLEAN NOT NULL DEFAULT false,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
