@@ -2,7 +2,7 @@
 
 import Logo from "@/components/logo";
 import { Button } from "@/components/ui/button";
-import { ArrowRight, Trophy } from "lucide-react";
+import { ArrowRight, Cloud, Trophy } from "lucide-react";
 import Link from "next/link";
 import { signIn } from "next-auth/react";
 
@@ -26,7 +26,10 @@ export default function HomePage() {
           </p>
           <p className="text-lg md:text-xl text-muted-foreground mb-4 font-bold">
             Sync your data across devices with{" "}
-            <button className="text-primary cursor-pointer" onClick={() => signIn("github")}>
+            <button
+              className="text-primary cursor-pointer"
+              onClick={() => signIn("github")}
+            >
               Splitrail Cloud
             </button>
             .
@@ -35,10 +38,19 @@ export default function HomePage() {
             *Support for Codex CLI and Gemini CLI is in development, but waiting
             for updates from OpenAI&apos;s/Google&apos;s side.
           </p>
-          <div className="flex flex-col sm:flex-row gap-4">
+          <div className="flex flex-col sm:flex-row gap-2">
+            <Button
+              className="group !px-5 rounded-lg h-10 text-md bg-gradient-to-br from-primary to-[#307850] hover:opacity-90 text-white"
+              onClick={() => signIn("github")}
+            >
+              <Cloud className="size-5" />
+              Cloud{" "}
+              <ArrowRight className="size-5 group-hover:translate-x-1 transition translate" />
+            </Button>
             <Button
               asChild
-              className="group !px-5 rounded-lg h-10 text-md bg-gradient-to-br from-primary to-[#307850] hover:opacity-90 text-white"
+              variant="outline"
+              className="group !px-5 rounded-lg h-10 text-md"
             >
               <Link href="/leaderboard">
                 <Trophy className="size-5" />
