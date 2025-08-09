@@ -1,6 +1,6 @@
 # Splitrail Cloud
 
-https://splitrail.dev/leaderboard &mdash; https://splitrail.dev/profile
+https://splitrail.dev
 
 The cloud for [Splitrail](https://github.com/Piebald-AI/splitrail) - analyzer for agentic AI coding tool usage.  Sync your usage data across devices, and optionally show off your stats on the leaderboard.
 
