@@ -8,6 +8,6 @@ Log in with your GitHub account, generate a token and set it with `splitrail con
 
 Only **anonymized usage data** is uploaded to your Leaderboard account.  **No conversation history** is ever uploaded, and you can delete your account and all your usage data at any time.
 
-For questions or support, please open an issue on GitHub, email us at [support@piebald.ai](mailto:support@piebald.ai), or create a new topic at [our forum](https://piebald.discourse.group).
+For questions or support, please open an issue on GitHub or email us at [support@piebald.ai](mailto:support@piebald.ai).
 
 Also check out our developer-first agentic AI experience, [Piebald](https://piebald.ai).
