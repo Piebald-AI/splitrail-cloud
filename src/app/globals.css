@@ -54,7 +54,9 @@
   }
 }
 
-html, body, .root {
+html,
+body,
+.root {
   height: 100%;
   width: 100%;
 }
@@ -92,7 +94,7 @@ html, body, .root {
   --sidebar-accent-foreground: oklch(0.21 0.006 285.885);
   --sidebar-border: oklch(0.92 0.004 286.32);
   --sidebar-ring: #50a074;
-  --logo-color: #01411E;
+  --logo-color: #01411e;
 }
 
 .dark {
@@ -130,8 +132,8 @@ html, body, .root {
   --logo-color: #c6f2db;
 }
 
-html body[data-scroll-locked] {  
-  --removed-body-scroll-bar-size: 0 !important;  
-  margin-right: 0 !important;  
-  overflow-y: auto !important;  
+html body[data-scroll-locked] {
+  --removed-body-scroll-bar-size: 0 !important;
+  margin-right: 0 !important;
+  overflow-y: auto !important;
 }

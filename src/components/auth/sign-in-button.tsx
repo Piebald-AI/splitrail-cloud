@@ -30,7 +30,6 @@ export function SignInButton() {
     }
   };
 
-
   if (status === "loading") {
     return <Spinner size="default" className="m-2.5" />;
   }

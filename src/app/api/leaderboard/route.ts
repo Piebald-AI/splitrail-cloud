@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
       applicationParam === "all"
         ? Applications
         : (applicationParam.split(",") as ApplicationType[]);
-    
+
     const usernameFilter = searchParams.get("username") || "";
 
     // Validate parameters
@@ -44,21 +44,24 @@ export async function GET(request: NextRequest) {
     }
 
     // Build WHERE clause for username filter and public profile
-    const whereConditions = [Prisma.sql`user_preferences."publicProfile" = TRUE`];
-    
+    const whereConditions = [
+      Prisma.sql`user_preferences."publicProfile" = TRUE`,
+    ];
+
     if (usernameFilter) {
       const searchPattern = `%${usernameFilter}%`;
       whereConditions.push(
         Prisma.sql`(LOWER(users."username") LIKE LOWER(${searchPattern}) OR LOWER(users."displayName") LIKE LOWER(${searchPattern}))`
       );
     }
-    
-    const whereClause = Prisma.sql`${Prisma.join(whereConditions, ' AND ')}`;
-    
+
+    const whereClause = Prisma.sql`${Prisma.join(whereConditions, " AND ")}`;
+
     // Build application filter for LEFT JOIN
-    const applicationFilter = applicationParam !== "all"
-      ? Prisma.sql`AND message_stats."application" = ANY(${applications})`
-      : Prisma.sql``;
+    const applicationFilter =
+      applicationParam !== "all"
+        ? Prisma.sql`AND message_stats."application" = ANY(${applications})`
+        : Prisma.sql``;
 
     // Query aggregated stats directly from message_stats table
     const rawResults = await db.$queryRaw<

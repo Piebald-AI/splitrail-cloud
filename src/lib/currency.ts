@@ -23,12 +23,12 @@ export async function fetchExchangeRates(): Promise<ExchangeRatesResponse> {
 
     const response = await fetch("/api/exchange-rates");
     const data = await response.json();
-    
+
     if (data.success) {
       cachedRates = data;
       cacheTimestamp = Date.now();
     }
-    
+
     return data;
   } catch (error) {
     console.error("Failed to fetch exchange rates:", error);
@@ -46,22 +46,24 @@ export function convertCurrency(
   if (targetCurrency === "USD") {
     return amountInUsd;
   }
-  
+
   // Convert USD to EUR first (since ECB rates are EUR-based)
   const amountInEur = amountInUsd / eurToUsd;
-  
+
   // If target is EUR, we're done
   if (targetCurrency === "EUR") {
     return amountInEur;
   }
-  
+
   // Find the target currency rate
-  const targetRate = rates.find(r => r.currency === targetCurrency);
+  const targetRate = rates.find((r) => r.currency === targetCurrency);
   if (!targetRate) {
-    console.warn(`Exchange rate not found for ${targetCurrency}, returning USD amount`);
+    console.warn(
+      `Exchange rate not found for ${targetCurrency}, returning USD amount`
+    );
     return amountInUsd;
   }
-  
+
   // Convert EUR to target currency
   return amountInEur * targetRate.rate;
 }
@@ -76,7 +78,7 @@ export function formatCurrency(
       style: "currency",
       currency: currency,
       minimumFractionDigits: 2,
-      maximumFractionDigits: 2
+      maximumFractionDigits: 2,
     }).format(amount);
   } catch (error) {
     // Fallback formatting if Intl.NumberFormat fails
@@ -92,9 +94,9 @@ export async function getCurrencySymbol(currency: string): Promise<string> {
       style: "currency",
       currency: currency,
       minimumFractionDigits: 0,
-      maximumFractionDigits: 0
+      maximumFractionDigits: 0,
     }).format(0);
-    
+
     // Extract symbol by removing the numeric part
     return formatted.replace(/[\d\s.,]/g, "").trim();
   } catch {

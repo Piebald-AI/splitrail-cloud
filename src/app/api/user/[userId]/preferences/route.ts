@@ -26,7 +26,7 @@ export async function GET(
         currency: "USD",
         publicProfile: false,
       };
-  
+
       return NextResponse.json({
         success: true,
         data: defaultPreferences,
@@ -70,7 +70,7 @@ export async function PUT(
       currency?: string;
       publicProfile?: boolean;
     } = {};
-    
+
     if ("currency" in body) updateData.currency = body.currency;
     if ("publicProfile" in body) {
       if (typeof body.publicProfile !== "boolean") {

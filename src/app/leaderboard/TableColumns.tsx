@@ -9,12 +9,7 @@ import {
   cn,
 } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import {
-  Award,
-  Code,
-  FileText,
-  Database,
-} from "lucide-react";
+import { Award, Code, FileText, Database } from "lucide-react";
 
 // User avatar component
 function UserAvatarCell({ user }: { user: UserWithStats }) {
@@ -40,7 +35,10 @@ function UserAvatarCell({ user }: { user: UserWithStats }) {
   );
 }
 
-export const createColumns = (currency: string = "USD", locale: string = "en"): ColumnDef<UserWithStats>[] => [
+export const createColumns = (
+  currency: string = "USD",
+  locale: string = "en"
+): ColumnDef<UserWithStats>[] => [
   {
     accessorKey: "rank",
     header: "Rank",
@@ -84,7 +82,9 @@ export const createColumns = (currency: string = "USD", locale: string = "en"): 
     accessorKey: "cost",
     header: "Cost",
     cell: ({ getValue }) => (
-      <div className="text-center">{formatCurrency(getValue() as number, currency, locale)}</div>
+      <div className="text-center">
+        {formatCurrency(getValue() as number, currency, locale)}
+      </div>
     ),
   },
   {

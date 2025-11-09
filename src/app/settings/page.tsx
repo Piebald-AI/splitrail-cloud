@@ -365,7 +365,9 @@ export default function SettingsPage() {
 
       {/* Danger Zone */}
       <div>
-        <h2 className="text-xl font-semibold text-red-600 dark:text-red-400 mb-4">Danger Zone</h2>
+        <h2 className="text-xl font-semibold text-red-600 dark:text-red-400 mb-4">
+          Danger Zone
+        </h2>
         <div className="p-6 border border-red-300 dark:border-red-700 bg-red-50 dark:bg-red-950 rounded-lg">
           <div className="space-y-3">
             <div>

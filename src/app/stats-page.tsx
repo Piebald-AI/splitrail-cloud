@@ -385,6 +385,10 @@ export default function StatsPage() {
     claude_code: "Claude Code",
     gemini_cli: "Gemini CLI",
     codex_cli: "Codex CLI",
+    cline: "Cline",
+    kilo_code: "Kilo Code",
+    roo_code: "Roo Code",
+    qwen_code: "Qwen Code",
   };
 
   // State for selected application and sorting

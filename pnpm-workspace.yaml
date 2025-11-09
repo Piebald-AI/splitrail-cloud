@@ -1,8 +1,8 @@
 onlyBuiltDependencies:
-  - '@prisma/client'
-  - '@prisma/engines'
-  - '@sentry/cli'
-  - '@tailwindcss/oxide'
+  - "@prisma/client"
+  - "@prisma/engines"
+  - "@sentry/cli"
+  - "@tailwindcss/oxide"
   - core-js
   - esbuild
   - prisma

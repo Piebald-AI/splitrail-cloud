@@ -2,11 +2,7 @@ import { SVGProps } from "react";
 
 const LogoCloud = ({ ...props }: SVGProps<SVGSVGElement>) => {
   return (
-    <svg
-      viewBox="0 0 489 65"
-      fill="none"
-      {...props}
-    >
+    <svg viewBox="0 0 489 65" fill="none" {...props}>
       <path
         d="M89.3848 22.2454H102.544L105.608 26.7068L102.093 30.3571L99.9299 27.2025H91.638L90.8268 27.9236V29.9965L92.0886 31.8442H102.634L106.149 37.0717V43.4258L102.589 47.3915H87.5822L85.1487 43.6061L88.6637 40.0009L90.241 42.2992H100.245L100.696 41.8035V38.1532L99.8398 36.8914H89.2946L85.4191 31.0781V26.121L89.3848 22.2454Z"
         fill="currentColor"

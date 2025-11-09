@@ -2,11 +2,7 @@ import { SVGProps } from "react";
 
 const Logo = ({ ...props }: SVGProps<SVGSVGElement>) => {
   return (
-    <svg
-      viewBox="0 0 327 66"
-      fill="none"
-      {...props}
-    >
+    <svg viewBox="0 0 327 66" fill="none" {...props}>
       <path
         d="M89.3848 22.2556H102.544L105.608 26.717L102.093 30.3673L99.9299 27.2128H91.638L90.8268 27.9338V30.0068L92.0886 31.8544H102.634L106.149 37.0819V43.436L102.589 47.4017H87.5822L85.1487 43.6163L88.6637 40.0111L90.241 42.3094H100.245L100.696 41.8137V38.1635L99.8398 36.9017H89.2946L85.4191 31.0883V26.1312L89.3848 22.2556Z"
         fill="currentColor"

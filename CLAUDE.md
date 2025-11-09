@@ -1,6 +1,7 @@
 # Splitrail Cloud
 
 ## Project Overview
+
 This is a Next.js web application that serves as a leaderboard for [Splitrail](https://github.com/Piebald-AI/splitrail) - an analyzer for agentic AI coding tool usage. The application tracks and displays usage statistics for developers using AI development tools like Claude Code.
 
 **Live URL**: https://splitrail.dev/leaderboard
@@ -8,6 +9,7 @@ This is a Next.js web application that serves as a leaderboard for [Splitrail](h
 ## Architecture
 
 ### Tech Stack
+
 - **Framework**: Next.js 15.3.5 with App Router
 - **Language**: TypeScript with strict mode
 - **Styling**: Tailwind CSS v4 with Radix UI components
@@ -18,6 +20,7 @@ This is a Next.js web application that serves as a leaderboard for [Splitrail](h
 - **Package Manager**: pnpm
 
 ### Key Dependencies
+
 - **UI Components**: Radix UI primitives, Lucide React icons, Recharts for data visualization
 - **Data Management**: TanStack Query for API state management
 - **Validation**: Zod for schema validation
@@ -26,6 +29,7 @@ This is a Next.js web application that serves as a leaderboard for [Splitrail](h
 ## Project Structure
 
 ### Frontend Pages
+
 - `src/app/page.tsx` - Landing page with project overview and CLI setup instructions
 - `src/app/leaderboard/page.tsx` - Main leaderboard displaying user rankings
 - `src/app/profile/page.tsx` - User profile with detailed statistics and charts
@@ -35,6 +39,7 @@ This is a Next.js web application that serves as a leaderboard for [Splitrail](h
 - `src/app/auth/signin/page.tsx` - Authentication pages
 
 ### API Endpoints
+
 - `POST /api/upload-stats` - **Primary CLI endpoint** for uploading usage statistics
 - `GET/POST/DELETE /api/user/token` - API token management for CLI authentication
 - `GET /api/leaderboard` - Fetch leaderboard data
@@ -43,6 +48,7 @@ This is a Next.js web application that serves as a leaderboard for [Splitrail](h
 - `GET/POST /api/folder-projects` - Associate local folders with projects
 
 ### Components
+
 - `src/components/ui/` - Reusable UI components (buttons, cards, tables, etc.)
 - `src/components/auth/` - Authentication-related components
 - `src/components/leaderboard-*.tsx` - Leaderboard data table and columns
@@ -52,6 +58,7 @@ This is a Next.js web application that serves as a leaderboard for [Splitrail](h
 The application integrates with the [Splitrail CLI](https://github.com/Piebald-AI/splitrail) which monitors agentic AI development tool usage.
 
 ### Authentication Flow
+
 1. Users sign in with GitHub to get access to the web interface
 2. Generate API tokens in the web interface (`/settings`)
 3. Configure CLI: `splitrail config set-token <token>`
@@ -59,7 +66,9 @@ The application integrates with the [Splitrail CLI](https://github.com/Piebald-A
 5. Upload data: `splitrail upload`
 
 ### Data Collection
+
 The CLI tracks comprehensive development metrics:
+
 - **Token Usage**: Input/output tokens, cache tokens, API costs
 - **File Operations**: Files read/added/edited/deleted, lines modified
 - **Tool Usage**: Tool calls, terminal commands, file searches
@@ -69,14 +78,16 @@ The CLI tracks comprehensive development metrics:
 ## Database Schema
 
 ### Key Models
+
 - **User**: GitHub-authenticated users with preferences
 - **UserStats**: Aggregated statistics across multiple time periods (hourly, daily, weekly, monthly, yearly)
 - **MessageStats**: Raw message-level statistics from CLI uploads
-- **ApiToken**: CLI authentication tokens (prefixed with "st_")
+- **ApiToken**: CLI authentication tokens (prefixed with "st\_")
 - **Project**: User projects that can be associated with local folders
 - **FolderProject**: Association between local folders and projects
 
 ### Period Aggregation
+
 Statistics are automatically aggregated across multiple time periods to enable different leaderboard views and user analytics.
 
 ## Development Commands
@@ -100,6 +111,7 @@ pnpm db:studio       # Open Prisma Studio
 ## Environment Variables
 
 Required environment variables (see deployment docs for details):
+
 - `DATABASE_URL` - PostgreSQL connection string
 - `NEXTAUTH_SECRET` - NextAuth.js secret
 - `NEXTAUTH_URL` - Application URL
@@ -110,36 +122,43 @@ Required environment variables (see deployment docs for details):
 ## Key Features
 
 ### Leaderboard
+
 - Competitive rankings based on usage metrics
 - Multiple sorting options (cost, tokens, lines of code)
 - Time-based filtering (daily, weekly, monthly, yearly)
 
 ### User Profiles
+
 - Detailed personal analytics with charts
 - Historical data tracking across multiple time periods
 - Model usage breakdown
 - Recent activity tables with daily drill-down
 
 ### Project Management
+
 - Associate local development folders with named projects
 - Track statistics per project
 - Open source project highlighting
 
 ### Security
+
 - Token-based CLI authentication with rate limiting
 - User data privacy controls
 - Secure token generation and validation
 - Optional public leaderboard opt-out
 
 ## Related Projects
+
 - **Splitrail CLI**: https://github.com/Piebald-AI/splitrail
 - **Piebald AI**: https://piebald.ai - Developer-first agentic AI experience
 
 ## Support
+
 - GitHub Issues: Project repository
 - Email: support@piebald.ai
 - Forum: https://piebald.discourse.group
 
 ## Development Memories
+
 - Always use `pnpm`, not `npm` or `yarn`.
 - Never run the dev server.

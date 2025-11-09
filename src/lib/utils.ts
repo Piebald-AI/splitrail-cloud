@@ -34,7 +34,7 @@ export function formatLargeNumber(
   locale: string = "en-US"
 ): string {
   let value: number;
-  
+
   if (typeof num === "number") {
     value = num;
   } else if (typeof num === "string") {
@@ -150,9 +150,10 @@ export function isValidApiToken(token: string): boolean {
 }
 
 // Get display name: use displayName when present, else username
-export function getDisplayName(
-  user: { username: string; displayName: string | null | undefined }
-): string {
+export function getDisplayName(user: {
+  username: string;
+  displayName: string | null | undefined;
+}): string {
   return user.displayName || user.username;
 }
 

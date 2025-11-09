@@ -172,7 +172,6 @@ export function CLITokenDisplay() {
 
   return (
     <div className="space-y-6">
-
       {/* Create New Token */}
       <div className="space-y-4">
         <div className="flex items-center gap-4">

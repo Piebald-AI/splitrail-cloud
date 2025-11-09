@@ -22,7 +22,11 @@ import {
 import { ChevronDown, ChevronUp, Rocket, Search } from "lucide-react";
 import React from "react";
 import { createColumns } from "./TableColumns";
-import { type ApplicationType, type UserPreferences, type UserWithStats } from "@/types";
+import {
+  type ApplicationType,
+  type UserPreferences,
+  type UserWithStats,
+} from "@/types";
 import { ColumnsDropdown } from "./ColumnsDropdown";
 import { ApplicationDropdown } from "./ApplicationDropdown";
 import { TablePagination } from "./TablePagination";
@@ -88,7 +92,13 @@ export default function Leaderboard() {
   });
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ["leaderboard", apps, pagination.pageIndex, pagination.pageSize, usernameFilter],
+    queryKey: [
+      "leaderboard",
+      apps,
+      pagination.pageIndex,
+      pagination.pageSize,
+      usernameFilter,
+    ],
     queryFn: async () => {
       const applicationsParam = apps.join(",");
       const params = new URLSearchParams({
@@ -98,7 +108,7 @@ export default function Leaderboard() {
         page: String(pagination.pageIndex + 1),
         pageSize: String(pagination.pageSize),
       });
-      
+
       if (usernameFilter) {
         params.append("username", usernameFilter);
       }
@@ -142,18 +152,27 @@ export default function Leaderboard() {
   // Transform data with currency conversion
   const transformedData = React.useMemo(() => {
     if (!data?.users) return [];
-    
+
     const currency = preferences?.currency || "USD";
-    
+
     // If no exchange rates or user wants USD, return original data
-    if (!exchangeRates?.data || !exchangeRates?.eurToUsd || currency === "USD") {
+    if (
+      !exchangeRates?.data ||
+      !exchangeRates?.eurToUsd ||
+      currency === "USD"
+    ) {
       return data.users;
     }
-    
+
     // Convert costs to user's preferred currency
     return data.users.map((user: UserWithStats) => ({
       ...user,
-      cost: convertCurrency(user.cost, currency, exchangeRates.data, exchangeRates.eurToUsd),
+      cost: convertCurrency(
+        user.cost,
+        currency,
+        exchangeRates.data,
+        exchangeRates.eurToUsd
+      ),
     }));
   }, [data, preferences, exchangeRates]);
 
@@ -162,9 +181,9 @@ export default function Leaderboard() {
     const currency = preferences?.currency || "USD";
     const locale =
       typeof window !== "undefined"
-        ? (Array.isArray(navigator.languages) && navigator.languages.length > 0
-            ? navigator.languages[0]
-            : (navigator as Navigator & { language?: string }).language || "en-US")
+        ? Array.isArray(navigator.languages) && navigator.languages.length > 0
+          ? navigator.languages[0]
+          : (navigator as Navigator & { language?: string }).language || "en-US"
         : "en-US";
     return createColumns(currency, locale);
   }, [preferences]);

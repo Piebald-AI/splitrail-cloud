@@ -4,7 +4,6 @@ import Image from "next/image";
 import { ExternalLink } from "lucide-react";
 
 export function ConditionalFooter() {
-
   return (
     <footer className="px-12 py-4 justify-between text-sm flex flex-row">
       <p className="flex items-center text-muted-foreground">
