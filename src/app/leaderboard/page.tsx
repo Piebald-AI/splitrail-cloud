@@ -27,6 +27,7 @@ import {
   type UserPreferences,
   type UserWithStats,
 } from "@/types";
+import { ALL_APPLICATIONS } from "@/lib/application-config";
 import { ColumnsDropdown } from "./ColumnsDropdown";
 import { ApplicationDropdown } from "./ApplicationDropdown";
 import { TablePagination } from "./TablePagination";
@@ -47,11 +48,7 @@ export default function Leaderboard() {
   const [columnVisibility, setColumnVisibility] =
     React.useState<VisibilityState>({});
   const [rowSelection, setRowSelection] = React.useState({});
-  const [apps, setApps] = React.useState<ApplicationType[]>([
-    "claude_code",
-    "gemini_cli",
-    "codex_cli",
-  ]);
+  const [apps, setApps] = React.useState<ApplicationType[]>(ALL_APPLICATIONS);
   const [pagination, setPagination] = React.useState({
     pageIndex: 0,
     pageSize: 20,

@@ -10,6 +10,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { ChevronDown } from "lucide-react";
 import { type ApplicationType } from "@/types";
+import { APPLICATION_OPTIONS } from "@/lib/application-config";
 
 interface ApplicationDropdownProps {
   apps: ApplicationType[];
@@ -20,15 +21,7 @@ export function ApplicationDropdown({
   apps,
   setApps,
 }: ApplicationDropdownProps) {
-  const applications = [
-    { value: "claude_code", label: "Claude Code" },
-    { value: "gemini_cli", label: "Gemini CLI" },
-    { value: "codex_cli", label: "Codex CLI" },
-    { value: "cline", label: "Cline" },
-    { value: "kilo_code", label: "Kilo Code" },
-    { value: "roo_code", label: "Roo Code" },
-    { value: "qwen_code", label: "Qwen Code" },
-  ];
+  const applications = APPLICATION_OPTIONS;
 
   return (
     <DropdownMenu>

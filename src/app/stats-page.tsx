@@ -7,6 +7,7 @@ import { TZDateMini } from "@date-fns/tz";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { ApplicationType, type UserPreferences } from "@/types";
+import { ALL_APPLICATIONS, APPLICATION_LABELS } from "@/lib/application-config";
 import { type User } from "@prisma/client";
 import { useQuery } from "@tanstack/react-query";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -376,20 +377,8 @@ export default function StatsPage() {
     [preferences, exchangeRates]
   );
 
-  const applications: ApplicationType[] = [
-    "claude_code",
-    "gemini_cli",
-    "codex_cli",
-  ];
-  const applicationNames = {
-    claude_code: "Claude Code",
-    gemini_cli: "Gemini CLI",
-    codex_cli: "Codex CLI",
-    cline: "Cline",
-    kilo_code: "Kilo Code",
-    roo_code: "Roo Code",
-    qwen_code: "Qwen Code",
-  };
+  const applications = ALL_APPLICATIONS;
+  const applicationNames = APPLICATION_LABELS;
 
   // State for selected application and sorting
   const [selectedApp, setSelectedApp] =
