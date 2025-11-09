@@ -176,7 +176,10 @@ export async function GET(
         if (!r.application) return;
 
         const app = r.application as string;
-        const dayKey = r.day ? new Date(r.day).toISOString() : null;
+        // Fix: Ensure date keys are always midnight UTC, avoiding timezone shifts
+        const dayKey = r.day
+          ? `${r.day.toISOString().split("T")[0]}T00:00:00.000Z`
+          : null;
 
         if (dayKey === null) {
           // Application totals
