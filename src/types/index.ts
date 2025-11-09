@@ -2,7 +2,7 @@ import { type User } from "@prisma/client";
 
 // ===== Core Constants =====
 
-export const Applications = ["claude_code", "gemini_cli", "codex_cli"] as const;
+export const Applications = ["claude_code", "gemini_cli", "codex_cli", "cline", "kilo_code", "roo_code", "qwen_code"] as const;
 export const Periods = ["hourly", "daily", "weekly", "monthly", "yearly"] as const;
 
 export type ApplicationType = (typeof Applications)[number];

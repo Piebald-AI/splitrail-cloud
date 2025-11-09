@@ -24,6 +24,10 @@ export function ApplicationDropdown({
     { value: "claude_code", label: "Claude Code" },
     { value: "gemini_cli", label: "Gemini CLI" },
     { value: "codex_cli", label: "Codex CLI" },
+    { value: "cline", label: "Cline" },
+    { value: "kilo_code", label: "Kilo Code" },
+    { value: "roo_code", label: "Roo Code" },
+    { value: "qwen_code", label: "Qwen Code" },
   ];
 
   return (
