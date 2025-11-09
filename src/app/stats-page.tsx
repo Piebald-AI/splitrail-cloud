@@ -409,8 +409,9 @@ export default function StatsPage() {
       const currentDate = new Date(startDate);
 
       while (currentDate <= today) {
-        dateRange.push(currentDate.toISOString());
-        currentDate.setDate(currentDate.getDate() + 1);
+        // Ensure consistent UTC midnight format to match API keys
+        dateRange.push(`${currentDate.toISOString().split("T")[0]}T00:00:00.000Z`);
+        currentDate.setUTCDate(currentDate.getUTCDate() + 1);
       }
 
       // Create stats array with zeros for missing days
