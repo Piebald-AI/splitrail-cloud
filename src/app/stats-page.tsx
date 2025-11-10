@@ -657,7 +657,7 @@ export default function StatsPage() {
               <div className="space-y-2">
                 <p>
                   You don&rsquo;t have any agentic development tool data. Once
-                  you start using Claude Code, Gemini CLI, or Codex CLI, you can
+                  you start using Gemini CLI, Claude Code, Codex, Kilo Code, Cline, Roo Code, or Qwen Code, you can
                   get started by following these steps:
                 </p>
                 <ol className="list-decimal list-inside space-y-1 ml-2">
