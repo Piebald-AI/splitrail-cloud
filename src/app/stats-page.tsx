@@ -686,7 +686,7 @@ export default function StatsPage() {
                   <li>
                     Set your API token by running{" "}
                     <Code variant="inline">
-                      splitrail config set-token &lt;your-token&gt;
+                      splitrail config set api-token &lt;your-token&gt;
                     </Code>
                     .
                   </li>
