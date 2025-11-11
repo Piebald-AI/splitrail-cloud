@@ -410,7 +410,9 @@ export default function StatsPage() {
 
       while (currentDate <= today) {
         // Ensure consistent UTC midnight format to match API keys
-        dateRange.push(`${currentDate.toISOString().split("T")[0]}T00:00:00.000Z`);
+        dateRange.push(
+          `${currentDate.toISOString().split("T")[0]}T00:00:00.000Z`
+        );
         currentDate.setUTCDate(currentDate.getUTCDate() + 1);
       }
 
@@ -657,8 +659,9 @@ export default function StatsPage() {
               <div className="space-y-2">
                 <p>
                   You don&rsquo;t have any agentic development tool data. Once
-                  you start using Gemini CLI, Claude Code, Codex, Kilo Code, Cline, Roo Code, or Qwen Code, you can
-                  get started by following these steps:
+                  you start using Gemini CLI, Claude Code, Codex, Kilo Code,
+                  Cline, Roo Code, Qwen Code, or GitHub Copilot, you can get
+                  started by following these steps:
                 </p>
                 <ol className="list-decimal list-inside space-y-1 ml-2">
                   <li>

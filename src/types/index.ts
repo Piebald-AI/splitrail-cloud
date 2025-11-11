@@ -10,6 +10,7 @@ export const Applications = [
   "kilo_code",
   "roo_code",
   "qwen_code",
+  "copilot",
 ] as const;
 export const Periods = [
   "hourly",

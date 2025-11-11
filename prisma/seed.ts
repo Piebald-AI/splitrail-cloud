@@ -256,7 +256,7 @@ async function clearDatabase() {
 }
 
 // Helpers to generate realistic message_stats rows for the stats API
-const APPLICATIONS = ["claude_code", "gemini_cli", "codex_cli"] as const;
+const APPLICATIONS = ["claude_code", "gemini_cli", "codex_cli", "github_copilot"] as const;
 const MODELS_BY_APP: Record<(typeof APPLICATIONS)[number], string[]> = {
   claude_code: [
     "claude-3.7-sonnet",
@@ -266,6 +266,7 @@ const MODELS_BY_APP: Record<(typeof APPLICATIONS)[number], string[]> = {
   ],
   gemini_cli: ["gemini-1.5-pro", "gemini-1.5-flash", "gemini-2.0-flash"],
   codex_cli: ["gpt-4o-mini", "gpt-4o", "o3-mini"],
+  github_copilot: ["gpt-4o", "gpt-4o-mini"],
 };
 
 function randInt(min: number, max: number) {
@@ -307,9 +308,10 @@ async function createMessageStats(users: Array<{ id: string; multiplier: number 
 
   // Per-application usage distribution (sum to 1.0)
   const appWeights: Record<(typeof APPLICATIONS)[number], number> = {
-    claude_code: 0.6,
-    gemini_cli: 0.3,
+    claude_code: 0.5,
+    gemini_cli: 0.25,
     codex_cli: 0.1,
+    github_copilot: 0.15,
   };
 
   // Simulate up to this many days of history
@@ -471,8 +473,19 @@ async function createMessageStats(users: Array<{ id: string; multiplier: number 
                 outputCostPerK = 4.4 / 1000;
                 cachedCostPerK = 0.55 / 1000;
               }
+            } else if (app === "github_copilot") {
+              // GitHub Copilot models (OpenAI pricing)
+              if (model === "gpt-4o-mini") {
+                inputCostPerK = 0.15 / 1000;
+                outputCostPerK = 0.6 / 1000;
+                cachedCostPerK = 0.075 / 1000;
+              } else if (model === "gpt-4o") {
+                inputCostPerK = 2.5 / 1000;
+                outputCostPerK = 10 / 1000;
+                cachedCostPerK = 1.25 / 1000;
+              }
             }
-            
+
             // Calculate total cost
             const inputCost = (inputTokens / 1000) * inputCostPerK;
             const outputCost = (outputTokens / 1000) * outputCostPerK;
