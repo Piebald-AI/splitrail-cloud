@@ -40,6 +40,10 @@ export const APPLICATION_CONFIG: Record<
     id: "qwen_code",
     label: "Qwen Code",
   },
+  copilot: {
+    id: "copilot",
+    label: "GitHub Copilot",
+  },
 };
 
 /**
@@ -53,18 +57,21 @@ export const ALL_APPLICATIONS: ApplicationType[] = [...Applications];
  * Map of application IDs to display labels.
  * Use this for quick label lookups.
  */
-export const APPLICATION_LABELS: Record<ApplicationType, string> = Object.fromEntries(
-  Object.entries(APPLICATION_CONFIG).map(([id, config]) => [id, config.label])
-) as Record<ApplicationType, string>;
+export const APPLICATION_LABELS: Record<ApplicationType, string> =
+  Object.fromEntries(
+    Object.entries(APPLICATION_CONFIG).map(([id, config]) => [id, config.label])
+  ) as Record<ApplicationType, string>;
 
 /**
  * Array of application dropdown items for UI rendering.
  * Use this in dropdowns and selection components.
  */
-export const APPLICATION_OPTIONS = Object.values(APPLICATION_CONFIG).map((config) => ({
-  value: config.id,
-  label: config.label,
-}));
+export const APPLICATION_OPTIONS = Object.values(APPLICATION_CONFIG).map(
+  (config) => ({
+    value: config.id,
+    label: config.label,
+  })
+);
 
 /**
  * Get the display label for an application ID.
