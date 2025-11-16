@@ -331,19 +331,22 @@ export async function POST(request: NextRequest) {
       console.log("/api/upload-stats statsToUpsert", {
         count: statsToUpsert.length,
       });
-      await db.$transaction(async (tx) => {
+
+      const BATCH_SIZE = 100;
+      for (let i = 0; i < statsToUpsert.length; i += BATCH_SIZE) {
+        const batch = statsToUpsert.slice(i, i + BATCH_SIZE);
         await Promise.all(
-          statsToUpsert.map((stat) => {
+          batch.map((stat) => {
             if (stat.id) {
               // Update existing record
-              return tx.userStats.update({
+              return db.userStats.update({
                 where: { id: stat.id },
                 data: stat,
               });
             } else {
               // Upsert for new records to handle race conditions
               const { userId, period, application, ...data } = stat;
-              return tx.userStats.upsert({
+              return db.userStats.upsert({
                 where: {
                   userId_period_application: {
                     userId: userId!,
@@ -357,7 +360,7 @@ export async function POST(request: NextRequest) {
             }
           })
         );
-      });
+      }
     }
 
     return NextResponse.json({
