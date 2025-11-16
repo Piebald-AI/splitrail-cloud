@@ -58,6 +58,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    console.log("/api/upload-stats body size", {
+      messages: body.length,
+    });
+
     // Extract unique applications from messages to limit DB query
     const applications = new Set<string>();
     for (const message of body) {
@@ -155,6 +159,11 @@ export async function POST(request: NextRequest) {
     const insertedMessages = await db.messageStats.createManyAndReturn({
       data: messages,
       skipDuplicates: true,
+    });
+
+    console.log("/api/upload-stats inserted messages", {
+      requested: messages.length,
+      inserted: insertedMessages.length,
     });
 
     // Create accumulator maps to aggregate stats efficiently
@@ -319,6 +328,9 @@ export async function POST(request: NextRequest) {
 
     // Batch upserts by operation type for better performance
     if (statsToUpsert.length > 0) {
+      console.log("/api/upload-stats statsToUpsert", {
+        count: statsToUpsert.length,
+      });
       await db.$transaction(async (tx) => {
         await Promise.all(
           statsToUpsert.map((stat) => {
