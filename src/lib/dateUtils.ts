@@ -102,3 +102,34 @@ export const getPeriodEnd = (period: PeriodType): Date => {
     yearly: getYearEnd(new Date()),
   }[period];
 };
+
+/**
+ * Get the start of a period for a specific date
+ * Use this when calculating period boundaries for historical data
+ */
+export const getPeriodStartForDate = (
+  period: PeriodType,
+  date: Date
+): Date => {
+  return {
+    hourly: getHourStart(date),
+    daily: getDayStart(date),
+    weekly: getWeekStart(date),
+    monthly: getMonthStart(date),
+    yearly: getYearStart(date),
+  }[period];
+};
+
+/**
+ * Get the end of a period for a specific date
+ * Use this when calculating period boundaries for historical data
+ */
+export const getPeriodEndForDate = (period: PeriodType, date: Date): Date => {
+  return {
+    hourly: getHourEnd(date),
+    daily: getDayEnd(date),
+    weekly: getWeekEnd(date),
+    monthly: getMonthEnd(date),
+    yearly: getYearEnd(date),
+  }[period];
+};

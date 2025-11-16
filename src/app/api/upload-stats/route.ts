@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { DbStatKeys, type ConversationMessage, Periods } from "@/types";
-import { getPeriodStart, getPeriodEnd } from "@/lib/dateUtils";
+import { getPeriodStartForDate, getPeriodEndForDate } from "@/lib/dateUtils";
 import { unsupportedMethod } from "@/lib/routeUtils";
 import { Prisma } from "@prisma/client";
 
@@ -75,9 +75,11 @@ export async function POST(request: NextRequest) {
     });
 
     // Create a map for faster lookups
+    // Key format: ${period}_${application}_${periodStart.toISOString()}
     const existingStatsMap = new Map<string, (typeof existingStats)[0]>();
     for (const stat of existingStats) {
-      existingStatsMap.set(`${stat.period}_${stat.application}`, stat);
+      const key = `${stat.period}_${stat.application}_${stat.periodStart?.toISOString() ?? ""}`;
+      existingStatsMap.set(key, stat);
     }
 
     const statsToUpsert: Array<
@@ -161,20 +163,31 @@ export async function POST(request: NextRequest) {
       string,
       { assistant: number; user: number }
     >();
+    // Store period boundaries for each accumulator key
+    const periodBoundaries = new Map<
+      string,
+      { periodStart: Date; periodEnd: Date }
+    >();
 
     // Process inserted messages to accumulate stats
     for (const message of insertedMessages) {
       const { stats, role, application } = messageDict[message.globalHash];
       const isAssistantMessage = role === "assistant";
+      const messageDate = new Date(message.date);
 
       // Process each period
       for (const period of Periods) {
-        const key = `${period}_${application}`;
+        // Calculate period boundaries based on the MESSAGE date, not current date
+        const periodStart = getPeriodStartForDate(period, messageDate);
+        const periodEnd = getPeriodEndForDate(period, messageDate);
+        const key = `${period}_${application}_${periodStart.toISOString()}`;
 
         // Initialize accumulator if needed
         if (!statAccumulators.has(key)) {
           statAccumulators.set(key, {});
           messageCounters.set(key, { assistant: 0, user: 0 });
+          // Store period boundaries for this key
+          periodBoundaries.set(key, { periodStart, periodEnd });
         }
 
         const accumulator = statAccumulators.get(key)!;
@@ -205,7 +218,14 @@ export async function POST(request: NextRequest) {
     // Build upsert operations from accumulated data
     const now = new Date();
     for (const [key, accumulator] of statAccumulators) {
-      const [period, application] = key.split("_");
+      // Extract period info from key: ${period}_${application}_${periodStart.toISOString()}
+      const parts = key.split("_");
+      const period = parts[0];
+      const application = parts[1];
+      // Get the stored period boundaries for this key
+      const boundaries = periodBoundaries.get(key)!;
+      const { periodStart, periodEnd } = boundaries;
+
       const counter = messageCounters.get(key)!;
       const existingStat = existingStatsMap.get(key);
 
@@ -259,13 +279,13 @@ export async function POST(request: NextRequest) {
 
         statsToUpsert.push(updates);
       } else {
-        // Create new stat entry
+        // Create new stat entry using the calculated period boundaries
         const newStat: Prisma.UserStatsUncheckedCreateInput = {
           userId: user.id,
           application,
           period,
-          periodStart: getPeriodStart(period as (typeof Periods)[number]),
-          periodEnd: getPeriodEnd(period as (typeof Periods)[number]),
+          periodStart,
+          periodEnd,
           assistantMessages: BigInt(counter.assistant),
           userMessages: BigInt(counter.user),
           createdAt: now,
