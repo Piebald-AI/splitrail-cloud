@@ -7,12 +7,6 @@ import { Prisma } from "@prisma/client";
 
 export async function POST(request: NextRequest) {
   try {
-    console.log("/api/upload-stats POST", {
-      method: request.method,
-      url: request.url,
-      ip: request.headers.get("x-forwarded-for") || "unknown",
-      ua: request.headers.get("user-agent"),
-    });
     // Get auth token from header
     const authHeader = request.headers.get("authorization");
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
@@ -57,10 +51,6 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
-
-    console.log("/api/upload-stats body size", {
-      messages: body.length,
-    });
 
     // Extract unique applications from messages to limit DB query
     const applications = new Set<string>();
@@ -159,11 +149,6 @@ export async function POST(request: NextRequest) {
     const insertedMessages = await db.messageStats.createManyAndReturn({
       data: messages,
       skipDuplicates: true,
-    });
-
-    console.log("/api/upload-stats inserted messages", {
-      requested: messages.length,
-      inserted: insertedMessages.length,
     });
 
     // Create accumulator maps to aggregate stats efficiently
@@ -328,10 +313,6 @@ export async function POST(request: NextRequest) {
 
     // Batch upserts by operation type for better performance
     if (statsToUpsert.length > 0) {
-      console.log("/api/upload-stats statsToUpsert", {
-        count: statsToUpsert.length,
-      });
-
       const BATCH_SIZE = 100;
       for (let i = 0; i < statsToUpsert.length; i += BATCH_SIZE) {
         const batch = statsToUpsert.slice(i, i + BATCH_SIZE);
