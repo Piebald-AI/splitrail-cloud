@@ -41,11 +41,14 @@ model MessageStats {
   projectHash           String
   conversationHash      String
   localHash             String?
+  uuid                  String?
+  sessionName           String?
   inputTokens           BigInt
   outputTokens          BigInt
   cacheCreationTokens   BigInt
   cacheReadTokens       BigInt
   cachedTokens          BigInt
+  reasoningTokens       BigInt    @default(0)
   cost                  Float?
   model                 String?
   toolCalls             BigInt
@@ -101,6 +104,7 @@ model UserStats {
   cacheCreationTokens   BigInt   @default(0)
   cacheReadTokens       BigInt   @default(0)
   cachedTokens          BigInt   @default(0)
+  reasoningTokens       BigInt   @default(0)
   cost                  Float    @default(0)
   filesRead             BigInt   @default(0)
   filesAdded            BigInt   @default(0)

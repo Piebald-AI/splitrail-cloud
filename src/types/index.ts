@@ -65,6 +65,7 @@ export const BigIntStatKeys = [
   "cacheCreationTokens",
   "cacheReadTokens",
   "cachedTokens",
+  "reasoningTokens",
   "tokens", // Calculated field (not stored in DB)
   // Message counts
   "assistantMessages",
@@ -112,6 +113,7 @@ export interface Stats {
   cacheCreationTokens: bigint;
   cacheReadTokens: bigint;
   cachedTokens: bigint;
+  reasoningTokens: bigint;
   tokens: bigint;
   assistantMessages: bigint;
   userMessages: bigint;
@@ -153,6 +155,7 @@ export interface StatsAsNumbers {
   cacheCreationTokens: number;
   cacheReadTokens: number;
   cachedTokens: number;
+  reasoningTokens: number;
   tokens: number;
   assistantMessages: number;
   userMessages: number;
@@ -180,6 +183,8 @@ export interface ConversationMessage {
   projectHash: string;
   conversationHash: string;
   localHash: string | null;
+  uuid: string | null;
+  sessionName: string | null;
   application: ApplicationType;
   stats: Stats;
 }
