@@ -106,6 +106,7 @@ export async function POST(request: NextRequest) {
         "cacheCreationTokens",
         "cacheReadTokens",
         "cachedTokens",
+        "reasoningTokens",
         "filesRead",
         "filesAdded",
         "filesEdited",

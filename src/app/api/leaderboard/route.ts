@@ -95,7 +95,7 @@ export async function GET(request: NextRequest) {
           users."email",
           users."createdAt",
           COALESCE(SUM(message_stats."cost"), 0) as cost,
-          COALESCE(SUM(message_stats."cachedTokens" + message_stats."inputTokens" + message_stats."outputTokens"), 0) as tokens,
+          COALESCE(SUM(message_stats."cachedTokens" + message_stats."inputTokens" + message_stats."outputTokens" + message_stats."reasoningTokens"), 0) as tokens,
           COALESCE(SUM(message_stats."linesAdded"), 0) as "linesAdded",
           COALESCE(SUM(message_stats."linesDeleted"), 0) as "linesDeleted",
           COALESCE(SUM(message_stats."linesEdited"), 0) as "linesEdited",
