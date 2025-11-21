@@ -29,6 +29,7 @@ type DayStat = {
   cachedTokens: string;
   inputTokens: string;
   outputTokens: string;
+  reasoningTokens: string;
   conversations: string | number;
   toolCalls: string;
   linesRead: string;
@@ -49,6 +50,7 @@ type StatsData = {
       inputTokens: number;
       outputTokens: number;
       cachedTokens: number;
+      reasoningTokens: number;
       tokens: number;
       conversations: number;
       firstDate: string;
@@ -166,6 +168,24 @@ const createColumns = (
         <div
           className={
             Number(value) === maxStats.outputTokens && maxStats.outputTokens > 0
+              ? "text-red-600"
+              : ""
+          }
+        >
+          {formatLargeNumber(value)}
+        </div>
+      );
+    },
+  },
+  {
+    accessorKey: "reasoningTokens",
+    header: "Reasoning",
+    cell: ({ row }) => {
+      const value = row.getValue("reasoningTokens") as string;
+      return (
+        <div
+          className={
+            Number(value) === maxStats.reasoningTokens && maxStats.reasoningTokens > 0
               ? "text-red-600"
               : ""
           }
@@ -434,6 +454,7 @@ export default function StatsPage() {
           cachedTokens: "0",
           inputTokens: "0",
           outputTokens: "0",
+          reasoningTokens: "0",
           conversations: 0,
           toolCalls: "0",
           linesRead: "0",
@@ -467,6 +488,7 @@ export default function StatsPage() {
           cachedTokens: Math.max(acc.cachedTokens, Number(s.cachedTokens)),
           inputTokens: Math.max(acc.inputTokens, Number(s.inputTokens)),
           outputTokens: Math.max(acc.outputTokens, Number(s.outputTokens)),
+          reasoningTokens: Math.max(acc.reasoningTokens, Number(s.reasoningTokens || 0)),
           conversations: Math.max(
             acc.conversations,
             Number(s.conversations || 0)
@@ -480,6 +502,7 @@ export default function StatsPage() {
           cachedTokens: 0,
           inputTokens: 0,
           outputTokens: 0,
+          reasoningTokens: 0,
           conversations: 0,
           toolCalls: 0,
           linesAdded: 0,
@@ -834,6 +857,9 @@ export default function StatsPage() {
                           </TableCell>
                           <TableCell>
                             {formatLargeNumber(totalsRow.outputTokens || 0)}
+                          </TableCell>
+                          <TableCell>
+                            {formatLargeNumber(totalsRow.reasoningTokens || 0)}
                           </TableCell>
                           <TableCell>
                             {formatLargeNumber(totalsRow.conversations || 0)}
