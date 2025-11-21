@@ -27,6 +27,7 @@ export async function GET(
         cached_tokens: Prisma.Decimal;
         input_tokens: Prisma.Decimal;
         output_tokens: Prisma.Decimal;
+        reasoning_tokens: Prisma.Decimal;
         conversations: bigint;
         tool_calls: Prisma.Decimal;
         lines_read: Prisma.Decimal;
@@ -79,6 +80,7 @@ export async function GET(
             SUM("cachedTokens") AS cached_tokens,
             SUM("inputTokens") AS input_tokens,
             SUM("outputTokens") AS output_tokens,
+            SUM("reasoningTokens") AS reasoning_tokens,
             SUM("toolCalls") AS tool_calls,
             SUM("linesRead") AS lines_read,
             SUM("linesEdited") AS lines_edited,
@@ -99,6 +101,7 @@ export async function GET(
           s.cached_tokens,
           s.input_tokens,
           s.output_tokens,
+          s.reasoning_tokens,
           COALESCE(c.conversations, s.conversations_set, 0) AS conversations,
           s.tool_calls,
           s.lines_read,
@@ -158,7 +161,8 @@ export async function GET(
               Prisma.Decimal.sum(
                 r.input_tokens,
                 r.output_tokens,
-                r.cached_tokens
+                r.cached_tokens,
+                r.reasoning_tokens
               )
             ),
             conversations: Number(r.conversations),
