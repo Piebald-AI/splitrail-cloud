@@ -127,11 +127,11 @@ const createColumns = (
     accessorKey: "cachedTokens",
     header: "Cached Tokens",
     cell: ({ row }) => {
-      const value = row.getValue("cachedTokens") as string;
+      const value = Number(row.getValue("cachedTokens"));
       return (
         <div
           className={
-            Number(value) === maxStats.cachedTokens && maxStats.cachedTokens > 0
+            value === maxStats.cachedTokens && maxStats.cachedTokens > 0
               ? "text-red-600"
               : ""
           }
@@ -145,11 +145,11 @@ const createColumns = (
     accessorKey: "inputTokens",
     header: "Input Tokens",
     cell: ({ row }) => {
-      const value = row.getValue("inputTokens") as string;
+      const value = Number(row.getValue("inputTokens"));
       return (
         <div
           className={
-            Number(value) === maxStats.inputTokens && maxStats.inputTokens > 0
+            value === maxStats.inputTokens && maxStats.inputTokens > 0
               ? "text-red-600"
               : ""
           }
@@ -163,11 +163,11 @@ const createColumns = (
     accessorKey: "outputTokens",
     header: "Output Tokens",
     cell: ({ row }) => {
-      const value = row.getValue("outputTokens") as string;
+      const value = Number(row.getValue("outputTokens"));
       return (
         <div
           className={
-            Number(value) === maxStats.outputTokens && maxStats.outputTokens > 0
+            value === maxStats.outputTokens && maxStats.outputTokens > 0
               ? "text-red-600"
               : ""
           }
@@ -181,11 +181,11 @@ const createColumns = (
     accessorKey: "reasoningTokens",
     header: "Reasoning",
     cell: ({ row }) => {
-      const value = row.getValue("reasoningTokens") as string;
+      const value = Number(row.getValue("reasoningTokens"));
       return (
         <div
           className={
-            Number(value) === maxStats.reasoningTokens && maxStats.reasoningTokens > 0
+            value === maxStats.reasoningTokens && maxStats.reasoningTokens > 0
               ? "text-red-600"
               : ""
           }
@@ -199,17 +199,17 @@ const createColumns = (
     accessorKey: "conversations",
     header: "Conversations",
     cell: ({ row }) => {
-      const value = row.getValue("conversations") as string | number;
+      const value = Number(row.getValue("conversations") || 0);
       return (
         <div
           className={
-            Number(value || 0) === maxStats.conversations &&
+            value === maxStats.conversations &&
             maxStats.conversations > 0
               ? "text-red-600"
               : ""
           }
         >
-          {formatLargeNumber(value || 0)}
+          {formatLargeNumber(value)}
         </div>
       );
     },
@@ -218,12 +218,12 @@ const createColumns = (
     accessorKey: "toolCalls",
     header: "Tool Calls",
     cell: ({ row }) => {
-      const value = row.getValue("toolCalls") as string;
+      const value = Number(row.getValue("toolCalls"));
       const isEmpty = row.original.isEmpty;
       return (
         <div
           className={
-            Number(value) === maxStats.toolCalls && maxStats.toolCalls > 0
+            value === maxStats.toolCalls && maxStats.toolCalls > 0
               ? "text-red-600"
               : !isEmpty
                 ? "text-green-600"

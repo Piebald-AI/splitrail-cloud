@@ -82,7 +82,7 @@ export const createColumns = (
     accessorKey: "cost",
     header: "Cost",
     cell: ({ getValue }) => (
-      <div className="text-center">
+      <div className="text-center text-yellow-600 dark:text-yellow-400 font-medium">
         {formatCurrency(getValue() as number, currency, locale)}
       </div>
     ),
@@ -90,7 +90,11 @@ export const createColumns = (
   {
     accessorKey: "tokens",
     header: "Tokens",
-    cell: ({ row }) => formatLargeNumber(row.original.tokens),
+    cell: ({ row }) => (
+      <div className="text-center font-medium">
+        {formatLargeNumber(row.original.tokens)}
+      </div>
+    ),
   },
   {
     accessorKey: "linesAdded",
@@ -153,7 +157,7 @@ export const createColumns = (
     accessorKey: "todosCompleted",
     header: "Tasks Completed",
     cell: ({ getValue }) => (
-      <div className="text-center">
+      <div className="text-center text-green-600 dark:text-green-400 font-medium">
         {formatLargeNumber(getValue() as number)}
       </div>
     ),
