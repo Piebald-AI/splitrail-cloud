@@ -16,33 +16,37 @@ export const APPLICATION_CONFIG: Record<
     id: "claude_code",
     label: "Claude Code",
   },
-  gemini_cli: {
-    id: "gemini_cli",
-    label: "Gemini CLI",
-  },
   codex_cli: {
     id: "codex_cli",
     label: "Codex CLI",
   },
-  cline: {
-    id: "cline",
-    label: "Cline",
-  },
-  kilo_code: {
-    id: "kilo_code",
-    label: "Kilo Code",
-  },
-  roo_code: {
-    id: "roo_code",
-    label: "Roo Code",
+  gemini_cli: {
+    id: "gemini_cli",
+    label: "Gemini CLI",
   },
   qwen_code: {
     id: "qwen_code",
     label: "Qwen Code",
   },
+  cline: {
+    id: "cline",
+    label: "Cline",
+  },
+  roo_code: {
+    id: "roo_code",
+    label: "Roo Code",
+  },
+  kilo_code: {
+    id: "kilo_code",
+    label: "Kilo Code",
+  },
   copilot: {
     id: "copilot",
     label: "GitHub Copilot",
+  },
+  open_code: {
+    id: "open_code",
+    label: "OpenCode",
   },
 };
 

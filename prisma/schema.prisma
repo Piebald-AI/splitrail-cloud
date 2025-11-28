@@ -35,7 +35,7 @@ model User {
 model MessageStats {
   globalHash            String    @id
   userId                String
-  application           String    @default("claude_code") // "claude_code", "gemini_cli", "codex_cli", "cline", "kilo_code", "roo_code", "qwen_code", "copilot"
+  application           String    @default("claude_code") // "claude_code", "gemini_cli", "codex_cli", "cline", "kilo_code", "roo_code", "qwen_code", "copilot", "open_code"
   role                  String    // "assistant" or "user"
   date                  DateTime
   projectHash           String
@@ -92,7 +92,7 @@ model MessageStats {
 model UserStats {
   id                    String   @id @default(cuid())
   userId                String
-  application           String   // "claude_code", "gemini_cli", "codex_cli", "cline", "kilo_code", "roo_code", "qwen_code", "copilot"
+  application           String   // "claude_code", "gemini_cli", "codex_cli", "cline", "kilo_code", "roo_code", "qwen_code", "copilot", "open_code"
   period                String   // "hourly", "daily", "weekly", "monthly", "yearly"
   periodStart           DateTime?
   periodEnd             DateTime?
