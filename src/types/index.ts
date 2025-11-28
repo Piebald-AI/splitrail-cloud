@@ -4,13 +4,14 @@ import { type User } from "@prisma/client";
 
 export const Applications = [
   "claude_code",
-  "gemini_cli",
   "codex_cli",
-  "cline",
-  "kilo_code",
-  "roo_code",
+  "gemini_cli",
   "qwen_code",
+  "cline",
+  "roo_code",
+  "kilo_code",
   "copilot",
+  "open_code",
 ] as const;
 export const Periods = [
   "hourly",
