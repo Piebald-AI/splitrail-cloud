@@ -1,6 +1,7 @@
 import { Prisma } from "@prisma/client";
 
 interface AffectedPeriods {
+  hourly: Date[];
   daily: Date[];
   weekly: Date[];
   monthly: Date[];
@@ -11,6 +12,7 @@ export function calculateAffectedPeriods(
   startDate: Date,
   endDate: Date
 ): AffectedPeriods {
+  const hourly: Date[] = [];
   const daily: Date[] = [];
   const weekly: Date[] = [];
   const monthly: Date[] = [];
@@ -20,6 +22,15 @@ export function calculateAffectedPeriods(
   current.setUTCHours(0, 0, 0, 0);
 
   while (current <= endDate) {
+    // Hourly (for each hour of the day)
+    for (let hour = 0; hour < 24; hour++) {
+      const hourStart = new Date(current);
+      hourStart.setUTCHours(hour, 0, 0, 0);
+      if (hourStart <= endDate && hourStart >= startDate) {
+        hourly.push(hourStart);
+      }
+    }
+
     // Daily
     daily.push(new Date(current));
 
@@ -50,7 +61,7 @@ export function calculateAffectedPeriods(
     current.setUTCDate(current.getUTCDate() + 1);
   }
 
-  return { daily, weekly, monthly, yearly };
+  return { hourly, daily, weekly, monthly, yearly };
 }
 
 export async function recalculateUserStats(
@@ -62,6 +73,12 @@ export async function recalculateUserStats(
   // Delete stale aggregations
   const deleteConditions: Prisma.UserStatsWhereInput[] = [];
 
+  if (affectedPeriods.hourly.length > 0) {
+    deleteConditions.push({
+      period: "hourly",
+      periodStart: { in: affectedPeriods.hourly },
+    });
+  }
   if (affectedPeriods.daily.length > 0) {
     deleteConditions.push({
       period: "daily",
@@ -101,6 +118,16 @@ export async function recalculateUserStats(
     dates: Date[];
     getRange: (date: Date) => { start: Date; end: Date };
   }> = [
+    {
+      period: "hourly",
+      dates: affectedPeriods.hourly,
+      getRange: (date) => {
+        const start = new Date(date);
+        const end = new Date(date);
+        end.setUTCMinutes(59, 59, 999);
+        return { start, end };
+      },
+    },
     {
       period: "daily",
       dates: affectedPeriods.daily,
