@@ -86,7 +86,7 @@ export function getApplicationLabel(appId: ApplicationType): string {
  */
 export function getApplicationCode(displayName: string): ApplicationType | null {
   const entry = Object.entries(APPLICATION_LABELS).find(
-    ([_, name]) => name === displayName
+    ([, name]) => name === displayName
   );
   return entry ? (entry[0] as ApplicationType) : null;
 }

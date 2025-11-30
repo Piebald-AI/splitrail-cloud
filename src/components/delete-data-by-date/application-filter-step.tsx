@@ -36,7 +36,7 @@ export function ApplicationFilterStep({
       <div>
         <h3 className="text-lg font-semibold mb-2">Select Applications</h3>
         <p className="text-sm text-muted-foreground mb-4">
-          Select which applications' data to delete for the chosen date(s).
+          Select which applications&apos; data to delete for the chosen date(s).
         </p>
       </div>
 

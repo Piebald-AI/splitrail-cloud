@@ -53,7 +53,7 @@ export function DeleteDataByDate() {
       }
       return data.data;
     },
-    onSuccess: (data) => {
+    onSuccess: () => {
       const dateStr = deletionType === "single"
         ? format(new Date(startDate), "MMMM d, yyyy")
         : `${format(new Date(startDate), "MMMM d, yyyy")} - ${format(new Date(endDate), "MMMM d, yyyy")}`;
@@ -212,7 +212,7 @@ export function DeleteDataByDate() {
             <AlertDialogTitle>Delete Data?</AlertDialogTitle>
             <AlertDialogDescription asChild>
               <div className="space-y-3">
-                <p>You're about to permanently delete data from:</p>
+                <p>You&apos;re about to permanently delete data from:</p>
                 <div className="space-y-2 text-sm">
                   <div className="flex gap-2">
                     <span>📅</span>
