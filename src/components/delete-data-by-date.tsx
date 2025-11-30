@@ -196,7 +196,7 @@ export function DeleteDataByDate() {
             </Button>
           ) : (
             <Button
-              variant="destructive"
+              variant="warning"
               onClick={() => setConfirmDialogOpen(true)}
               disabled={!canGoNext() || deleteMutation.isPending}
             >
