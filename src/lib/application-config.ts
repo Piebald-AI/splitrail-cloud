@@ -42,7 +42,7 @@ export const APPLICATION_CONFIG: Record<
   },
   copilot: {
     id: "copilot",
-    label: "GitHub Copilot",
+    label: "Copilot",
   },
   open_code: {
     id: "open_code",
@@ -82,4 +82,15 @@ export const APPLICATION_OPTIONS = Object.values(APPLICATION_CONFIG).map(
  */
 export function getApplicationLabel(appId: ApplicationType): string {
   return APPLICATION_CONFIG[appId]?.label ?? appId;
+}
+
+/**
+ * Get the application code (ID) from a display name.
+ * Returns null if no matching application is found.
+ */
+export function getApplicationCode(displayName: string): ApplicationType | null {
+  const entry = Object.entries(APPLICATION_LABELS).find(
+    ([, name]) => name === displayName
+  );
+  return entry ? (entry[0] as ApplicationType) : null;
 }

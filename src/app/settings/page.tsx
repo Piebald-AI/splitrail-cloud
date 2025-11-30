@@ -14,6 +14,7 @@ import {
 import { Spinner } from "@/components/ui/spinner";
 import { Checkbox } from "@/components/ui/checkbox";
 import { CLITokenDisplay } from "@/components/cli-token-display";
+import { DeleteDataByDate } from "@/components/delete-data-by-date";
 import { signOut } from "next-auth/react";
 import { toast } from "sonner";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -330,6 +331,14 @@ export default function SettingsPage() {
             </div>
           </form>
         </Form>
+      </div>
+
+      {/* Delete Data by Date */}
+      <div className="mb-12 border-b border-border pb-12">
+        <h2 className="text-xl font-semibold mb-4">Delete Data by Date</h2>
+        <div className="p-6 border border-yellow-300 dark:border-yellow-700 bg-yellow-50 dark:bg-yellow-950 rounded-lg">
+          <DeleteDataByDate />
+        </div>
       </div>
 
       {/* Data Management */}
