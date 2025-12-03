@@ -64,13 +64,13 @@ export function calculateAffectedPeriods(
   return { hourly, daily, weekly, monthly, yearly };
 }
 
-export async function recalculateUserStats(
+export async function deleteAffectedUserStats(
   userId: string,
   applications: string[],
   affectedPeriods: AffectedPeriods,
   tx: Prisma.TransactionClient
 ) {
-  // Delete stale aggregations
+  // Delete stale aggregations within transaction for atomicity
   const deleteConditions: Prisma.UserStatsWhereInput[] = [];
 
   if (affectedPeriods.hourly.length > 0) {
@@ -111,197 +111,280 @@ export async function recalculateUserStats(
       OR: deleteConditions,
     },
   });
+}
 
-  // Recalculate each period type
+// Result type for the aggregation query
+interface AggregatedPeriodStats {
+  period_start: Date;
+  period_end: Date;
+  application: string;
+  tool_calls: bigint;
+  assistant_messages: bigint;
+  user_messages: bigint;
+  input_tokens: bigint;
+  output_tokens: bigint;
+  cache_creation_tokens: bigint;
+  cache_read_tokens: bigint;
+  cached_tokens: bigint;
+  reasoning_tokens: bigint;
+  cost: number;
+  files_read: bigint;
+  files_added: bigint;
+  files_edited: bigint;
+  files_deleted: bigint;
+  lines_read: bigint;
+  lines_added: bigint;
+  lines_edited: bigint;
+  lines_deleted: bigint;
+  bytes_read: bigint;
+  bytes_added: bigint;
+  bytes_edited: bigint;
+  bytes_deleted: bigint;
+  code_lines: bigint;
+  docs_lines: bigint;
+  data_lines: bigint;
+  media_lines: bigint;
+  config_lines: bigint;
+  other_lines: bigint;
+  terminal_commands: bigint;
+  file_searches: bigint;
+  file_content_searches: bigint;
+  todos_created: bigint;
+  todos_completed: bigint;
+  todos_in_progress: bigint;
+  todo_writes: bigint;
+  todo_reads: bigint;
+}
+
+export async function recalculateUserStats(
+  userId: string,
+  applications: string[],
+  affectedPeriods: AffectedPeriods
+) {
+  const { db } = await import("@/lib/db");
+
+  // Process each period type with a single aggregation query
   const periodConfigs: Array<{
     period: string;
-    dates: Date[];
-    getRange: (date: Date) => { start: Date; end: Date };
+    truncUnit: string;
+    periodStarts: Date[];
+    getPeriodEnd: (start: Date) => Date;
   }> = [
     {
       period: "hourly",
-      dates: affectedPeriods.hourly,
-      getRange: (date) => {
-        const start = new Date(date);
-        const end = new Date(date);
+      truncUnit: "hour",
+      periodStarts: affectedPeriods.hourly,
+      getPeriodEnd: (start) => {
+        const end = new Date(start);
         end.setUTCMinutes(59, 59, 999);
-        return { start, end };
+        return end;
       },
     },
     {
       period: "daily",
-      dates: affectedPeriods.daily,
-      getRange: (date) => {
-        const start = new Date(date);
-        const end = new Date(date);
+      truncUnit: "day",
+      periodStarts: affectedPeriods.daily,
+      getPeriodEnd: (start) => {
+        const end = new Date(start);
         end.setUTCHours(23, 59, 59, 999);
-        return { start, end };
+        return end;
       },
     },
     {
       period: "weekly",
-      dates: affectedPeriods.weekly,
-      getRange: (date) => {
-        const start = new Date(date);
-        const end = new Date(date);
+      truncUnit: "week",
+      periodStarts: affectedPeriods.weekly,
+      getPeriodEnd: (start) => {
+        const end = new Date(start);
         end.setUTCDate(end.getUTCDate() + 6);
         end.setUTCHours(23, 59, 59, 999);
-        return { start, end };
+        return end;
       },
     },
     {
       period: "monthly",
-      dates: affectedPeriods.monthly,
-      getRange: (date) => {
-        const start = new Date(date);
-        const end = new Date(
-          Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + 1, 0, 23, 59, 59, 999)
+      truncUnit: "month",
+      periodStarts: affectedPeriods.monthly,
+      getPeriodEnd: (start) => {
+        return new Date(
+          Date.UTC(
+            start.getUTCFullYear(),
+            start.getUTCMonth() + 1,
+            0,
+            23,
+            59,
+            59,
+            999
+          )
         );
-        return { start, end };
       },
     },
     {
       period: "yearly",
-      dates: affectedPeriods.yearly,
-      getRange: (date) => {
-        const start = new Date(date);
-        const end = new Date(
-          Date.UTC(date.getUTCFullYear(), 11, 31, 23, 59, 59, 999)
+      truncUnit: "year",
+      periodStarts: affectedPeriods.yearly,
+      getPeriodEnd: (start) => {
+        return new Date(
+          Date.UTC(start.getUTCFullYear(), 11, 31, 23, 59, 59, 999)
         );
-        return { start, end };
       },
     },
   ];
 
   for (const config of periodConfigs) {
-    for (const periodStart of config.dates) {
-      for (const application of applications) {
-        const { start, end } = config.getRange(periodStart);
+    if (config.periodStarts.length === 0) continue;
 
-        const aggregation = await tx.messageStats.aggregate({
-          where: {
+    // Single query aggregates all stats for this period type, grouped by period_start and application
+    // This replaces hundreds of individual queries with one efficient GROUP BY query
+    const aggregatedStats = await db.$queryRaw<AggregatedPeriodStats[]>`
+      SELECT
+        date_trunc(${config.truncUnit}, date) AS period_start,
+        application,
+        COALESCE(SUM("toolCalls"), 0)::bigint AS tool_calls,
+        COALESCE(SUM(CASE WHEN role = 'assistant' THEN 1 ELSE 0 END), 0)::bigint AS assistant_messages,
+        COALESCE(SUM(CASE WHEN role = 'user' THEN 1 ELSE 0 END), 0)::bigint AS user_messages,
+        COALESCE(SUM("inputTokens"), 0)::bigint AS input_tokens,
+        COALESCE(SUM("outputTokens"), 0)::bigint AS output_tokens,
+        COALESCE(SUM("cacheCreationTokens"), 0)::bigint AS cache_creation_tokens,
+        COALESCE(SUM("cacheReadTokens"), 0)::bigint AS cache_read_tokens,
+        COALESCE(SUM("cachedTokens"), 0)::bigint AS cached_tokens,
+        COALESCE(SUM("reasoningTokens"), 0)::bigint AS reasoning_tokens,
+        COALESCE(SUM(cost), 0)::float AS cost,
+        COALESCE(SUM("filesRead"), 0)::bigint AS files_read,
+        COALESCE(SUM("filesAdded"), 0)::bigint AS files_added,
+        COALESCE(SUM("filesEdited"), 0)::bigint AS files_edited,
+        COALESCE(SUM("filesDeleted"), 0)::bigint AS files_deleted,
+        COALESCE(SUM("linesRead"), 0)::bigint AS lines_read,
+        COALESCE(SUM("linesAdded"), 0)::bigint AS lines_added,
+        COALESCE(SUM("linesEdited"), 0)::bigint AS lines_edited,
+        COALESCE(SUM("linesDeleted"), 0)::bigint AS lines_deleted,
+        COALESCE(SUM("bytesRead"), 0)::bigint AS bytes_read,
+        COALESCE(SUM("bytesAdded"), 0)::bigint AS bytes_added,
+        COALESCE(SUM("bytesEdited"), 0)::bigint AS bytes_edited,
+        COALESCE(SUM("bytesDeleted"), 0)::bigint AS bytes_deleted,
+        COALESCE(SUM("codeLines"), 0)::bigint AS code_lines,
+        COALESCE(SUM("docsLines"), 0)::bigint AS docs_lines,
+        COALESCE(SUM("dataLines"), 0)::bigint AS data_lines,
+        COALESCE(SUM("mediaLines"), 0)::bigint AS media_lines,
+        COALESCE(SUM("configLines"), 0)::bigint AS config_lines,
+        COALESCE(SUM("otherLines"), 0)::bigint AS other_lines,
+        COALESCE(SUM("terminalCommands"), 0)::bigint AS terminal_commands,
+        COALESCE(SUM("fileSearches"), 0)::bigint AS file_searches,
+        COALESCE(SUM("fileContentSearches"), 0)::bigint AS file_content_searches,
+        COALESCE(SUM("todosCreated"), 0)::bigint AS todos_created,
+        COALESCE(SUM("todosCompleted"), 0)::bigint AS todos_completed,
+        COALESCE(SUM("todosInProgress"), 0)::bigint AS todos_in_progress,
+        COALESCE(SUM("todoWrites"), 0)::bigint AS todo_writes,
+        COALESCE(SUM("todoReads"), 0)::bigint AS todo_reads
+      FROM message_stats
+      WHERE "userId" = ${userId}
+        AND application = ANY(${applications})
+        AND date_trunc(${config.truncUnit}, date) = ANY(${config.periodStarts})
+      GROUP BY period_start, application
+      HAVING COUNT(*) > 0
+    `;
+
+    if (aggregatedStats.length === 0) continue;
+
+    // Batch upsert all results for this period type using a non-interactive transaction
+    const upsertOperations = aggregatedStats.map((row) => {
+      const periodEnd = config.getPeriodEnd(row.period_start);
+
+      return db.userStats.upsert({
+        where: {
+          userId_period_application: {
             userId,
-            application,
-            date: { gte: start, lte: end },
+            period: config.period,
+            application: row.application,
           },
-          _sum: {
-            toolCalls: true,
-            inputTokens: true,
-            outputTokens: true,
-            cacheCreationTokens: true,
-            cacheReadTokens: true,
-            cachedTokens: true,
-            reasoningTokens: true,
-            filesRead: true,
-            filesAdded: true,
-            filesEdited: true,
-            filesDeleted: true,
-            linesRead: true,
-            linesAdded: true,
-            linesEdited: true,
-            linesDeleted: true,
-            bytesRead: true,
-            bytesAdded: true,
-            bytesEdited: true,
-            bytesDeleted: true,
-            codeLines: true,
-            docsLines: true,
-            dataLines: true,
-            mediaLines: true,
-            configLines: true,
-            otherLines: true,
-            terminalCommands: true,
-            fileSearches: true,
-            fileContentSearches: true,
-            todosCreated: true,
-            todosCompleted: true,
-            todosInProgress: true,
-            todoWrites: true,
-            todoReads: true,
-          },
-          _count: {
-            _all: true,
-          },
-        });
+        },
+        update: {
+          periodStart: row.period_start,
+          periodEnd,
+          toolCalls: row.tool_calls,
+          assistantMessages: row.assistant_messages,
+          userMessages: row.user_messages,
+          inputTokens: row.input_tokens,
+          outputTokens: row.output_tokens,
+          cacheCreationTokens: row.cache_creation_tokens,
+          cacheReadTokens: row.cache_read_tokens,
+          cachedTokens: row.cached_tokens,
+          reasoningTokens: row.reasoning_tokens,
+          cost: row.cost,
+          filesRead: row.files_read,
+          filesAdded: row.files_added,
+          filesEdited: row.files_edited,
+          filesDeleted: row.files_deleted,
+          linesRead: row.lines_read,
+          linesAdded: row.lines_added,
+          linesEdited: row.lines_edited,
+          linesDeleted: row.lines_deleted,
+          bytesRead: row.bytes_read,
+          bytesAdded: row.bytes_added,
+          bytesEdited: row.bytes_edited,
+          bytesDeleted: row.bytes_deleted,
+          codeLines: row.code_lines,
+          docsLines: row.docs_lines,
+          dataLines: row.data_lines,
+          mediaLines: row.media_lines,
+          configLines: row.config_lines,
+          otherLines: row.other_lines,
+          terminalCommands: row.terminal_commands,
+          fileSearches: row.file_searches,
+          fileContentSearches: row.file_content_searches,
+          todosCreated: row.todos_created,
+          todosCompleted: row.todos_completed,
+          todosInProgress: row.todos_in_progress,
+          todoWrites: row.todo_writes,
+          todoReads: row.todo_reads,
+        },
+        create: {
+          userId,
+          application: row.application,
+          period: config.period,
+          periodStart: row.period_start,
+          periodEnd,
+          toolCalls: row.tool_calls,
+          assistantMessages: row.assistant_messages,
+          userMessages: row.user_messages,
+          inputTokens: row.input_tokens,
+          outputTokens: row.output_tokens,
+          cacheCreationTokens: row.cache_creation_tokens,
+          cacheReadTokens: row.cache_read_tokens,
+          cachedTokens: row.cached_tokens,
+          reasoningTokens: row.reasoning_tokens,
+          cost: row.cost,
+          filesRead: row.files_read,
+          filesAdded: row.files_added,
+          filesEdited: row.files_edited,
+          filesDeleted: row.files_deleted,
+          linesRead: row.lines_read,
+          linesAdded: row.lines_added,
+          linesEdited: row.lines_edited,
+          linesDeleted: row.lines_deleted,
+          bytesRead: row.bytes_read,
+          bytesAdded: row.bytes_added,
+          bytesEdited: row.bytes_edited,
+          bytesDeleted: row.bytes_deleted,
+          codeLines: row.code_lines,
+          docsLines: row.docs_lines,
+          dataLines: row.data_lines,
+          mediaLines: row.media_lines,
+          configLines: row.config_lines,
+          otherLines: row.other_lines,
+          terminalCommands: row.terminal_commands,
+          fileSearches: row.file_searches,
+          fileContentSearches: row.file_content_searches,
+          todosCreated: row.todos_created,
+          todosCompleted: row.todos_completed,
+          todosInProgress: row.todos_in_progress,
+          todoWrites: row.todo_writes,
+          todoReads: row.todo_reads,
+        },
+      });
+    });
 
-        const assistantCount = await tx.messageStats.count({
-          where: {
-            userId,
-            application,
-            date: { gte: start, lte: end },
-            role: "assistant",
-          },
-        });
-
-        const userCount = await tx.messageStats.count({
-          where: {
-            userId,
-            application,
-            date: { gte: start, lte: end },
-            role: "user",
-          },
-        });
-
-        const costSum = await tx.messageStats.aggregate({
-          where: {
-            userId,
-            application,
-            date: { gte: start, lte: end },
-          },
-          _sum: {
-            cost: true,
-          },
-        });
-
-        // Only create if there's data
-        if (aggregation._count._all > 0) {
-          await tx.userStats.create({
-            data: {
-              userId,
-              application,
-              period: config.period,
-              periodStart: start,
-              periodEnd: end,
-              toolCalls: aggregation._sum.toolCalls || BigInt(0),
-              assistantMessages: BigInt(assistantCount),
-              userMessages: BigInt(userCount),
-              inputTokens: aggregation._sum.inputTokens || BigInt(0),
-              outputTokens: aggregation._sum.outputTokens || BigInt(0),
-              cacheCreationTokens: aggregation._sum.cacheCreationTokens || BigInt(0),
-              cacheReadTokens: aggregation._sum.cacheReadTokens || BigInt(0),
-              cachedTokens: aggregation._sum.cachedTokens || BigInt(0),
-              reasoningTokens: aggregation._sum.reasoningTokens || BigInt(0),
-              cost: costSum._sum.cost || 0,
-              filesRead: aggregation._sum.filesRead || BigInt(0),
-              filesAdded: aggregation._sum.filesAdded || BigInt(0),
-              filesEdited: aggregation._sum.filesEdited || BigInt(0),
-              filesDeleted: aggregation._sum.filesDeleted || BigInt(0),
-              linesRead: aggregation._sum.linesRead || BigInt(0),
-              linesAdded: aggregation._sum.linesAdded || BigInt(0),
-              linesEdited: aggregation._sum.linesEdited || BigInt(0),
-              linesDeleted: aggregation._sum.linesDeleted || BigInt(0),
-              bytesRead: aggregation._sum.bytesRead || BigInt(0),
-              bytesAdded: aggregation._sum.bytesAdded || BigInt(0),
-              bytesEdited: aggregation._sum.bytesEdited || BigInt(0),
-              bytesDeleted: aggregation._sum.bytesDeleted || BigInt(0),
-              codeLines: aggregation._sum.codeLines || BigInt(0),
-              docsLines: aggregation._sum.docsLines || BigInt(0),
-              dataLines: aggregation._sum.dataLines || BigInt(0),
-              mediaLines: aggregation._sum.mediaLines || BigInt(0),
-              configLines: aggregation._sum.configLines || BigInt(0),
-              otherLines: aggregation._sum.otherLines || BigInt(0),
-              terminalCommands: aggregation._sum.terminalCommands || BigInt(0),
-              fileSearches: aggregation._sum.fileSearches || BigInt(0),
-              fileContentSearches: aggregation._sum.fileContentSearches || BigInt(0),
-              todosCreated: aggregation._sum.todosCreated || BigInt(0),
-              todosCompleted: aggregation._sum.todosCompleted || BigInt(0),
-              todosInProgress: aggregation._sum.todosInProgress || BigInt(0),
-              todoWrites: aggregation._sum.todoWrites || BigInt(0),
-              todoReads: aggregation._sum.todoReads || BigInt(0),
-            },
-          });
-        }
-      }
-    }
+    // Use batch transaction (not interactive) - more efficient and no timeout issues
+    await db.$transaction(upsertOperations);
   }
 }
