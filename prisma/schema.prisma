@@ -94,7 +94,7 @@ model UserStats {
   userId                String
   application           String   // "claude_code", "gemini_cli", "codex_cli", "cline", "kilo_code", "roo_code", "qwen_code", "copilot", "open_code"
   period                String   // "hourly", "daily", "weekly", "monthly", "yearly"
-  periodStart           DateTime?
+  periodStart           DateTime // Required for unique constraint - each period bucket is uniquely identified
   periodEnd             DateTime?
   toolCalls             BigInt   @default(0)
   assistantMessages     BigInt   @default(0)
@@ -136,7 +136,7 @@ model UserStats {
   updatedAt             DateTime @updatedAt
   user                  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   
-  @@unique([userId, period, application])
+  @@unique([userId, period, application, periodStart])
   @@index([application, period])
   @@map("user_stats")
 }

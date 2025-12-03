@@ -69,10 +69,11 @@ export async function POST(request: NextRequest) {
     });
 
     // Create a map for faster lookups
-    // Key format: ${period}_${application}_${periodStart.toISOString()}
+    // Key format: ${period}|${application}|${periodStart.toISOString()}
+    // Using "|" as delimiter since application names contain underscores (e.g., "claude_code")
     const existingStatsMap = new Map<string, (typeof existingStats)[0]>();
     for (const stat of existingStats) {
-      const key = `${stat.period}_${stat.application}_${stat.periodStart?.toISOString() ?? ""}`;
+      const key = `${stat.period}|${stat.application}|${stat.periodStart?.toISOString() ?? ""}`;
       existingStatsMap.set(key, stat);
     }
 
@@ -175,7 +176,7 @@ export async function POST(request: NextRequest) {
         // Calculate period boundaries based on the MESSAGE date, not current date
         const periodStart = getPeriodStartForDate(period, messageDate);
         const periodEnd = getPeriodEndForDate(period, messageDate);
-        const key = `${period}_${application}_${periodStart.toISOString()}`;
+        const key = `${period}|${application}|${periodStart.toISOString()}`;
 
         // Initialize accumulator if needed
         if (!statAccumulators.has(key)) {
@@ -213,8 +214,8 @@ export async function POST(request: NextRequest) {
     // Build upsert operations from accumulated data
     const now = new Date();
     for (const [key, accumulator] of statAccumulators) {
-      // Extract period info from key: ${period}_${application}_${periodStart.toISOString()}
-      const parts = key.split("_");
+      // Extract period info from key: ${period}|${application}|${periodStart.toISOString()}
+      const parts = key.split("|");
       const period = parts[0];
       const application = parts[1];
       // Get the stored period boundaries for this key
@@ -327,13 +328,14 @@ export async function POST(request: NextRequest) {
               });
             } else {
               // Upsert for new records to handle race conditions
-              const { userId, period, application, ...data } = stat;
+              const { userId, period, application, periodStart, ...data } = stat;
               return db.userStats.upsert({
                 where: {
-                  userId_period_application: {
+                  userId_period_application_periodStart: {
                     userId: userId!,
                     period: period!,
                     application: application!,
+                    periodStart: periodStart as Date,
                   },
                 },
                 update: data,
