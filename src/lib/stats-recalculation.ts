@@ -292,10 +292,11 @@ export async function recalculateUserStats(
 
       return db.userStats.upsert({
         where: {
-          userId_period_application: {
+          userId_period_application_periodStart: {
             userId,
             period: config.period,
             application: row.application,
+            periodStart: row.period_start,
           },
         },
         update: {
