@@ -3,7 +3,7 @@ import { auth } from "@/auth";
 import { db } from "@/lib/db";
 import { Prisma } from "@prisma/client";
 import { n } from "@/lib/utils";
-import { calculateAffectedPeriods, recalculateUserStats } from "@/lib/stats-recalculation";
+import { calculateAffectedPeriods, deleteAffectedUserStats, recalculateUserStats } from "@/lib/stats-recalculation";
 
 export async function GET(
   request: NextRequest,
@@ -284,7 +284,10 @@ export async function DELETE(
       );
     }
 
-    // Perform deletion and recalculation in transaction
+    // Calculate affected periods before the transaction (pure function, no DB access needed)
+    const affectedPeriods = calculateAffectedPeriods(startDateTime, endDateTime);
+
+    // Delete messages and aggregated stats in a transaction for atomicity
     const result = await db.$transaction(async (tx) => {
       // Delete MessageStats
       const deleteResult = await tx.messageStats.deleteMany({
@@ -298,14 +301,8 @@ export async function DELETE(
         },
       });
 
-      // Calculate affected periods
-      const affectedPeriods = calculateAffectedPeriods(
-        startDateTime,
-        endDateTime
-      );
-
-      // Recalculate UserStats
-      await recalculateUserStats(userId, applications, affectedPeriods, tx);
+      // Delete affected UserStats (within transaction for atomicity)
+      await deleteAffectedUserStats(userId, applications, affectedPeriods, tx);
 
       return {
         deletedMessages: deleteResult.count,
@@ -320,6 +317,9 @@ export async function DELETE(
         applications,
       };
     });
+
+    // Recalculate UserStats outside transaction to avoid timeout issues
+    await recalculateUserStats(userId, applications, affectedPeriods);
 
     return NextResponse.json({
       success: true,
