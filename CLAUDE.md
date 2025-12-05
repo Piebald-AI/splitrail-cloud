@@ -62,6 +62,7 @@ The platform tracks statistics from multiple agentic AI coding tools, not just C
 - `roo_code`, `kilo_code`, `qwen_code` - Other AI coding assistants
 - `codex_cli`, `gemini_cli` - Alternative CLIs
 - `copilot` - GitHub Copilot
+- `pi_agent` - Pi Agent
 
 **Important**: When adding features, always ensure they work across all applications, not just Claude Code.
 
