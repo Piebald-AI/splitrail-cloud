@@ -48,6 +48,10 @@ export const APPLICATION_CONFIG: Record<
     id: "open_code",
     label: "OpenCode",
   },
+  pi_agent: {
+    id: "pi_agent",
+    label: "Pi Agent",
+  },
 };
 
 /**
