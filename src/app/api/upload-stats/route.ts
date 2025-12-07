@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { DbStatKeys, type ConversationMessage, Periods } from "@/types";
-import { getPeriodStartForDate, getPeriodEndForDate } from "@/lib/dateUtils";
+import {
+  getPeriodStartForDate,
+  getPeriodEndForDate,
+  getPeriodStartForDateInTimezone,
+} from "@/lib/dateUtils";
 import { unsupportedMethod } from "@/lib/routeUtils";
 import { Prisma } from "@prisma/client";
 
@@ -33,13 +37,19 @@ export async function POST(request: NextRequest) {
 
     const user = apiToken.user;
 
-    // Extract timezone from header and update user preferences
-    const timezone = request.headers.get("x-timezone");
-    if (timezone) {
+    // Get user's timezone (from header or stored preference)
+    const headerTimezone = request.headers.get("x-timezone");
+    const userPrefs = await db.userPreferences.findUnique({
+      where: { userId: user.id },
+    });
+    const timezone = headerTimezone || userPrefs?.timezone || null;
+
+    // Update stored timezone if header provided
+    if (headerTimezone && headerTimezone !== userPrefs?.timezone) {
       await db.userPreferences.upsert({
         where: { userId: user.id },
-        update: { timezone },
-        create: { userId: user.id, timezone },
+        update: { timezone: headerTimezone },
+        create: { userId: user.id, timezone: headerTimezone },
       });
     }
 
@@ -185,7 +195,12 @@ export async function POST(request: NextRequest) {
       // Process each period
       for (const period of Periods) {
         // Calculate period boundaries based on the MESSAGE date, not current date
-        const periodStart = getPeriodStartForDate(period, messageDate);
+        // Use timezone-aware calculation for daily stats
+        const periodStart = getPeriodStartForDateInTimezone(
+          period,
+          messageDate,
+          timezone
+        );
         const periodEnd = getPeriodEndForDate(period, messageDate);
         const key = `${period}|${application}|${periodStart.toISOString()}`;
 
