@@ -145,7 +145,8 @@ model UserPreferences {
   id                    String   @id @default(cuid())
   userId                String   @unique
   currency              String   @default("USD")
-  
+  timezone              String?  // IANA timezone, e.g., "America/Chicago"
+
   // Privacy settings – whether the user's profile and aggregated statistics
   // are publicly visible on the Splitrail Cloud leaderboard. Users are opted
   // out by default and must explicitly enable the visibility from their
