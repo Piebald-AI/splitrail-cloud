@@ -32,6 +32,17 @@ export async function POST(request: NextRequest) {
     });
 
     const user = apiToken.user;
+
+    // Extract timezone from header and update user preferences
+    const timezone = request.headers.get("x-timezone");
+    if (timezone) {
+      await db.userPreferences.upsert({
+        where: { userId: user.id },
+        update: { timezone },
+        create: { userId: user.id, timezone },
+      });
+    }
+
     const body: ConversationMessage[] = await request.json();
 
     // Before asynchronously processing the data, validate the request.
