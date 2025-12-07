@@ -92,7 +92,9 @@ export function getApplicationLabel(appId: ApplicationType): string {
  * Get the application code (ID) from a display name.
  * Returns null if no matching application is found.
  */
-export function getApplicationCode(displayName: string): ApplicationType | null {
+export function getApplicationCode(
+  displayName: string
+): ApplicationType | null {
   const entry = Object.entries(APPLICATION_LABELS).find(
     ([, name]) => name === displayName
   );

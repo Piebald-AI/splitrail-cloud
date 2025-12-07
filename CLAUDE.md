@@ -76,6 +76,7 @@ Statistics are aggregated across multiple time periods for efficient querying:
   - Enables fast leaderboard queries without scanning all messages
 
 When uploading stats via `/api/upload-stats`, the system:
+
 1. Stores raw MessageStats
 2. Aggregates into UserStats for all time periods
 3. Uses upsert pattern to update existing aggregations

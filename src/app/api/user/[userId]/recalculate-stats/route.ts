@@ -88,8 +88,7 @@ export async function POST(
 
           const value = message[statKey as keyof typeof message];
           if (value !== undefined && value !== null) {
-            accumulator[statKey] =
-              (accumulator[statKey] || 0) + Number(value);
+            accumulator[statKey] = (accumulator[statKey] || 0) + Number(value);
           }
         }
 

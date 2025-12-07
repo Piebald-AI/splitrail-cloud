@@ -203,8 +203,7 @@ const createColumns = (
       return (
         <div
           className={
-            value === maxStats.conversations &&
-            maxStats.conversations > 0
+            value === maxStats.conversations && maxStats.conversations > 0
               ? "text-red-600"
               : ""
           }
@@ -488,7 +487,10 @@ export default function StatsPage() {
           cachedTokens: Math.max(acc.cachedTokens, Number(s.cachedTokens)),
           inputTokens: Math.max(acc.inputTokens, Number(s.inputTokens)),
           outputTokens: Math.max(acc.outputTokens, Number(s.outputTokens)),
-          reasoningTokens: Math.max(acc.reasoningTokens, Number(s.reasoningTokens || 0)),
+          reasoningTokens: Math.max(
+            acc.reasoningTokens,
+            Number(s.reasoningTokens || 0)
+          ),
           conversations: Math.max(
             acc.conversations,
             Number(s.conversations || 0)
@@ -577,8 +579,9 @@ export default function StatsPage() {
         <div className="text-center">
           <h1 className="text-2xl font-bold mb-4">Profile</h1>
           <p className="text-muted-foreground">
-            No profile data found. Start using Claude Code / Codex CLI / Gemini CLI / Qwen Code / Cline / Roo Code / Kilo Code / GitHub Copilot / OpenCode / Pi Agent with Splitrail to see
-            your stats!
+            No profile data found. Start using Claude Code / Codex CLI / Gemini
+            CLI / Qwen Code / Cline / Roo Code / Kilo Code / GitHub Copilot /
+            OpenCode / Pi Agent with Splitrail to see your stats!
           </p>
         </div>
       </div>
@@ -682,8 +685,10 @@ export default function StatsPage() {
               <div className="space-y-2">
                 <p>
                   You don&rsquo;t have any agentic development tool data. Once
-                  you start using Claude Code / Codex CLI / Gemini CLI / Qwen Code / Cline / Roo Code / Kilo Code / GitHub Copilot / OpenCode / Pi Agent, you can get
-                  started by following these steps:
+                  you start using Claude Code / Codex CLI / Gemini CLI / Qwen
+                  Code / Cline / Roo Code / Kilo Code / GitHub Copilot /
+                  OpenCode / Pi Agent, you can get started by following these
+                  steps:
                 </p>
                 <ol className="list-decimal list-inside space-y-1 ml-2">
                   <li>

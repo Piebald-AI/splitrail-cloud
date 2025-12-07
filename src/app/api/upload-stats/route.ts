@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { DbStatKeys, type ConversationMessage, Periods } from "@/types";
 import {
-  getPeriodStartForDate,
   getPeriodEndForDate,
   getPeriodStartForDateInTimezone,
 } from "@/lib/dateUtils";
@@ -354,7 +353,8 @@ export async function POST(request: NextRequest) {
               });
             } else {
               // Upsert for new records to handle race conditions
-              const { userId, period, application, periodStart, ...data } = stat;
+              const { userId, period, application, periodStart, ...data } =
+                stat;
               return db.userStats.upsert({
                 where: {
                   userId_period_application_periodStart: {

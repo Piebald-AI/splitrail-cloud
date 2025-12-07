@@ -21,7 +21,9 @@ export default function HomePage() {
           </h1>
           <p className="text-lg md:text-xl text-muted-foreground mb-1">
             Instantly hunt down and aggregate usage stats for all your agentic
-            AI development tools: Claude Code / Codex CLI* / Gemini CLI* / Qwen Code / Cline / Roo Code / Kilo Code / GitHub Copilot / OpenCode / Pi Agent.{" "}
+            AI development tools: Claude Code / Codex CLI* / Gemini CLI* / Qwen
+            Code / Cline / Roo Code / Kilo Code / GitHub Copilot / OpenCode / Pi
+            Agent.{" "}
           </p>
           <p className="text-lg md:text-xl text-muted-foreground mb-4 font-bold">
             Sync your data across devices with{" "}

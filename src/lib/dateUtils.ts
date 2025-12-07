@@ -107,10 +107,7 @@ export const getPeriodEnd = (period: PeriodType): Date => {
  * Get the start of a period for a specific date
  * Use this when calculating period boundaries for historical data
  */
-export const getPeriodStartForDate = (
-  period: PeriodType,
-  date: Date
-): Date => {
+export const getPeriodStartForDate = (period: PeriodType, date: Date): Date => {
   return {
     hourly: getHourStart(date),
     daily: getDayStart(date),

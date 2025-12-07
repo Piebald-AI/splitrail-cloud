@@ -16,11 +16,15 @@ export function DeletionTypeStep({ value, onChange }: DeletionTypeStepProps) {
       <div>
         <h3 className="text-lg font-semibold mb-2">Choose Deletion Type</h3>
         <p className="text-sm text-muted-foreground mb-4">
-          Choose whether to delete data from one specific day or across multiple days.
+          Choose whether to delete data from one specific day or across multiple
+          days.
         </p>
       </div>
 
-      <RadioGroup value={value} onValueChange={(v: string) => onChange(v as DeletionType)}>
+      <RadioGroup
+        value={value}
+        onValueChange={(v: string) => onChange(v as DeletionType)}
+      >
         <div className="flex items-center space-x-2">
           <RadioGroupItem value="single" id="single" />
           <Label htmlFor="single" className="font-normal cursor-pointer">

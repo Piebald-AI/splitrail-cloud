@@ -38,7 +38,9 @@ export function DateSelectionStep({
   return (
     <div className="space-y-4">
       <div>
-        <h3 className="text-lg font-semibold mb-2">Select Date{deletionType === "range" ? " Range" : ""}</h3>
+        <h3 className="text-lg font-semibold mb-2">
+          Select Date{deletionType === "range" ? " Range" : ""}
+        </h3>
         <p className="text-sm text-muted-foreground mb-4">
           {deletionType === "single"
             ? "Choose the specific day to delete data from."
