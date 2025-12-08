@@ -25,7 +25,13 @@ export function ReviewStep({
   selectedApplications,
 }: ReviewStepProps) {
   const { data, isLoading, error } = useQuery({
-    queryKey: ["deletePreview", userId, startDate, endDate, selectedApplications],
+    queryKey: [
+      "deletePreview",
+      userId,
+      startDate,
+      endDate,
+      selectedApplications,
+    ],
     queryFn: async () => {
       const params = new URLSearchParams({
         startDate,
@@ -137,7 +143,8 @@ export function ReviewStep({
               Impact
             </p>
             <p className="text-sm text-yellow-700 dark:text-yellow-400">
-              ~{data?.messageCount || 0} messages across {data?.affectedDays || 0} day
+              ~{data?.messageCount || 0} messages across{" "}
+              {data?.affectedDays || 0} day
               {data?.affectedDays !== 1 ? "s" : ""}
             </p>
           </div>

@@ -320,6 +320,18 @@ export default function SettingsPage() {
                   </FormItem>
                 )}
               />
+
+              {/* Timezone (read-only, set by CLI) */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Timezone</label>
+                <p className="text-sm text-muted-foreground">
+                  {preferences?.timezone || "Not set"}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Your timezone is automatically detected from the Splitrail CLI
+                  and used to determine which day your usage is attributed to.
+                </p>
+              </div>
             </div>
             <div className="mt-6">
               <Button

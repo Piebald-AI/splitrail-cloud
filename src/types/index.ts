@@ -172,6 +172,7 @@ export interface UserWithStats extends User, StatsAsNumbers {
 
 export interface UserPreferences {
   currency: string;
+  timezone: string | null;
   publicProfile: boolean;
 }
 

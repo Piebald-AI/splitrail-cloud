@@ -61,9 +61,11 @@ export async function GET(
     });
 
     // Calculate affected days
-    const affectedDays = Math.ceil(
-      (endDateTime.getTime() - startDateTime.getTime()) / (1000 * 60 * 60 * 24)
-    ) + 1;
+    const affectedDays =
+      Math.ceil(
+        (endDateTime.getTime() - startDateTime.getTime()) /
+          (1000 * 60 * 60 * 24)
+      ) + 1;
 
     return NextResponse.json({
       success: true,

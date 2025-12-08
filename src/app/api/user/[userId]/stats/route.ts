@@ -3,7 +3,11 @@ import { auth } from "@/auth";
 import { db } from "@/lib/db";
 import { Prisma } from "@prisma/client";
 import { n } from "@/lib/utils";
-import { calculateAffectedPeriods, deleteAffectedUserStats, recalculateUserStats } from "@/lib/stats-recalculation";
+import {
+  calculateAffectedPeriods,
+  deleteAffectedUserStats,
+  recalculateUserStats,
+} from "@/lib/stats-recalculation";
 
 export async function GET(
   request: NextRequest,
@@ -285,7 +289,10 @@ export async function DELETE(
     }
 
     // Calculate affected periods before the transaction (pure function, no DB access needed)
-    const affectedPeriods = calculateAffectedPeriods(startDateTime, endDateTime);
+    const affectedPeriods = calculateAffectedPeriods(
+      startDateTime,
+      endDateTime
+    );
 
     // Delete messages and aggregated stats in a transaction for atomicity
     const result = await db.$transaction(async (tx) => {
@@ -306,10 +313,11 @@ export async function DELETE(
 
       return {
         deletedMessages: deleteResult.count,
-        affectedDays: Math.ceil(
-          (endDateTime.getTime() - startDateTime.getTime()) /
-            (1000 * 60 * 60 * 24)
-        ) + 1,
+        affectedDays:
+          Math.ceil(
+            (endDateTime.getTime() - startDateTime.getTime()) /
+              (1000 * 60 * 60 * 24)
+          ) + 1,
         dateRange: {
           start: startDate,
           end: endDate,

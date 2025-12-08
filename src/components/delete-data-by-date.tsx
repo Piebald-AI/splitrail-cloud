@@ -13,7 +13,10 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { DeletionTypeStep, type DeletionType } from "./delete-data-by-date/deletion-type-step";
+import {
+  DeletionTypeStep,
+  type DeletionType,
+} from "./delete-data-by-date/deletion-type-step";
 import { DateSelectionStep } from "./delete-data-by-date/date-selection-step";
 import { ApplicationFilterStep } from "./delete-data-by-date/application-filter-step";
 import { ReviewStep } from "./delete-data-by-date/review-step";
@@ -29,7 +32,9 @@ export function DeleteDataByDate() {
   const [deletionType, setDeletionType] = useState<DeletionType>("single");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
-  const [selectedApplications, setSelectedApplications] = useState<ApplicationType[]>([]);
+  const [selectedApplications, setSelectedApplications] = useState<
+    ApplicationType[]
+  >([]);
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
 
   const deleteMutation = useMutation({
@@ -54,15 +59,18 @@ export function DeleteDataByDate() {
       return data.data;
     },
     onSuccess: () => {
-      const dateStr = deletionType === "single"
-        ? format(new Date(startDate), "MMMM d, yyyy")
-        : `${format(new Date(startDate), "MMMM d, yyyy")} - ${format(new Date(endDate), "MMMM d, yyyy")}`;
+      const dateStr =
+        deletionType === "single"
+          ? format(new Date(startDate), "MMMM d, yyyy")
+          : `${format(new Date(startDate), "MMMM d, yyyy")} - ${format(new Date(endDate), "MMMM d, yyyy")}`;
 
       const appNames = selectedApplications
         .map((app) => APPLICATION_LABELS[app])
         .join(", ");
 
-      toast.success(`Successfully deleted data from ${dateStr} for ${appNames}`);
+      toast.success(
+        `Successfully deleted data from ${dateStr} for ${appNames}`
+      );
 
       // Reset wizard
       setCurrentStep(1);
@@ -217,13 +225,15 @@ export function DeleteDataByDate() {
                   <div className="flex gap-2">
                     <span>📅</span>
                     <div>
-                      <span className="font-medium">Dates:</span> {formatDateRange()}
+                      <span className="font-medium">Dates:</span>{" "}
+                      {formatDateRange()}
                     </div>
                   </div>
                   <div className="flex gap-2">
                     <span>🤖</span>
                     <div>
-                      <span className="font-medium">Applications:</span> {formatApplications()}
+                      <span className="font-medium">Applications:</span>{" "}
+                      {formatApplications()}
                     </div>
                   </div>
                 </div>

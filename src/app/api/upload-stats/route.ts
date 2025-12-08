@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { DbStatKeys, type ConversationMessage, Periods } from "@/types";
-import { getPeriodStartForDate, getPeriodEndForDate } from "@/lib/dateUtils";
+import {
+  getPeriodEndForDate,
+  getPeriodStartForDateInTimezone,
+} from "@/lib/dateUtils";
 import { unsupportedMethod } from "@/lib/routeUtils";
 import { Prisma } from "@prisma/client";
 
@@ -32,6 +35,23 @@ export async function POST(request: NextRequest) {
     });
 
     const user = apiToken.user;
+
+    // Get user's timezone (from header or stored preference)
+    const headerTimezone = request.headers.get("x-timezone");
+    const userPrefs = await db.userPreferences.findUnique({
+      where: { userId: user.id },
+    });
+    const timezone = headerTimezone || userPrefs?.timezone || null;
+
+    // Update stored timezone if header provided
+    if (headerTimezone && headerTimezone !== userPrefs?.timezone) {
+      await db.userPreferences.upsert({
+        where: { userId: user.id },
+        update: { timezone: headerTimezone },
+        create: { userId: user.id, timezone: headerTimezone },
+      });
+    }
+
     const body: ConversationMessage[] = await request.json();
 
     // Before asynchronously processing the data, validate the request.
@@ -174,7 +194,12 @@ export async function POST(request: NextRequest) {
       // Process each period
       for (const period of Periods) {
         // Calculate period boundaries based on the MESSAGE date, not current date
-        const periodStart = getPeriodStartForDate(period, messageDate);
+        // Use timezone-aware calculation for daily stats
+        const periodStart = getPeriodStartForDateInTimezone(
+          period,
+          messageDate,
+          timezone
+        );
         const periodEnd = getPeriodEndForDate(period, messageDate);
         const key = `${period}|${application}|${periodStart.toISOString()}`;
 
@@ -328,7 +353,8 @@ export async function POST(request: NextRequest) {
               });
             } else {
               // Upsert for new records to handle race conditions
-              const { userId, period, application, periodStart, ...data } = stat;
+              const { userId, period, application, periodStart, ...data } =
+                stat;
               return db.userStats.upsert({
                 where: {
                   userId_period_application_periodStart: {
