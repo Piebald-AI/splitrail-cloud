@@ -26,6 +26,9 @@ function Footer() {
         >
           <Image src="/piebald.svg" alt="Piebald" width={24} height={24} />
           <span className="font-bold text-foreground">Piebald</span>
+          <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-[#FF8400]/10 text-[#FF8400] border border-[#FF8400]/20">
+            v0.1.0
+          </span>
         </Link>
         <span>&nbsp;&bull; © 2025 Piebald, LLC.</span>
       </p>

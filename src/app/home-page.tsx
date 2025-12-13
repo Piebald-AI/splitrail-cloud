@@ -2,8 +2,9 @@
 
 import Logo from "@/components/logo";
 import { Button } from "@/components/ui/button";
-import { ArrowRight, Cloud, Trophy } from "lucide-react";
+import { ArrowRight, Cloud, Trophy, Megaphone } from "lucide-react";
 import Link from "next/link";
+import Image from "next/image";
 import { signIn } from "next-auth/react";
 
 export default function HomePage() {
@@ -14,6 +15,25 @@ export default function HomePage() {
     >
       <div className="grid md:grid-cols-2 gap-12 items-center">
         <div>
+          {/* Piebald Release Announcement */}
+          <Link
+            href="https://piebald.ai"
+            className="inline-flex items-center gap-2 px-4 py-2 mb-6 rounded-full bg-gradient-to-r from-[#FF8400]/10 to-[#D64B00]/10 border border-[#FF8400]/20 hover:border-[#FF8400]/40 transition-colors"
+          >
+            <Megaphone className="size-4 text-[#FF8400]" />
+            <span className="text-sm font-medium">
+              <span className="text-[#FF8400]">New!</span> Piebald v0.1.0 is now available
+            </span>
+            <Image
+              src="/piebald.svg"
+              alt="Piebald"
+              width={20}
+              height={20}
+              className="ml-1"
+            />
+            <ArrowRight className="size-4 text-muted-foreground" />
+          </Link>
+
           <Logo width={250} className="mb-4 text-logo" />
           <h1 className="text-4xl md:text-5xl font-bold mb-6 leading-[normal]">
             Blazing fast, single-executable, cross-platform, agentic development
@@ -23,7 +43,7 @@ export default function HomePage() {
             Instantly hunt down and aggregate usage stats for all your agentic
             AI development tools: Claude Code / Codex CLI* / Gemini CLI* / Qwen
             Code / Cline / Roo Code / Kilo Code / GitHub Copilot / OpenCode / Pi
-            Agent.{" "}
+            Agent / Piebald.{" "}
           </p>
           <p className="text-lg md:text-xl text-muted-foreground mb-4 font-bold">
             Sync your data across devices with{" "}

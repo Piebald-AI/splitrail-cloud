@@ -52,6 +52,10 @@ export const APPLICATION_CONFIG: Record<
     id: "pi_agent",
     label: "Pi Agent",
   },
+  piebald: {
+    id: "piebald",
+    label: "Piebald",
+  },
 };
 
 /**

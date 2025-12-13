@@ -13,6 +13,7 @@ export const Applications = [
   "copilot",
   "open_code",
   "pi_agent",
+  "piebald",
 ] as const;
 export const Periods = [
   "hourly",
