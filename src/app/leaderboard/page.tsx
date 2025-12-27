@@ -256,7 +256,7 @@ export default function Leaderboard() {
                 <li>
                   If you want to use auto-uploading, run{" "}
                   <Code variant="inline">
-                    splitrail config auto-upload true
+                    splitrail config set auto-upload true
                   </Code>{" "}
                   and then run <Code variant="inline">splitrail</Code> normally.
                   Otherwise just run{" "}
