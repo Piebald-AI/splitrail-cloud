@@ -140,7 +140,7 @@ export async function GET(request: NextRequest) {
       todosCompleted: n(row.todosCompleted),
     }));
 
-    // Get total count
+    // Get total count of public users
     const totalCountResult = await db.$queryRaw<[{ count: bigint }]>`
       SELECT COUNT(DISTINCT users.id)::bigint as count
       FROM users
@@ -150,9 +150,22 @@ export async function GET(request: NextRequest) {
 
     const total = Number(totalCountResult[0].count);
 
+    // Get count of private users (only when not filtering by username)
+    let privateUsersCount = 0;
+    if (!usernameFilter) {
+      const privateCountResult = await db.$queryRaw<[{ count: bigint }]>`
+        SELECT COUNT(DISTINCT users.id)::bigint as count
+        FROM users
+        INNER JOIN user_preferences ON users.id = user_preferences."userId"
+        WHERE user_preferences."publicProfile" = FALSE
+      `;
+      privateUsersCount = Number(privateCountResult[0].count);
+    }
+
     const leaderboardData = {
       users: usersWithMetrics,
       total,
+      privateUsersCount,
       currentPage: page,
       pageSize,
       application: applicationParam,

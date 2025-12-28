@@ -19,7 +19,7 @@ import {
   getFilteredRowModel,
   flexRender,
 } from "@tanstack/react-table";
-import { ChevronDown, ChevronUp, Rocket, Search } from "lucide-react";
+import { ChevronDown, ChevronUp, EyeOff, Rocket, Search } from "lucide-react";
 import React from "react";
 import { createColumns } from "./TableColumns";
 import {
@@ -389,6 +389,15 @@ export default function Leaderboard() {
             </TableBody>
           </Table>
         </div>
+        {data?.privateUsersCount > 0 && !usernameFilter && (
+          <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+            <EyeOff className="size-4" />
+            <span>
+              + {data.privateUsersCount} private{" "}
+              {data.privateUsersCount === 1 ? "user" : "users"}
+            </span>
+          </div>
+        )}
         <TablePagination table={table} />
       </div>
     </div>
