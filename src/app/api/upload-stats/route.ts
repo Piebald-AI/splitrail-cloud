@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { DbStatKeys, type ConversationMessage, Periods } from "@/types";
+import { type ConversationMessage, Periods } from "@/types";
 import {
   getPeriodEndForDate,
   getPeriodStartForDateInTimezone,
@@ -72,305 +72,238 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Extract unique applications from messages to limit DB query
-    const applications = new Set<string>();
-    for (const message of body) {
-      applications.add(message.application);
-    }
+    // Process BigInt fields list
+    const bigIntFields = [
+      "toolCalls",
+      "inputTokens",
+      "outputTokens",
+      "cacheCreationTokens",
+      "cacheReadTokens",
+      "cachedTokens",
+      "reasoningTokens",
+      "filesRead",
+      "filesAdded",
+      "filesEdited",
+      "filesDeleted",
+      "linesRead",
+      "linesAdded",
+      "linesEdited",
+      "linesDeleted",
+      "bytesRead",
+      "bytesAdded",
+      "bytesEdited",
+      "bytesDeleted",
+      "codeLines",
+      "docsLines",
+      "dataLines",
+      "mediaLines",
+      "configLines",
+      "otherLines",
+      "terminalCommands",
+      "fileSearches",
+      "fileContentSearches",
+      "todosCreated",
+      "todosCompleted",
+      "todosInProgress",
+      "todoWrites",
+      "todoReads",
+    ];
 
-    // Only fetch stats for relevant applications and periods
-    const existingStats = await db.userStats.findMany({
-      where: {
-        userId: user.id,
-        application: {
-          in: Array.from(applications),
-        },
-      },
-    });
-
-    // Create a map for faster lookups
+    // Track affected period buckets for recalculation
     // Key format: ${period}|${application}|${periodStart.toISOString()}
-    // Using "|" as delimiter since application names contain underscores (e.g., "claude_code")
-    const existingStatsMap = new Map<string, (typeof existingStats)[0]>();
-    for (const stat of existingStats) {
-      const key = `${stat.period}|${stat.application}|${stat.periodStart?.toISOString() ?? ""}`;
-      existingStatsMap.set(key, stat);
-    }
+    const affectedBuckets = new Set<string>();
 
-    const statsToUpsert: Array<
-      Partial<Prisma.UserStatsUncheckedCreateInput & { id?: string }>
-    > = [];
-    const messages: Array<Prisma.MessageStatsUncheckedCreateInput> = [];
-    const messageDict: Record<string, ConversationMessage> = {};
+    // Upsert all messages (insert new, update existing)
+    // Process in batches to avoid overwhelming the database
+    const BATCH_SIZE = 50;
+    for (let i = 0; i < body.length; i += BATCH_SIZE) {
+      const batch = body.slice(i, i + BATCH_SIZE);
+      
+      await Promise.all(
+        batch.map(async (message) => {
+          const { stats, date, ...rest } = message;
+          const messageDate = new Date(date);
+          
+          // Build the dbMessage object with all required fields
+          const dbMessage: Record<string, unknown> = {
+            ...rest,
+            date: messageDate,
+            userId: user.id,
+          };
 
-    // Format all messages in a format that the DB will accept, and record each message in a dict
-    // so that later, when we loop over insertedMessages, we can use the original message to get
-    // the stats.
-    for (const message of body) {
-      const { stats, date, ...rest } = message;
-      // Build the dbMessage object with all required fields
-      const dbMessage: Record<string, unknown> = {
-        ...rest,
-        date: new Date(date),
-        userId: user.id,
-      };
-
-      // Convert stats for database - batch process known keys
-      if (stats.cost !== undefined && stats.cost !== null)
-        dbMessage.cost = stats.cost;
-
-      // Process BigInt fields in a single pass
-      const bigIntFields = [
-        "toolCalls",
-        "inputTokens",
-        "outputTokens",
-        "cacheCreationTokens",
-        "cacheReadTokens",
-        "cachedTokens",
-        "reasoningTokens",
-        "filesRead",
-        "filesAdded",
-        "filesEdited",
-        "filesDeleted",
-        "linesRead",
-        "linesAdded",
-        "linesEdited",
-        "linesDeleted",
-        "bytesRead",
-        "bytesAdded",
-        "bytesEdited",
-        "bytesDeleted",
-        "codeLines",
-        "docsLines",
-        "dataLines",
-        "mediaLines",
-        "configLines",
-        "otherLines",
-        "terminalCommands",
-        "fileSearches",
-        "fileContentSearches",
-        "todosCreated",
-        "todosCompleted",
-        "todosInProgress",
-        "todoWrites",
-        "todoReads",
-      ];
-
-      for (const field of bigIntFields) {
-        const value = stats[field as keyof typeof stats];
-        if (value !== undefined && value !== null) {
-          dbMessage[field] = BigInt(Math.round(Number(value)));
-        }
-      }
-
-      messages.push(dbMessage as Prisma.MessageStatsUncheckedCreateInput);
-      messageDict[message.globalHash] = message;
-    }
-
-    // Insert the messages, skipping duplicates.
-    const insertedMessages = await db.messageStats.createManyAndReturn({
-      data: messages,
-      skipDuplicates: true,
-    });
-
-    // Create accumulator maps to aggregate stats efficiently
-    const statAccumulators = new Map<string, Record<string, number>>();
-    const messageCounters = new Map<
-      string,
-      { assistant: number; user: number }
-    >();
-    // Store period boundaries for each accumulator key
-    const periodBoundaries = new Map<
-      string,
-      { periodStart: Date; periodEnd: Date }
-    >();
-
-    // Process inserted messages to accumulate stats
-    for (const message of insertedMessages) {
-      const { stats, role, application } = messageDict[message.globalHash];
-      const isAssistantMessage = role === "assistant";
-      const messageDate = new Date(message.date);
-
-      // Process each period
-      for (const period of Periods) {
-        // Calculate period boundaries based on the MESSAGE date, not current date
-        // Use timezone-aware calculation for daily stats
-        const periodStart = getPeriodStartForDateInTimezone(
-          period,
-          messageDate,
-          timezone
-        );
-        const periodEnd = getPeriodEndForDate(period, messageDate);
-        const key = `${period}|${application}|${periodStart.toISOString()}`;
-
-        // Initialize accumulator if needed
-        if (!statAccumulators.has(key)) {
-          statAccumulators.set(key, {});
-          messageCounters.set(key, { assistant: 0, user: 0 });
-          // Store period boundaries for this key
-          periodBoundaries.set(key, { periodStart, periodEnd });
-        }
-
-        const accumulator = statAccumulators.get(key)!;
-        const counter = messageCounters.get(key)!;
-
-        // Accumulate stats - process all defined values
-        for (const statKey of DbStatKeys) {
-          if (
-            statKey !== "assistantMessages" &&
-            statKey !== "userMessages" &&
-            stats[statKey] !== undefined &&
-            stats[statKey] !== null
-          ) {
-            accumulator[statKey] =
-              (accumulator[statKey] || 0) + Number(stats[statKey]);
+          // Convert stats for database
+          if (stats.cost !== undefined && stats.cost !== null) {
+            dbMessage.cost = stats.cost;
           }
-        }
 
-        // Count messages
-        if (isAssistantMessage) {
-          counter.assistant++;
-        } else {
-          counter.user++;
-        }
-      }
+          // Process BigInt fields
+          for (const field of bigIntFields) {
+            const value = stats[field as keyof typeof stats];
+            if (value !== undefined && value !== null) {
+              dbMessage[field] = BigInt(Math.round(Number(value)));
+            }
+          }
+
+          // Upsert the message (insert if new, update if exists)
+          await db.messageStats.upsert({
+            where: { globalHash: message.globalHash },
+            create: dbMessage as Prisma.MessageStatsUncheckedCreateInput,
+            update: dbMessage as Prisma.MessageStatsUncheckedUpdateInput,
+          });
+
+          // Track which period buckets this message affects
+          for (const period of Periods) {
+            const periodStart = getPeriodStartForDateInTimezone(
+              period,
+              messageDate,
+              timezone
+            );
+            const key = `${period}|${message.application}|${periodStart.toISOString()}`;
+            affectedBuckets.add(key);
+          }
+        })
+      );
     }
 
-    // Build upsert operations from accumulated data
+    // Recalculate stats for each affected bucket by summing all messages
     const now = new Date();
-    for (const [key, accumulator] of statAccumulators) {
-      // Extract period info from key: ${period}|${application}|${periodStart.toISOString()}
-      const parts = key.split("|");
+    
+    for (const bucketKey of affectedBuckets) {
+      const parts = bucketKey.split("|");
       const period = parts[0];
       const application = parts[1];
-      // Get the stored period boundaries for this key
-      const boundaries = periodBoundaries.get(key)!;
-      const { periodStart, periodEnd } = boundaries;
+      const periodStart = new Date(parts[2]);
+      const periodEnd = getPeriodEndForDate(period as typeof Periods[number], periodStart);
 
-      const counter = messageCounters.get(key)!;
-      const existingStat = existingStatsMap.get(key);
-
-      if (existingStat) {
-        // Update existing stat - build update object with only changed fields
-        const updates: Partial<Prisma.UserStatsUncheckedCreateInput> & {
-          id: string;
-        } = {
-          id: existingStat.id,
-          userId: user.id,
-          period,
-          application,
-          periodStart: existingStat.periodStart,
-          periodEnd: existingStat.periodEnd,
-          createdAt: existingStat.createdAt,
-          updatedAt: now,
-        };
-
-        // Add accumulated values to existing stats
-        for (const statKey of DbStatKeys) {
-          if (statKey === "assistantMessages") {
-            updates.assistantMessages =
-              BigInt(existingStat.assistantMessages) +
-              BigInt(counter.assistant);
-          } else if (statKey === "userMessages") {
-            updates.userMessages =
-              BigInt(existingStat.userMessages) + BigInt(counter.user);
-          } else if (accumulator[statKey] !== undefined) {
-            const existing = existingStat[statKey] || 0;
-            if (statKey === "cost") {
-              updates.cost = Number(existing) + accumulator[statKey];
-            } else {
-              // All other stats are BigInt fields
-              const bigIntKey = statKey as Exclude<
-                typeof statKey,
-                "cost" | "assistantMessages" | "userMessages"
-              >;
-              updates[bigIntKey] =
-                BigInt(existing) + BigInt(accumulator[statKey]);
-            }
-          } else {
-            // Copy existing value when no new data
-            if (statKey === "cost") {
-              updates.cost = existingStat.cost;
-            } else {
-              const bigIntKey = statKey as Exclude<typeof statKey, "cost">;
-              updates[bigIntKey] = existingStat[bigIntKey];
-            }
-          }
-        }
-
-        statsToUpsert.push(updates);
-      } else {
-        // Create new stat entry using the calculated period boundaries
-        const newStat: Prisma.UserStatsUncheckedCreateInput = {
+      // Aggregate all messages in this bucket
+      const aggregation = await db.messageStats.aggregate({
+        where: {
           userId: user.id,
           application,
-          period,
-          periodStart,
-          periodEnd,
-          assistantMessages: BigInt(counter.assistant),
-          userMessages: BigInt(counter.user),
-          createdAt: now,
-          updatedAt: now,
-        };
+          date: {
+            gte: periodStart,
+            lt: periodEnd,
+          },
+        },
+        _sum: {
+          inputTokens: true,
+          outputTokens: true,
+          cacheCreationTokens: true,
+          cacheReadTokens: true,
+          cachedTokens: true,
+          reasoningTokens: true,
+          cost: true,
+          toolCalls: true,
+          filesRead: true,
+          filesAdded: true,
+          filesEdited: true,
+          filesDeleted: true,
+          linesRead: true,
+          linesAdded: true,
+          linesEdited: true,
+          linesDeleted: true,
+          bytesRead: true,
+          bytesAdded: true,
+          bytesEdited: true,
+          bytesDeleted: true,
+          codeLines: true,
+          docsLines: true,
+          dataLines: true,
+          mediaLines: true,
+          configLines: true,
+          otherLines: true,
+          terminalCommands: true,
+          fileSearches: true,
+          fileContentSearches: true,
+          todosCreated: true,
+          todosCompleted: true,
+          todosInProgress: true,
+          todoWrites: true,
+          todoReads: true,
+        },
+      });
 
-        // Add accumulated stats with proper types
-        for (const statKey of DbStatKeys) {
-          if (
-            statKey !== "assistantMessages" &&
-            statKey !== "userMessages" &&
-            accumulator[statKey] !== undefined
-          ) {
-            const value = accumulator[statKey];
-            if (statKey === "cost") {
-              newStat.cost = Number(value);
-            } else {
-              // All other stats are BigInt fields
-              const bigIntKey = statKey as Exclude<
-                typeof statKey,
-                "cost" | "assistantMessages" | "userMessages"
-              >;
-              newStat[bigIntKey] = BigInt(value);
-            }
-          }
-        }
+      // Count messages by role
+      const messageCounts = await db.messageStats.groupBy({
+        by: ["role"],
+        where: {
+          userId: user.id,
+          application,
+          date: {
+            gte: periodStart,
+            lt: periodEnd,
+          },
+        },
+        _count: true,
+      });
 
-        statsToUpsert.push(newStat);
-      }
-    }
+      const assistantCount = messageCounts.find(m => m.role === "assistant")?._count ?? 0;
+      const userCount = messageCounts.find(m => m.role === "user")?._count ?? 0;
 
-    // Batch upserts by operation type for better performance
-    if (statsToUpsert.length > 0) {
-      const BATCH_SIZE = 100;
-      for (let i = 0; i < statsToUpsert.length; i += BATCH_SIZE) {
-        const batch = statsToUpsert.slice(i, i + BATCH_SIZE);
-        await Promise.all(
-          batch.map((stat) => {
-            if (stat.id) {
-              // Update existing record
-              return db.userStats.update({
-                where: { id: stat.id },
-                data: stat,
-              });
-            } else {
-              // Upsert for new records to handle race conditions
-              const { userId, period, application, periodStart, ...data } =
-                stat;
-              return db.userStats.upsert({
-                where: {
-                  userId_period_application_periodStart: {
-                    userId: userId!,
-                    period: period!,
-                    application: application!,
-                    periodStart: periodStart as Date,
-                  },
-                },
-                update: data,
-                create: stat as Prisma.UserStatsUncheckedCreateInput,
-              });
-            }
-          })
-        );
-      }
+      // Build the stats record from aggregation
+      const statsData: Prisma.UserStatsUncheckedCreateInput = {
+        userId: user.id,
+        application,
+        period,
+        periodStart,
+        periodEnd,
+        assistantMessages: BigInt(assistantCount),
+        userMessages: BigInt(userCount),
+        inputTokens: aggregation._sum.inputTokens ?? BigInt(0),
+        outputTokens: aggregation._sum.outputTokens ?? BigInt(0),
+        cacheCreationTokens: aggregation._sum.cacheCreationTokens ?? BigInt(0),
+        cacheReadTokens: aggregation._sum.cacheReadTokens ?? BigInt(0),
+        cachedTokens: aggregation._sum.cachedTokens ?? BigInt(0),
+        reasoningTokens: aggregation._sum.reasoningTokens ?? BigInt(0),
+        cost: aggregation._sum.cost ?? 0,
+        toolCalls: aggregation._sum.toolCalls ?? BigInt(0),
+        filesRead: aggregation._sum.filesRead ?? BigInt(0),
+        filesAdded: aggregation._sum.filesAdded ?? BigInt(0),
+        filesEdited: aggregation._sum.filesEdited ?? BigInt(0),
+        filesDeleted: aggregation._sum.filesDeleted ?? BigInt(0),
+        linesRead: aggregation._sum.linesRead ?? BigInt(0),
+        linesAdded: aggregation._sum.linesAdded ?? BigInt(0),
+        linesEdited: aggregation._sum.linesEdited ?? BigInt(0),
+        linesDeleted: aggregation._sum.linesDeleted ?? BigInt(0),
+        bytesRead: aggregation._sum.bytesRead ?? BigInt(0),
+        bytesAdded: aggregation._sum.bytesAdded ?? BigInt(0),
+        bytesEdited: aggregation._sum.bytesEdited ?? BigInt(0),
+        bytesDeleted: aggregation._sum.bytesDeleted ?? BigInt(0),
+        codeLines: aggregation._sum.codeLines ?? BigInt(0),
+        docsLines: aggregation._sum.docsLines ?? BigInt(0),
+        dataLines: aggregation._sum.dataLines ?? BigInt(0),
+        mediaLines: aggregation._sum.mediaLines ?? BigInt(0),
+        configLines: aggregation._sum.configLines ?? BigInt(0),
+        otherLines: aggregation._sum.otherLines ?? BigInt(0),
+        terminalCommands: aggregation._sum.terminalCommands ?? BigInt(0),
+        fileSearches: aggregation._sum.fileSearches ?? BigInt(0),
+        fileContentSearches: aggregation._sum.fileContentSearches ?? BigInt(0),
+        todosCreated: aggregation._sum.todosCreated ?? BigInt(0),
+        todosCompleted: aggregation._sum.todosCompleted ?? BigInt(0),
+        todosInProgress: aggregation._sum.todosInProgress ?? BigInt(0),
+        todoWrites: aggregation._sum.todoWrites ?? BigInt(0),
+        todoReads: aggregation._sum.todoReads ?? BigInt(0),
+        createdAt: now,
+        updatedAt: now,
+      };
+
+      // Upsert the stats record (replace with recalculated values)
+      await db.userStats.upsert({
+        where: {
+          userId_period_application_periodStart: {
+            userId: user.id,
+            period,
+            application,
+            periodStart,
+          },
+        },
+        create: statsData,
+        update: {
+          ...statsData,
+          // Preserve original createdAt on update
+          createdAt: undefined,
+        },
+      });
     }
 
     return NextResponse.json({
