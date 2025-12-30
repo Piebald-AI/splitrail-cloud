@@ -8,6 +8,44 @@ import {
 import { unsupportedMethod } from "@/lib/routeUtils";
 import { Prisma } from "@prisma/client";
 
+// BigInt fields that need conversion when storing messages.
+// Note: This list must stay in sync with the _sum fields in the aggregation query below.
+const BIG_INT_STAT_FIELDS = [
+  "toolCalls",
+  "inputTokens",
+  "outputTokens",
+  "cacheCreationTokens",
+  "cacheReadTokens",
+  "cachedTokens",
+  "reasoningTokens",
+  "filesRead",
+  "filesAdded",
+  "filesEdited",
+  "filesDeleted",
+  "linesRead",
+  "linesAdded",
+  "linesEdited",
+  "linesDeleted",
+  "bytesRead",
+  "bytesAdded",
+  "bytesEdited",
+  "bytesDeleted",
+  "codeLines",
+  "docsLines",
+  "dataLines",
+  "mediaLines",
+  "configLines",
+  "otherLines",
+  "terminalCommands",
+  "fileSearches",
+  "fileContentSearches",
+  "todosCreated",
+  "todosCompleted",
+  "todosInProgress",
+  "todoWrites",
+  "todoReads",
+] as const;
+
 export async function POST(request: NextRequest) {
   try {
     // Get auth token from header
@@ -72,50 +110,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Process BigInt fields list
-    const bigIntFields = [
-      "toolCalls",
-      "inputTokens",
-      "outputTokens",
-      "cacheCreationTokens",
-      "cacheReadTokens",
-      "cachedTokens",
-      "reasoningTokens",
-      "filesRead",
-      "filesAdded",
-      "filesEdited",
-      "filesDeleted",
-      "linesRead",
-      "linesAdded",
-      "linesEdited",
-      "linesDeleted",
-      "bytesRead",
-      "bytesAdded",
-      "bytesEdited",
-      "bytesDeleted",
-      "codeLines",
-      "docsLines",
-      "dataLines",
-      "mediaLines",
-      "configLines",
-      "otherLines",
-      "terminalCommands",
-      "fileSearches",
-      "fileContentSearches",
-      "todosCreated",
-      "todosCompleted",
-      "todosInProgress",
-      "todoWrites",
-      "todoReads",
-    ];
-
     // Track affected period buckets for recalculation
     // Key format: ${period}|${application}|${periodStart.toISOString()}
     const affectedBuckets = new Set<string>();
 
     // Upsert all messages (insert new, update existing)
-    // Process in batches to avoid overwhelming the database
-    const BATCH_SIZE = 50;
+    // Process in batches to avoid overwhelming the database connection pool
+    const BATCH_SIZE = 10;
     for (let i = 0; i < body.length; i += BATCH_SIZE) {
       const batch = body.slice(i, i + BATCH_SIZE);
       
@@ -137,7 +138,7 @@ export async function POST(request: NextRequest) {
           }
 
           // Process BigInt fields
-          for (const field of bigIntFields) {
+          for (const field of BIG_INT_STAT_FIELDS) {
             const value = stats[field as keyof typeof stats];
             if (value !== undefined && value !== null) {
               dbMessage[field] = BigInt(Math.round(Number(value)));
@@ -169,10 +170,14 @@ export async function POST(request: NextRequest) {
     const now = new Date();
     
     for (const bucketKey of affectedBuckets) {
-      const parts = bucketKey.split("|");
-      const period = parts[0];
-      const application = parts[1];
-      const periodStart = new Date(parts[2]);
+      // Parse bucket key safely - application name could theoretically contain "|"
+      // Key format: ${period}|${application}|${periodStart.toISOString()}
+      // Period is always first, ISO date is always last, application is in between
+      const firstPipe = bucketKey.indexOf("|");
+      const lastPipe = bucketKey.lastIndexOf("|");
+      const period = bucketKey.slice(0, firstPipe);
+      const application = bucketKey.slice(firstPipe + 1, lastPipe);
+      const periodStart = new Date(bucketKey.slice(lastPipe + 1));
       const periodEnd = getPeriodEndForDate(period as typeof Periods[number], periodStart);
 
       // Aggregate all messages in this bucket
@@ -300,7 +305,8 @@ export async function POST(request: NextRequest) {
         create: statsData,
         update: {
           ...statsData,
-          // Preserve original createdAt on update
+          // Preserve original createdAt on update (undefined is omitted by Prisma 5.x)
+          // Note: Upgrade to Prisma.skip when migrating to Prisma 6+
           createdAt: undefined,
         },
       });
