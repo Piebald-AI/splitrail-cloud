@@ -46,6 +46,11 @@ const BIG_INT_STAT_FIELDS = [
   "todoReads",
 ] as const;
 
+/**
+ * Handles uploading conversation messages, upserting per-message stats, and recalculating per-period user aggregates.
+ *
+ * @param request - Incoming HTTP request. Must include an `Authorization: Bearer <token>` header; may include `x-timezone` to override stored user timezone; body must be a JSON array of `ConversationMessage` objects each containing a `stats` property.
+ * @returns An object with `success: true` on successful processing, or an object with an `error` message when the request is invalid or processing fails.
 export async function POST(request: NextRequest) {
   try {
     // Get auth token from header
