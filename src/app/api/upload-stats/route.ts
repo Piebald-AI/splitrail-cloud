@@ -121,8 +121,8 @@ export async function POST(request: NextRequest) {
     const affectedBuckets = new Set<string>();
 
     // Upsert all messages (insert new, update existing)
-    // Process in batches to avoid overwhelming the database connection pool
-    const BATCH_SIZE = 10;
+    // Process in batches for controlled concurrency
+    const BATCH_SIZE = 50;
     for (let i = 0; i < body.length; i += BATCH_SIZE) {
       const batch = body.slice(i, i + BATCH_SIZE);
       
