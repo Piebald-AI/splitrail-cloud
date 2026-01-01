@@ -65,19 +65,6 @@ export async function POST(request: NextRequest) {
 
     const body: ConversationMessage[] = await request.json();
 
-    // Deduplicate messages by globalHash within a single request.
-    // Bulk upsert uses `ON CONFLICT DO UPDATE`, which errors if the same key appears
-    // more than once in one INSERT statement.
-    const dedupedBody: ConversationMessage[] = (() => {
-      const byHash = new Map<string, ConversationMessage>();
-      for (const message of body) {
-        if (message?.globalHash) {
-          byHash.set(message.globalHash, message);
-        }
-      }
-      return Array.from(byHash.values());
-    })();
-
     const startMs = timingEnabled() ? nowMs() : 0;
     const marks: Record<string, number> = {};
     const mark = (name: string) => {
@@ -86,21 +73,44 @@ export async function POST(request: NextRequest) {
     };
 
     // Before asynchronously processing the data, validate the request.
-    if (!dedupedBody || !Array.isArray(dedupedBody)) {
+    if (!body || !Array.isArray(body)) {
       return NextResponse.json(
         { error: "Invalid request body" },
         { status: 400 }
       );
     } else if (
-      !dedupedBody.every(
+      !body.every(
         (message) =>
-          message && typeof message === "object" && "stats" in message
+          message &&
+          typeof message === "object" &&
+          "stats" in message &&
+          typeof (message as ConversationMessage).globalHash === "string" &&
+          (message as ConversationMessage).globalHash.trim().length > 0
       )
     ) {
       return NextResponse.json(
         { error: "Invalid message format" },
         { status: 400 }
       );
+    }
+
+    // Deduplicate messages by globalHash within a single request.
+    // Bulk upsert uses `ON CONFLICT DO UPDATE`, which errors if the same key appears
+    // more than once in one INSERT statement.
+    const dedupedBody: ConversationMessage[] = (() => {
+      const byHash = new Map<string, ConversationMessage>();
+      for (const message of body) {
+        byHash.set(message.globalHash, message);
+      }
+      return Array.from(byHash.values());
+    })();
+
+    if (dedupedBody.length !== body.length) {
+      console.warn("upload-stats: deduplicated messages", {
+        received: body.length,
+        uniqueGlobalHash: dedupedBody.length,
+        duplicatesDropped: body.length - dedupedBody.length,
+      });
     }
 
     // Track affected period buckets for recalculation
