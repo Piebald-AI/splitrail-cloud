@@ -7,6 +7,7 @@ import {
 } from "@/lib/dateUtils";
 import { unsupportedMethod } from "@/lib/routeUtils";
 import { Prisma } from "@prisma/client";
+import { nowMs, timingEnabled } from "@/lib/timing";
 
 // BigInt fields that need conversion when storing messages.
 // Note: This list must stay in sync with the _sum fields in the aggregation query below.
@@ -98,6 +99,13 @@ export async function POST(request: NextRequest) {
 
     const body: ConversationMessage[] = await request.json();
 
+    const t0 = timingEnabled() ? nowMs() : 0;
+    const marks: Record<string, number> = {};
+    const mark = (name: string) => {
+      if (!timingEnabled()) return;
+      marks[name] = nowMs();
+    };
+
     // Before asynchronously processing the data, validate the request.
     if (!body || !Array.isArray(body)) {
       return NextResponse.json(
@@ -120,57 +128,59 @@ export async function POST(request: NextRequest) {
     // Key format: ${period}|${application}|${periodStart.toISOString()}
     const affectedBuckets = new Set<string>();
 
-    // Upsert all messages (insert new, update existing)
-    // Process in batches for controlled concurrency
-    const BATCH_SIZE = 50;
-    for (let i = 0; i < body.length; i += BATCH_SIZE) {
-      const batch = body.slice(i, i + BATCH_SIZE);
-      
-      await Promise.all(
-        batch.map(async (message) => {
-          const { stats, date, ...rest } = message;
-          const messageDate = new Date(date);
-          
-          // Build the dbMessage object with all required fields
-          const dbMessage: Record<string, unknown> = {
-            ...rest,
-            date: messageDate,
-            userId: user.id,
-          };
+    // Build all upsert inputs synchronously (no DB I/O yet)
+    const messagesForDb: Prisma.MessageStatsUncheckedCreateInput[] = body.map(
+      (message) => {
+        const { stats, date, ...rest } = message;
+        const messageDate = new Date(date);
 
-          // Convert stats for database
-          if (stats.cost !== undefined && stats.cost !== null) {
-            dbMessage.cost = stats.cost;
+        const dbMessage: Record<string, unknown> = {
+          ...rest,
+          date: messageDate,
+          userId: user.id,
+        };
+
+        if (stats.cost !== undefined && stats.cost !== null) {
+          dbMessage.cost = stats.cost;
+        }
+
+        for (const field of BIG_INT_STAT_FIELDS) {
+          const value = stats[field as keyof typeof stats];
+          if (value !== undefined && value !== null) {
+            dbMessage[field] = BigInt(Math.round(Number(value)));
           }
+        }
 
-          // Process BigInt fields
-          for (const field of BIG_INT_STAT_FIELDS) {
-            const value = stats[field as keyof typeof stats];
-            if (value !== undefined && value !== null) {
-              dbMessage[field] = BigInt(Math.round(Number(value)));
-            }
-          }
+        for (const period of Periods) {
+          const periodStart = getPeriodStartForDateInTimezone(
+            period,
+            messageDate,
+            timezone
+          );
+          const key = `${period}|${message.application}|${periodStart.toISOString()}`;
+          affectedBuckets.add(key);
+        }
 
-          // Upsert the message (insert if new, update if exists)
-          await db.messageStats.upsert({
-            where: { globalHash: message.globalHash },
-            create: dbMessage as Prisma.MessageStatsUncheckedCreateInput,
-            update: dbMessage as Prisma.MessageStatsUncheckedUpdateInput,
-          });
+        return dbMessage as Prisma.MessageStatsUncheckedCreateInput;
+      }
+    );
 
-          // Track which period buckets this message affects
-          for (const period of Periods) {
-            const periodStart = getPeriodStartForDateInTimezone(
-              period,
-              messageDate,
-              timezone
-            );
-            const key = `${period}|${message.application}|${periodStart.toISOString()}`;
-            affectedBuckets.add(key);
-          }
+    mark("prepared");
+
+    // Upsert all messages in a single transaction to reduce per-message overhead.
+    // This is still one statement per message, but it avoids thousands of separate
+    // transactions/connection round trips.
+    await db.$transaction(
+      messagesForDb.map((data) =>
+        db.messageStats.upsert({
+          where: { globalHash: data.globalHash },
+          create: data,
+          update: data,
         })
-      );
-    }
+      )
+    );
+
+    mark("upserted");
 
     // Recalculate stats for each affected bucket by summing all messages
     const now = new Date();
@@ -315,6 +325,29 @@ export async function POST(request: NextRequest) {
           // Note: Upgrade to Prisma.skip when migrating to Prisma 6+
           createdAt: undefined,
         },
+      });
+    }
+
+    mark("recalculated");
+
+    if (timingEnabled()) {
+      const t1 = nowMs();
+      const totalMs = Math.round(t1 - t0);
+      const preparedMs = marks.prepared ? Math.round(marks.prepared - t0) : null;
+      const upsertedMs = marks.upserted
+        ? Math.round(marks.upserted - (marks.prepared ?? t0))
+        : null;
+      const recalculatedMs = marks.recalculated
+        ? Math.round(t1 - (marks.upserted ?? t0))
+        : null;
+
+      console.info("upload-stats timings", {
+        messages: body.length,
+        affectedBuckets: affectedBuckets.size,
+        preparedMs,
+        upsertedMs,
+        recalculatedMs,
+        totalMs,
       });
     }
 
