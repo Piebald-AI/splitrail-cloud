@@ -81,7 +81,11 @@ export async function POST(request: NextRequest) {
     } else if (
       !body.every(
         (message) =>
-          message && typeof message === "object" && "stats" in message
+          message &&
+          typeof message === "object" &&
+          "stats" in message &&
+          typeof (message as ConversationMessage).globalHash === "string" &&
+          (message as ConversationMessage).globalHash.trim().length > 0
       )
     ) {
       return NextResponse.json(
@@ -90,12 +94,31 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Deduplicate messages by globalHash within a single request.
+    // Bulk upsert uses `ON CONFLICT DO UPDATE`, which errors if the same key appears
+    // more than once in one INSERT statement.
+    const dedupedBody: ConversationMessage[] = (() => {
+      const byHash = new Map<string, ConversationMessage>();
+      for (const message of body) {
+        byHash.set(message.globalHash, message);
+      }
+      return Array.from(byHash.values());
+    })();
+
+    if (dedupedBody.length !== body.length) {
+      console.warn("upload-stats: deduplicated messages", {
+        received: body.length,
+        uniqueGlobalHash: dedupedBody.length,
+        duplicatesDropped: body.length - dedupedBody.length,
+      });
+    }
+
     // Track affected period buckets for recalculation
     // Key format: ${period}|${application}|${periodStart.toISOString()}
     const affectedBuckets = new Set<string>();
 
     // Build all upsert inputs synchronously (no DB I/O yet)
-    const messagesForDb: MessageStatsUpsertRow[] = body.map((message) => {
+    const messagesForDb: MessageStatsUpsertRow[] = dedupedBody.map((message) => {
       const { stats, date, ...rest } = message;
       const messageDate = new Date(date);
 
@@ -351,7 +374,7 @@ export async function POST(request: NextRequest) {
         : null;
 
       console.info("upload-stats timings", {
-        messages: body.length,
+        messages: dedupedBody.length,
         affectedBuckets: affectedBuckets.size,
         preparedMs,
         upsertedMs,
