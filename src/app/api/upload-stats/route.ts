@@ -13,44 +13,6 @@ import {
   type MessageStatsUpsertRow,
 } from "@/lib/message-stats-bulk-upsert";
 
-// BigInt fields that need conversion when storing messages.
-// Note: This list must stay in sync with the _sum fields in the aggregation query below.
-const BIG_INT_STAT_FIELDS = [
-  "toolCalls",
-  "inputTokens",
-  "outputTokens",
-  "cacheCreationTokens",
-  "cacheReadTokens",
-  "cachedTokens",
-  "reasoningTokens",
-  "filesRead",
-  "filesAdded",
-  "filesEdited",
-  "filesDeleted",
-  "linesRead",
-  "linesAdded",
-  "linesEdited",
-  "linesDeleted",
-  "bytesRead",
-  "bytesAdded",
-  "bytesEdited",
-  "bytesDeleted",
-  "codeLines",
-  "docsLines",
-  "dataLines",
-  "mediaLines",
-  "configLines",
-  "otherLines",
-  "terminalCommands",
-  "fileSearches",
-  "fileContentSearches",
-  "todosCreated",
-  "todosCompleted",
-  "todosInProgress",
-  "todoWrites",
-  "todoReads",
-] as const;
-
 /**
  * Handles uploading conversation messages, upserting per-message stats, and recalculating per-period user aggregates.
  *
@@ -200,54 +162,6 @@ export async function POST(request: NextRequest) {
             ? (rest.fileTypes as Prisma.InputJsonValue)
             : null) ?? null,
       };
-
-      // Process BigInt fields (except ones we set defaults for above)
-      for (const field of BIG_INT_STAT_FIELDS) {
-        if (
-          field === "reasoningTokens" ||
-          field === "todosCreated" ||
-          field === "todosCompleted" ||
-          field === "todosInProgress" ||
-          field === "todoWrites" ||
-          field === "todoReads" ||
-          field === "toolCalls" ||
-          field === "terminalCommands" ||
-          field === "fileSearches" ||
-          field === "fileContentSearches" ||
-          field === "filesRead" ||
-          field === "filesAdded" ||
-          field === "filesEdited" ||
-          field === "filesDeleted" ||
-          field === "linesRead" ||
-          field === "linesAdded" ||
-          field === "linesEdited" ||
-          field === "linesDeleted" ||
-          field === "bytesRead" ||
-          field === "bytesAdded" ||
-          field === "bytesEdited" ||
-          field === "bytesDeleted" ||
-          field === "codeLines" ||
-          field === "docsLines" ||
-          field === "dataLines" ||
-          field === "mediaLines" ||
-          field === "configLines" ||
-          field === "otherLines" ||
-          field === "inputTokens" ||
-          field === "outputTokens" ||
-          field === "cacheCreationTokens" ||
-          field === "cacheReadTokens" ||
-          field === "cachedTokens"
-        ) {
-          continue;
-        }
-
-        const value = stats[field as keyof typeof stats];
-        if (value !== undefined && value !== null) {
-          (dbMessage as Record<string, unknown>)[field] = BigInt(
-            Math.round(Number(value))
-          );
-        }
-      }
 
       for (const period of Periods) {
         const periodStart = getPeriodStartForDateInTimezone(
