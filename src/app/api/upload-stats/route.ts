@@ -65,6 +65,19 @@ export async function POST(request: NextRequest) {
 
     const body: ConversationMessage[] = await request.json();
 
+    // Deduplicate messages by globalHash within a single request.
+    // Bulk upsert uses `ON CONFLICT DO UPDATE`, which errors if the same key appears
+    // more than once in one INSERT statement.
+    const dedupedBody: ConversationMessage[] = (() => {
+      const byHash = new Map<string, ConversationMessage>();
+      for (const message of body) {
+        if (message?.globalHash) {
+          byHash.set(message.globalHash, message);
+        }
+      }
+      return Array.from(byHash.values());
+    })();
+
     const startMs = timingEnabled() ? nowMs() : 0;
     const marks: Record<string, number> = {};
     const mark = (name: string) => {
@@ -73,13 +86,13 @@ export async function POST(request: NextRequest) {
     };
 
     // Before asynchronously processing the data, validate the request.
-    if (!body || !Array.isArray(body)) {
+    if (!dedupedBody || !Array.isArray(dedupedBody)) {
       return NextResponse.json(
         { error: "Invalid request body" },
         { status: 400 }
       );
     } else if (
-      !body.every(
+      !dedupedBody.every(
         (message) =>
           message && typeof message === "object" && "stats" in message
       )
@@ -95,7 +108,7 @@ export async function POST(request: NextRequest) {
     const affectedBuckets = new Set<string>();
 
     // Build all upsert inputs synchronously (no DB I/O yet)
-    const messagesForDb: MessageStatsUpsertRow[] = body.map((message) => {
+    const messagesForDb: MessageStatsUpsertRow[] = dedupedBody.map((message) => {
       const { stats, date, ...rest } = message;
       const messageDate = new Date(date);
 
@@ -351,7 +364,7 @@ export async function POST(request: NextRequest) {
         : null;
 
       console.info("upload-stats timings", {
-        messages: body.length,
+        messages: dedupedBody.length,
         affectedBuckets: affectedBuckets.size,
         preparedMs,
         upsertedMs,
