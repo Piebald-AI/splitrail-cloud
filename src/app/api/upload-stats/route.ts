@@ -8,44 +8,10 @@ import {
 import { unsupportedMethod } from "@/lib/routeUtils";
 import { Prisma } from "@prisma/client";
 import { nowMs, timingEnabled } from "@/lib/timing";
-
-// BigInt fields that need conversion when storing messages.
-// Note: This list must stay in sync with the _sum fields in the aggregation query below.
-const BIG_INT_STAT_FIELDS = [
-  "toolCalls",
-  "inputTokens",
-  "outputTokens",
-  "cacheCreationTokens",
-  "cacheReadTokens",
-  "cachedTokens",
-  "reasoningTokens",
-  "filesRead",
-  "filesAdded",
-  "filesEdited",
-  "filesDeleted",
-  "linesRead",
-  "linesAdded",
-  "linesEdited",
-  "linesDeleted",
-  "bytesRead",
-  "bytesAdded",
-  "bytesEdited",
-  "bytesDeleted",
-  "codeLines",
-  "docsLines",
-  "dataLines",
-  "mediaLines",
-  "configLines",
-  "otherLines",
-  "terminalCommands",
-  "fileSearches",
-  "fileContentSearches",
-  "todosCreated",
-  "todosCompleted",
-  "todosInProgress",
-  "todoWrites",
-  "todoReads",
-] as const;
+import {
+  bulkUpsertMessageStatsSql,
+  type MessageStatsUpsertRow,
+} from "@/lib/message-stats-bulk-upsert";
 
 /**
  * Handles uploading conversation messages, upserting per-message stats, and recalculating per-period user aggregates.
@@ -99,7 +65,7 @@ export async function POST(request: NextRequest) {
 
     const body: ConversationMessage[] = await request.json();
 
-    const t0 = timingEnabled() ? nowMs() : 0;
+    const startMs = timingEnabled() ? nowMs() : 0;
     const marks: Record<string, number> = {};
     const mark = (name: string) => {
       if (!timingEnabled()) return;
@@ -129,56 +95,96 @@ export async function POST(request: NextRequest) {
     const affectedBuckets = new Set<string>();
 
     // Build all upsert inputs synchronously (no DB I/O yet)
-    const messagesForDb: Prisma.MessageStatsUncheckedCreateInput[] = body.map(
-      (message) => {
-        const { stats, date, ...rest } = message;
-        const messageDate = new Date(date);
+    const messagesForDb: MessageStatsUpsertRow[] = body.map((message) => {
+      const { stats, date, ...rest } = message;
+      const messageDate = new Date(date);
 
-        const dbMessage: Record<string, unknown> = {
-          ...rest,
-          date: messageDate,
-          userId: user.id,
-        };
+      const dbMessage: MessageStatsUpsertRow = {
+        globalHash: message.globalHash,
+        userId: user.id,
+        application: message.application,
+        role: message.role,
+        date: messageDate,
+        projectHash: message.projectHash,
+        conversationHash: message.conversationHash,
+        localHash: message.localHash ?? null,
+        uuid: message.uuid ?? null,
+        sessionName: message.sessionName ?? null,
 
-        if (stats.cost !== undefined && stats.cost !== null) {
-          dbMessage.cost = stats.cost;
-        }
+        inputTokens: BigInt(Math.round(Number(stats.inputTokens ?? 0))),
+        outputTokens: BigInt(Math.round(Number(stats.outputTokens ?? 0))),
+        cacheCreationTokens: BigInt(
+          Math.round(Number(stats.cacheCreationTokens ?? 0))
+        ),
+        cacheReadTokens: BigInt(Math.round(Number(stats.cacheReadTokens ?? 0))),
+        cachedTokens: BigInt(Math.round(Number(stats.cachedTokens ?? 0))),
+        reasoningTokens: BigInt(Math.round(Number(stats.reasoningTokens ?? 0))),
+        toolCalls: BigInt(Math.round(Number(stats.toolCalls ?? 0))),
 
-        for (const field of BIG_INT_STAT_FIELDS) {
-          const value = stats[field as keyof typeof stats];
-          if (value !== undefined && value !== null) {
-            dbMessage[field] = BigInt(Math.round(Number(value)));
-          }
-        }
+        terminalCommands: BigInt(Math.round(Number(stats.terminalCommands ?? 0))),
+        fileSearches: BigInt(Math.round(Number(stats.fileSearches ?? 0))),
+        fileContentSearches: BigInt(
+          Math.round(Number(stats.fileContentSearches ?? 0))
+        ),
 
-        for (const period of Periods) {
-          const periodStart = getPeriodStartForDateInTimezone(
-            period,
-            messageDate,
-            timezone
-          );
-          const key = `${period}|${message.application}|${periodStart.toISOString()}`;
-          affectedBuckets.add(key);
-        }
+        filesRead: BigInt(Math.round(Number(stats.filesRead ?? 0))),
+        filesAdded: BigInt(Math.round(Number(stats.filesAdded ?? 0))),
+        filesEdited: BigInt(Math.round(Number(stats.filesEdited ?? 0))),
+        filesDeleted: BigInt(Math.round(Number(stats.filesDeleted ?? 0))),
 
-        return dbMessage as Prisma.MessageStatsUncheckedCreateInput;
+        linesRead: BigInt(Math.round(Number(stats.linesRead ?? 0))),
+        linesAdded: BigInt(Math.round(Number(stats.linesAdded ?? 0))),
+        linesEdited: BigInt(Math.round(Number(stats.linesEdited ?? 0))),
+        linesDeleted: BigInt(Math.round(Number(stats.linesDeleted ?? 0))),
+
+        bytesRead: BigInt(Math.round(Number(stats.bytesRead ?? 0))),
+        bytesAdded: BigInt(Math.round(Number(stats.bytesAdded ?? 0))),
+        bytesEdited: BigInt(Math.round(Number(stats.bytesEdited ?? 0))),
+        bytesDeleted: BigInt(Math.round(Number(stats.bytesDeleted ?? 0))),
+
+        codeLines: BigInt(Math.round(Number(stats.codeLines ?? 0))),
+        docsLines: BigInt(Math.round(Number(stats.docsLines ?? 0))),
+        dataLines: BigInt(Math.round(Number(stats.dataLines ?? 0))),
+        mediaLines: BigInt(Math.round(Number(stats.mediaLines ?? 0))),
+        configLines: BigInt(Math.round(Number(stats.configLines ?? 0))),
+        otherLines: BigInt(Math.round(Number(stats.otherLines ?? 0))),
+
+        todosCreated: BigInt(Math.round(Number(stats.todosCreated ?? 0))),
+        todosCompleted: BigInt(Math.round(Number(stats.todosCompleted ?? 0))),
+        todosInProgress: BigInt(Math.round(Number(stats.todosInProgress ?? 0))),
+        todoWrites: BigInt(Math.round(Number(stats.todoWrites ?? 0))),
+        todoReads: BigInt(Math.round(Number(stats.todoReads ?? 0))),
+
+        cost: stats.cost ?? null,
+        model: message.model ?? null,
+        fileTypes:
+          ("fileTypes" in rest
+            ? (rest.fileTypes as Prisma.InputJsonValue)
+            : null) ?? null,
+      };
+
+      for (const period of Periods) {
+        const periodStart = getPeriodStartForDateInTimezone(
+          period,
+          messageDate,
+          timezone
+        );
+        const key = `${period}|${message.application}|${periodStart.toISOString()}`;
+        affectedBuckets.add(key);
       }
-    );
+
+      return dbMessage;
+    });
 
     mark("prepared");
 
-    // Upsert all messages in a single transaction to reduce per-message overhead.
-    // This is still one statement per message, but it avoids thousands of separate
-    // transactions/connection round trips.
-    await db.$transaction(
-      messagesForDb.map((data) =>
-        db.messageStats.upsert({
-          where: { globalHash: data.globalHash },
-          create: data,
-          update: data,
-        })
-      )
-    );
+    // Bulk upsert via Postgres INSERT .. ON CONFLICT to avoid per-row Prisma upserts.
+    // Neon/Postgres handles this efficiently; we chunk to avoid oversized SQL.
+    const BULK_UPSERT_BATCH_SIZE = 500;
+    for (let i = 0; i < messagesForDb.length; i += BULK_UPSERT_BATCH_SIZE) {
+      const batch = messagesForDb.slice(i, i + BULK_UPSERT_BATCH_SIZE);
+      await db.$executeRaw(bulkUpsertMessageStatsSql(batch));
+    }
 
     mark("upserted");
 
@@ -328,17 +334,20 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    // Emit timing breakdown once per request
     mark("recalculated");
 
     if (timingEnabled()) {
-      const t1 = nowMs();
-      const totalMs = Math.round(t1 - t0);
-      const preparedMs = marks.prepared ? Math.round(marks.prepared - t0) : null;
+      const endMs = nowMs();
+      const totalMs = Math.round(endMs - startMs);
+      const preparedMs = marks.prepared
+        ? Math.round(marks.prepared - startMs)
+        : null;
       const upsertedMs = marks.upserted
-        ? Math.round(marks.upserted - (marks.prepared ?? t0))
+        ? Math.round(marks.upserted - (marks.prepared ?? startMs))
         : null;
       const recalculatedMs = marks.recalculated
-        ? Math.round(t1 - (marks.upserted ?? t0))
+        ? Math.round(endMs - (marks.upserted ?? startMs))
         : null;
 
       console.info("upload-stats timings", {
