@@ -19,6 +19,8 @@ import { signOut } from "next-auth/react";
 import { toast } from "sonner";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { InfoIcon } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogContent,
@@ -95,6 +97,24 @@ export default function SettingsPage() {
         return data.data as UserPreferences;
       }
       throw new Error("Failed to fetch preferences");
+    },
+    enabled: !!session?.user?.id,
+  });
+
+  // Check if user has Codex CLI data (for showing gpt-5.2-codex warning)
+  const { data: hasCodexData } = useQuery({
+    queryKey: ["hasCodexData", session?.user?.id],
+    queryFn: async () => {
+      if (!session?.user?.id) return false;
+
+      const response = await fetch(
+        `/api/user/${session.user.id}/stats?timezone=UTC`
+      );
+      if (!response.ok) return false;
+
+      const data = await response.json();
+      const applications: string[] = data?.applications || [];
+      return applications.includes("codex_cli");
     },
     enabled: !!session?.user?.id,
   });
@@ -234,7 +254,22 @@ export default function SettingsPage() {
 
   return (
     <div className="container mx-auto">
-      <h1 className="text-3xl font-bold mb-12">Settings</h1>
+      <h1 className="text-3xl font-bold mb-6">Settings</h1>
+
+      {/* GPT-5.2-Codex Pricing Notice - only show for Codex CLI users */}
+      {hasCodexData && (
+        <Alert className="mb-8 border-blue-300 dark:border-blue-700 bg-blue-50 dark:bg-blue-950">
+          <InfoIcon className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+          <AlertTitle className="text-blue-800 dark:text-blue-200">
+            GPT-5.2-Codex Users
+          </AlertTitle>
+          <AlertDescription className="text-blue-700 dark:text-blue-300">
+            GPT-5.2-Codex pricing was added recently. Any data uploaded with this
+            model will show costs as $0. To fix: delete your Codex CLI data using{" "}
+            <strong>Delete Data by Date</strong> below, then re-upload.
+          </AlertDescription>
+        </Alert>
+      )}
 
       {/* CLI Integration Section */}
       <div className="mb-12 border-b border-border pb-12">
