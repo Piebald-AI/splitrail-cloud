@@ -264,9 +264,9 @@ export default function SettingsPage() {
             GPT-5.2-Codex Users
           </AlertTitle>
           <AlertDescription className="text-blue-700 dark:text-blue-300">
-            GPT-5.2-Codex pricing was added recently. Any data uploaded with this
-            model will show costs as $0. To fix: delete your Codex CLI data using{" "}
-            <strong>Delete Data by Date</strong> below, then re-upload.
+            GPT-5.2-Codex pricing was added recently. Any data uploaded with
+            this model will show costs as $0. To fix: delete your Codex CLI data
+            using <strong>Delete Data by Date</strong> below, then re-upload.
           </AlertDescription>
         </Alert>
       )}
