@@ -687,8 +687,8 @@ export default function StatsPage() {
                   You don&rsquo;t have any agentic development tool data. Once
                   you start using Claude Code / Codex CLI / Gemini CLI / Qwen
                   Code / Cline / Roo Code / Kilo Code / GitHub Copilot /
-                  OpenCode / Pi Agent / Piebald, you can get started by following these
-                  steps:
+                  OpenCode / Pi Agent / Piebald, you can get started by
+                  following these steps:
                 </p>
                 <ol className="list-decimal list-inside space-y-1 ml-2">
                   <li>

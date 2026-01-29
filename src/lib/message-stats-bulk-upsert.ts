@@ -64,11 +64,12 @@ const UPDATE_SET_SQL = Prisma.raw(
 );
 
 export function bulkUpsertMessageStatsSql(rows: MessageStatsUpsertRow[]) {
-  const valuesSql: Sql[] = rows.map((row) =>
-    Prisma.sql`(${Prisma.join(
-      COLS.map((col) => Prisma.sql`${row[col]}`),
-      ","
-    )})`
+  const valuesSql: Sql[] = rows.map(
+    (row) =>
+      Prisma.sql`(${Prisma.join(
+        COLS.map((col) => Prisma.sql`${row[col]}`),
+        ","
+      )})`
   );
 
   return Prisma.sql`

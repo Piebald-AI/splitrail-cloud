@@ -22,7 +22,8 @@ export default function HomePage() {
           >
             <Megaphone className="size-4 text-[#FF8400]" />
             <span className="text-sm font-medium">
-              <span className="text-[#FF8400]">New!</span> Piebald is now available
+              <span className="text-[#FF8400]">New!</span> Piebald is now
+              available
             </span>
             <Image
               src="/piebald.svg"
