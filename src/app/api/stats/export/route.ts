@@ -14,7 +14,7 @@ import { db } from "@/lib/db";
  * {
  *   "analyzer_stats": [
  *     {
- *       "name": "piebald",
+ *       "analyzer_name": "piebald",
  *       "daily_stats": {
  *         "2025-12-01": {
  *           "model_stats": {
@@ -30,7 +30,7 @@ import { db } from "@/lib/db";
  *       }
  *     },
  *     {
- *       "name": "claude_code",
+ *       "analyzer_name": "claude_code",
  *       "daily_stats": { ... }
  *     }
  *   ]
@@ -146,7 +146,7 @@ export async function GET(request: NextRequest) {
     };
 
     type AppStats = {
-      name: string;
+      analyzer_name: string;
       daily_stats: Record<string, DayStats>;
     };
 
@@ -160,7 +160,7 @@ export async function GET(request: NextRequest) {
       // Initialize application if not exists
       if (!appStats[appKey]) {
         appStats[appKey] = {
-          name: appKey,
+          analyzer_name: appKey,
           daily_stats: {},
         };
       }
