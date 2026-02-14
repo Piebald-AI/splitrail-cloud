@@ -580,8 +580,9 @@ export default function StatsPage() {
           <h1 className="text-2xl font-bold mb-4">Profile</h1>
           <p className="text-muted-foreground">
             No profile data found. Start using Claude Code / Codex CLI / Gemini
-            CLI / Qwen Code / Cline / Roo Code / Kilo Code / GitHub Copilot /
-            OpenCode / Pi Agent / Piebald with Splitrail to see your stats!
+            CLI / Qwen Code / Cline / Roo Code / Kilo Code / Kilo CLI / GitHub
+            Copilot / OpenCode / Pi Agent / Piebald with Splitrail to see your
+            stats!
           </p>
         </div>
       </div>
@@ -686,9 +687,9 @@ export default function StatsPage() {
                 <p>
                   You don&rsquo;t have any agentic development tool data. Once
                   you start using Claude Code / Codex CLI / Gemini CLI / Qwen
-                  Code / Cline / Roo Code / Kilo Code / GitHub Copilot /
-                  OpenCode / Pi Agent / Piebald, you can get started by
-                  following these steps:
+                  Code / Cline / Roo Code / Kilo Code / Kilo CLI / GitHub
+                  Copilot / OpenCode / Pi Agent / Piebald, you can get started
+                  by following these steps:
                 </p>
                 <ol className="list-decimal list-inside space-y-1 ml-2">
                   <li>
