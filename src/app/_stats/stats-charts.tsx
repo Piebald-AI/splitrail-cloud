@@ -24,6 +24,13 @@ import { type StatsData } from "./types";
 
 type Period = "lifetime" | "year" | "30d" | "7d" | "custom";
 type ChartType = "area" | "bar";
+type BarMetric = "tokens" | "cost" | "toolCalls";
+
+const BAR_METRIC_OPTIONS: { value: BarMetric; label: string }[] = [
+  { value: "tokens", label: "Tokens" },
+  { value: "cost", label: "Cost" },
+  { value: "toolCalls", label: "Tool Calls" },
+];
 
 const PERIOD_OPTIONS: { value: Period; label: string }[] = [
   { value: "lifetime", label: "Lifetime" },
@@ -270,6 +277,7 @@ function buildBarData(
   modelData: ModelData,
   period: Period,
   firstDataDate: string,
+  metric: BarMetric,
   customStart?: string,
   customEnd?: string
 ): { points: BarChartPoint[]; models: string[] } {
@@ -288,7 +296,7 @@ function buildBarData(
     const displayDate = d.toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
     const point: BarChartPoint = { date: dateKey, displayDate };
     models.forEach((model) => {
-      point[model] = day?.[model]?.tokens ?? 0;
+      point[model] = day?.[model]?.[metric] ?? 0;
     });
     return point;
   });
@@ -343,11 +351,13 @@ function BarTooltip({
   payload,
   label,
   modelColors,
+  formatValue,
 }: {
   active?: boolean;
   payload?: Array<{ dataKey: string; color: string; value: number }>;
   label?: string;
   modelColors: Record<string, string>;
+  formatValue: (v: number) => string;
 }) {
   if (!active || !payload?.length) return null;
   const total = payload.reduce((s, p) => s + (p.value || 0), 0);
@@ -361,13 +371,13 @@ function BarTooltip({
             <div className="h-2 w-2 shrink-0 rounded-[2px]" style={{ backgroundColor: modelColors[p.dataKey] || p.color }} />
             <span className="text-muted-foreground truncate max-w-[120px]">{p.dataKey}</span>
           </div>
-          <span className="font-mono font-medium tabular-nums">{formatLargeNumber(p.value)}</span>
+          <span className="font-mono font-medium tabular-nums">{formatValue(p.value)}</span>
         </div>
       ))}
       {total > 0 && (
         <div className="flex items-center justify-between gap-4 border-t border-border/40 pt-1 mt-0.5">
           <span className="text-muted-foreground">Total</span>
-          <span className="font-mono font-medium tabular-nums">{formatLargeNumber(total)}</span>
+          <span className="font-mono font-medium tabular-nums">{formatValue(total)}</span>
         </div>
       )}
     </div>
@@ -438,6 +448,7 @@ export function StatsCharts({
   const { data: session } = useSession();
   const [period, setPeriod] = React.useState<Period>("30d");
   const [chartType, setChartType] = React.useState<ChartType>("area");
+  const [barMetric, setBarMetric] = React.useState<BarMetric>("tokens");
   const [hiddenArea, setHiddenArea] = React.useState<Set<string>>(
     new Set(["linesNorm", "filesNorm", "terminalCommandsNorm", "searchesNorm"])
   );
@@ -490,8 +501,18 @@ export function StatsCharts({
 
   const { points: barPoints, models } = React.useMemo(() => {
     if (!modelData || allDataDates.length === 0) return { points: [], models: [] };
-    return buildBarData(modelData, period, firstDataDate, customStart, customEnd);
-  }, [modelData, period, firstDataDate, allDataDates, customStart, customEnd]);
+    return buildBarData(modelData, period, firstDataDate, barMetric, customStart, customEnd);
+  }, [modelData, period, firstDataDate, barMetric, allDataDates, customStart, customEnd]);
+
+  const barFormatValue = React.useCallback(
+    (v: number) => barMetric === "cost" ? formatConvertedCurrency(v) : formatLargeNumber(v),
+    [barMetric, formatConvertedCurrency]
+  );
+
+  const barYAxisFormatter = React.useCallback(
+    (v: number) => barMetric === "cost" ? formatConvertedCurrency(v) : formatLargeNumber(v),
+    [barMetric, formatConvertedCurrency]
+  );
 
   const modelColors = React.useMemo(() => {
     const map: Record<string, string> = {};
@@ -537,6 +558,24 @@ export function StatsCharts({
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <span className="text-sm font-medium">Activity</span>
         <div className="flex items-center gap-2 flex-wrap justify-end">
+          {/* Bar metric selector */}
+          {chartType === "bar" && (
+            <div className="flex items-center gap-1 rounded-lg border bg-muted/40 p-0.5">
+              {BAR_METRIC_OPTIONS.map((opt) => (
+                <button
+                  key={opt.value}
+                  onClick={() => setBarMetric(opt.value)}
+                  className={`rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${
+                    barMetric === opt.value
+                      ? "bg-background text-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          )}
           {/* Chart type */}
           <div className="flex items-center gap-1 rounded-lg border bg-muted/40 p-0.5">
             {(["area", "bar"] as ChartType[]).map((t) => (
@@ -630,8 +669,8 @@ export function StatsCharts({
             <BarChart data={barPoints} margin={{ top: 4, right: 4, bottom: 0, left: -24 }} barCategoryGap="20%">
               <CartesianGrid vertical={false} strokeDasharray="3 3" className="stroke-border/40" />
               <XAxis dataKey="displayDate" axisLine={false} tickLine={false} tick={{ fontSize: 11 }} interval="preserveStartEnd" className="fill-muted-foreground" />
-              <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11 }} tickFormatter={(v) => formatLargeNumber(v)} className="fill-muted-foreground" />
-              <Tooltip content={<BarTooltip modelColors={modelColors} />} />
+              <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11 }} tickFormatter={barYAxisFormatter} className="fill-muted-foreground" />
+              <Tooltip content={<BarTooltip modelColors={modelColors} formatValue={barFormatValue} />} />
               {models.map((model) =>
                 hiddenModels.has(model) ? null : (
                   <Bar key={model} dataKey={model} stackId="models" fill={modelColors[model]} isAnimationActive={false} radius={0} />
