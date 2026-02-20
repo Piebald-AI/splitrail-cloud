@@ -14,6 +14,7 @@ import { AppStatsTable } from "./_stats/app-stats-table";
 import { SetupInstructions } from "./_stats/setup-instructions";
 import { SourceBadges, type SelectedSource } from "./_stats/source-badges";
 import { TotalStatsTable } from "./_stats/total-stats-table";
+import { StatsCharts } from "./_stats/stats-charts";
 import { type StatsData } from "./_stats/types";
 import { type ApplicationType } from "@/types";
 
@@ -186,17 +187,29 @@ export default function StatsPage() {
                   formatConvertedCurrency={formatConvertedCurrency}
                 />
               )}
+              <StatsCharts
+                statsData={statsData}
+                selectedSource={selectedSource}
+                formatConvertedCurrency={formatConvertedCurrency}
+              />
               <TotalStatsTable
                 statsData={statsData}
                 formatConvertedCurrency={formatConvertedCurrency}
               />
             </>
           ) : (
-            <AppStatsTable
-              statsData={statsData}
-              selectedApp={selectedSource as ApplicationType}
-              formatConvertedCurrency={formatConvertedCurrency}
-            />
+            <>
+              <StatsCharts
+                statsData={statsData}
+                selectedSource={selectedSource}
+                formatConvertedCurrency={formatConvertedCurrency}
+              />
+              <AppStatsTable
+                statsData={statsData}
+                selectedApp={selectedSource as ApplicationType}
+                formatConvertedCurrency={formatConvertedCurrency}
+              />
+            </>
           )}
         </>
       )}
