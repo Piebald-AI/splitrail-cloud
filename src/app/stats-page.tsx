@@ -10,11 +10,10 @@ import { type User } from "@prisma/client";
 import { useQuery } from "@tanstack/react-query";
 import { convertCurrency } from "@/lib/currency";
 import { StatsOverview } from "./_stats/stats-overview";
-import { AppStatsTable } from "./_stats/app-stats-table";
 import { SetupInstructions } from "./_stats/setup-instructions";
 import { SourceBadges, type SelectedSource } from "./_stats/source-badges";
-import { TotalStatsTable } from "./_stats/total-stats-table";
 import { StatsCharts } from "./_stats/stats-charts";
+import { TotalStatsTable } from "./_stats/total-stats-table";
 import { type StatsData } from "./_stats/types";
 import { type ApplicationType } from "@/types";
 
@@ -236,18 +235,11 @@ export default function StatsPage() {
               />
             </>
           ) : (
-            <>
-              <StatsCharts
-                statsData={statsData}
-                selectedSource={selectedSource}
-                formatConvertedCurrency={formatConvertedCurrency}
-              />
-              <AppStatsTable
-                statsData={statsData}
-                selectedApp={selectedSource as ApplicationType}
-                formatConvertedCurrency={formatConvertedCurrency}
-              />
-            </>
+            <StatsCharts
+              statsData={statsData}
+              selectedSource={selectedSource}
+              formatConvertedCurrency={formatConvertedCurrency}
+            />
           )}
         </>
       )}

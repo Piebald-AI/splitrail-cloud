@@ -23,7 +23,6 @@ import { type StatsData } from "./types";
 // ---------------------------------------------------------------------------
 
 type Period = "lifetime" | "year" | "30d" | "7d" | "custom";
-type ChartType = "area" | "bar";
 type BarMetric = "tokens" | "cost" | "toolCalls";
 
 const BAR_METRIC_OPTIONS: { value: BarMetric; label: string }[] = [
@@ -447,7 +446,6 @@ export function StatsCharts({
 }) {
   const { data: session } = useSession();
   const [period, setPeriod] = React.useState<Period>("30d");
-  const [chartType, setChartType] = React.useState<ChartType>("area");
   const [barMetric, setBarMetric] = React.useState<BarMetric>("tokens");
   const [hiddenArea, setHiddenArea] = React.useState<Set<string>>(
     new Set(["linesNorm", "filesNorm", "terminalCommandsNorm", "searchesNorm"])
@@ -481,7 +479,7 @@ export function StatsCharts({
       if (json.success) return json.data as ModelData;
       throw new Error("Failed");
     },
-    enabled: !!session?.user?.id && chartType === "bar",
+    enabled: !!session?.user?.id,
     staleTime: 5 * 60 * 1000,
   });
 
@@ -558,40 +556,6 @@ export function StatsCharts({
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <span className="text-sm font-medium">Activity</span>
         <div className="flex items-center gap-2 flex-wrap justify-end">
-          {/* Bar metric selector */}
-          {chartType === "bar" && (
-            <div className="flex items-center gap-1 rounded-lg border bg-muted/40 p-0.5">
-              {BAR_METRIC_OPTIONS.map((opt) => (
-                <button
-                  key={opt.value}
-                  onClick={() => setBarMetric(opt.value)}
-                  className={`rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${
-                    barMetric === opt.value
-                      ? "bg-background text-foreground shadow-sm"
-                      : "text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  {opt.label}
-                </button>
-              ))}
-            </div>
-          )}
-          {/* Chart type */}
-          <div className="flex items-center gap-1 rounded-lg border bg-muted/40 p-0.5">
-            {(["area", "bar"] as ChartType[]).map((t) => (
-              <button
-                key={t}
-                onClick={() => setChartType(t)}
-                className={`rounded-md px-2.5 py-1 text-xs font-medium capitalize transition-colors ${
-                  chartType === t
-                    ? "bg-background text-foreground shadow-sm"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                {t}
-              </button>
-            ))}
-          </div>
           {/* Period */}
           <div className="flex items-center gap-1 rounded-lg border bg-muted/40 p-0.5">
             {PERIOD_OPTIONS.map((opt) => (
@@ -634,57 +598,69 @@ export function StatsCharts({
         </div>
       )}
 
-      {/* Area chart */}
-      {chartType === "area" && (
-        <>
-          <ChartContainer config={AREA_CHART_CONFIG} className="h-56 w-full aspect-auto">
-            <AreaChart data={areaData} margin={{ top: 4, right: 4, bottom: 0, left: -24 }}>
-              <defs>
-                {AREA_SERIES.map((s) => (
-                  <linearGradient key={s.key} id={`grad-${s.key}`} x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor={s.color} stopOpacity={0.25} />
-                    <stop offset="95%" stopColor={s.color} stopOpacity={0.02} />
-                  </linearGradient>
-                ))}
-              </defs>
-              <CartesianGrid vertical={false} strokeDasharray="3 3" className="stroke-border/40" />
-              <XAxis dataKey="displayDate" axisLine={false} tickLine={false} tick={{ fontSize: 11 }} interval="preserveStartEnd" className="fill-muted-foreground" />
-              <YAxis domain={[0, 100]} axisLine={false} tickLine={false} tick={{ fontSize: 11 }} tickFormatter={(v) => `${v}%`} className="fill-muted-foreground" />
-              <Tooltip content={<AreaTooltip formatConvertedCurrency={formatConvertedCurrency} hidden={hiddenArea} />} />
-              {AREA_SERIES.map((s) =>
-                hiddenArea.has(s.normKey) ? null : (
-                  <Area key={s.key} type="monotone" dataKey={s.normKey} name={s.label} stroke={s.color} strokeWidth={1.5} fill={`url(#grad-${s.key})`} dot={false} activeDot={{ r: 3, strokeWidth: 0 }} isAnimationActive={false} />
-                )
-              )}
-            </AreaChart>
-          </ChartContainer>
-          <AreaLegend hidden={hiddenArea} onToggle={toggleArea} />
-        </>
-      )}
-
-      {/* Bar chart */}
-      {chartType === "bar" && (
-        <>
-          <ChartContainer config={barConfig} className="h-56 w-full aspect-auto">
-            <BarChart data={barPoints} margin={{ top: 4, right: 4, bottom: 0, left: -24 }} barCategoryGap="20%">
-              <CartesianGrid vertical={false} strokeDasharray="3 3" className="stroke-border/40" />
-              <XAxis dataKey="displayDate" axisLine={false} tickLine={false} tick={{ fontSize: 11 }} interval="preserveStartEnd" className="fill-muted-foreground" />
-              <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11 }} tickFormatter={barYAxisFormatter} className="fill-muted-foreground" />
-              <Tooltip content={<BarTooltip modelColors={modelColors} formatValue={barFormatValue} />} />
-              {models.map((model) =>
-                hiddenModels.has(model) ? null : (
-                  <Bar key={model} dataKey={model} stackId="models" fill={modelColors[model]} isAnimationActive={false} radius={0} />
-                )
-              )}
-            </BarChart>
-          </ChartContainer>
-          {models.length > 0 ? (
-            <BarLegend models={models} modelColors={modelColors} hidden={hiddenModels} onToggle={toggleModel} />
-          ) : (
-            <p className="text-xs text-muted-foreground text-center py-2">No model data for this period.</p>
+      {/* Area chart — always visible */}
+      <ChartContainer config={AREA_CHART_CONFIG} className="h-56 w-full aspect-auto">
+        <AreaChart data={areaData} margin={{ top: 4, right: 4, bottom: 0, left: -24 }}>
+          <defs>
+            {AREA_SERIES.map((s) => (
+              <linearGradient key={s.key} id={`grad-${s.key}`} x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor={s.color} stopOpacity={0.25} />
+                <stop offset="95%" stopColor={s.color} stopOpacity={0.02} />
+              </linearGradient>
+            ))}
+          </defs>
+          <CartesianGrid vertical={false} strokeDasharray="3 3" className="stroke-border/40" />
+          <XAxis dataKey="displayDate" axisLine={false} tickLine={false} tick={{ fontSize: 11 }} interval="preserveStartEnd" className="fill-muted-foreground" />
+          <YAxis domain={[0, 100]} axisLine={false} tickLine={false} tick={{ fontSize: 11 }} tickFormatter={(v) => `${v}%`} className="fill-muted-foreground" />
+          <Tooltip content={<AreaTooltip formatConvertedCurrency={formatConvertedCurrency} hidden={hiddenArea} />} />
+          {AREA_SERIES.map((s) =>
+            hiddenArea.has(s.normKey) ? null : (
+              <Area key={s.key} type="monotone" dataKey={s.normKey} name={s.label} stroke={s.color} strokeWidth={1.5} fill={`url(#grad-${s.key})`} dot={false} activeDot={{ r: 3, strokeWidth: 0 }} isAnimationActive={false} />
+            )
           )}
-        </>
-      )}
+        </AreaChart>
+      </ChartContainer>
+      <AreaLegend hidden={hiddenArea} onToggle={toggleArea} />
+
+      {/* Model breakdown */}
+      <div className="border-t border-border/40 pt-3 mt-1">
+        <div className="flex items-center justify-between gap-2 flex-wrap mb-3">
+          <span className="text-sm font-medium">Model breakdown</span>
+          <div className="flex items-center gap-1 rounded-lg border bg-muted/40 p-0.5">
+            {BAR_METRIC_OPTIONS.map((opt) => (
+              <button
+                key={opt.value}
+                onClick={() => setBarMetric(opt.value)}
+                className={`rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${
+                  barMetric === opt.value
+                    ? "bg-background text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        </div>
+        <ChartContainer config={barConfig} className="h-56 w-full aspect-auto">
+          <BarChart data={barPoints} margin={{ top: 4, right: 4, bottom: 0, left: -24 }} barCategoryGap="20%">
+            <CartesianGrid vertical={false} strokeDasharray="3 3" className="stroke-border/40" />
+            <XAxis dataKey="displayDate" axisLine={false} tickLine={false} tick={{ fontSize: 11 }} interval="preserveStartEnd" className="fill-muted-foreground" />
+            <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11 }} tickFormatter={barYAxisFormatter} className="fill-muted-foreground" />
+            <Tooltip content={<BarTooltip modelColors={modelColors} formatValue={barFormatValue} />} />
+            {models.map((model) =>
+              hiddenModels.has(model) ? null : (
+                <Bar key={model} dataKey={model} stackId="models" fill={modelColors[model]} isAnimationActive={false} radius={0} />
+              )
+            )}
+          </BarChart>
+        </ChartContainer>
+        {models.length > 0 ? (
+          <BarLegend models={models} modelColors={modelColors} hidden={hiddenModels} onToggle={toggleModel} />
+        ) : (
+          <p className="text-xs text-muted-foreground text-center py-2">No model data for this period.</p>
+        )}
+      </div>
     </div>
   );
 }
