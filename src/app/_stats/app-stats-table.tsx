@@ -5,7 +5,6 @@ import { format } from "date-fns";
 import { TZDateMini } from "@date-fns/tz";
 import { cn, formatLargeNumber } from "@/lib/utils";
 import { ApplicationType } from "@/types";
-import { ALL_APPLICATIONS, APPLICATION_LABELS } from "@/lib/application-config";
 import {
   ColumnDef,
   SortingState,
@@ -15,7 +14,6 @@ import {
   useReactTable,
 } from "@tanstack/react-table";
 import { ChevronDown, ChevronUp } from "lucide-react";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Table,
   TableBody,
@@ -244,18 +242,14 @@ function createColumns(
 
 export function AppStatsTable({
   statsData,
+  selectedApp,
   formatConvertedCurrency,
 }: {
   statsData: StatsData;
+  selectedApp: ApplicationType;
   formatConvertedCurrency: (amount: number) => string;
 }) {
-  const [selectedApp, setSelectedApp] =
-    React.useState<ApplicationType>("claude_code");
   const [sorting, setSorting] = React.useState<SortingState>([]);
-
-  const hasAnyData =
-    statsData?.stats && Object.keys(statsData.stats).length > 0;
-  const applicationsToShow = hasAnyData ? ALL_APPLICATIONS : [];
 
   const appStats = React.useMemo(
     () => getStatsForApplication(statsData, selectedApp),
@@ -316,136 +310,106 @@ export function AppStatsTable({
     state: { sorting },
   });
 
-  // Sync selectedApp if current selection has no data
-  if (
-    applicationsToShow.length > 0 &&
-    !applicationsToShow.includes(selectedApp)
-  ) {
-    setSelectedApp(applicationsToShow[0]);
-  }
-
   const models = totalsRow?.models || [];
 
   return (
-    <Tabs
-      value={selectedApp}
-      onValueChange={(value) => setSelectedApp(value as ApplicationType)}
-      className="w-full"
-    >
-      <TabsList className="flex-wrap h-auto gap-1 mb-1">
-        {applicationsToShow.map((app) => {
-          const totalConversations = Number(
-            statsData.stats?.totals?.[app]?.conversations || 0
-          );
-          return (
-            <TabsTrigger key={app} value={app} className="text-xs gap-1.5">
-              {APPLICATION_LABELS[app]}
-              <span className="font-mono opacity-60">{totalConversations}</span>
-            </TabsTrigger>
-          );
-        })}
-      </TabsList>
-
-      <TabsContent value={selectedApp}>
-        <div className="overflow-hidden rounded-md border">
-          <Table>
-            <TableHeader>
-              {table.getHeaderGroups().map((headerGroup) => (
-                <TableRow key={headerGroup.id}>
-                  {headerGroup.headers.map((header) => (
-                    <TableHead key={header.id}>
-                      {header.isPlaceholder ? null : (
-                        <div
-                          className={
-                            header.column.getCanSort()
-                              ? "cursor-pointer flex items-center gap-x-1"
-                              : ""
-                          }
-                          onClick={header.column.getToggleSortingHandler()}
-                        >
-                          {flexRender(
-                            header.column.columnDef.header,
-                            header.getContext()
-                          )}
-                          {header.column.getIsSorted() === "asc" && (
-                            <ChevronUp className="size-4" />
-                          )}
-                          {header.column.getIsSorted() === "desc" && (
-                            <ChevronDown className="size-4" />
-                          )}
-                        </div>
+    <div className="overflow-hidden rounded-md border">
+      <Table>
+        <TableHeader>
+          {table.getHeaderGroups().map((headerGroup) => (
+            <TableRow key={headerGroup.id}>
+              {headerGroup.headers.map((header) => (
+                <TableHead key={header.id}>
+                  {header.isPlaceholder ? null : (
+                    <div
+                      className={
+                        header.column.getCanSort()
+                          ? "cursor-pointer flex items-center gap-x-1"
+                          : ""
+                      }
+                      onClick={header.column.getToggleSortingHandler()}
+                    >
+                      {flexRender(
+                        header.column.columnDef.header,
+                        header.getContext()
                       )}
-                    </TableHead>
-                  ))}
-                </TableRow>
+                      {header.column.getIsSorted() === "asc" && (
+                        <ChevronUp className="size-4" />
+                      )}
+                      {header.column.getIsSorted() === "desc" && (
+                        <ChevronDown className="size-4" />
+                      )}
+                    </div>
+                  )}
+                </TableHead>
               ))}
-            </TableHeader>
-            <TableBody>
-              {table.getRowModel().rows?.length ? (
-                table.getRowModel().rows.map((row) => (
-                  <TableRow
-                    key={row.id}
-                    className={row.original.isEmpty ? "opacity-50" : ""}
-                  >
-                    {row.getVisibleCells().map((cell) => (
-                      <TableCell key={cell.id}>
-                        {flexRender(
-                          cell.column.columnDef.cell,
-                          cell.getContext()
-                        )}
-                      </TableCell>
-                    ))}
-                  </TableRow>
-                ))
-              ) : (
-                <TableRow>
-                  <TableCell
-                    colSpan={columns.length}
-                    className="h-24 text-center"
-                  >
-                    No results.
+            </TableRow>
+          ))}
+        </TableHeader>
+        <TableBody>
+          {table.getRowModel().rows?.length ? (
+            table.getRowModel().rows.map((row) => (
+              <TableRow
+                key={row.id}
+                className={row.original.isEmpty ? "opacity-50" : ""}
+              >
+                {row.getVisibleCells().map((cell) => (
+                  <TableCell key={cell.id}>
+                    {flexRender(
+                      cell.column.columnDef.cell,
+                      cell.getContext()
+                    )}
                   </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-            {totalsRow && (
-              <TableFooter>
-                <TableRow>
-                  <TableCell className="font-medium">
-                    Total ({appStats.length}d)
-                  </TableCell>
-                  <TableCell className="font-mono text-amber-600 dark:text-amber-400">
-                    {formatConvertedCurrency(totalsRow.cost || 0)}
-                  </TableCell>
-                  <TableCell>
-                    {formatLargeNumber(totalsRow.cachedTokens || 0)}
-                  </TableCell>
-                  <TableCell>
-                    {formatLargeNumber(totalsRow.inputTokens || 0)}
-                  </TableCell>
-                  <TableCell>
-                    {formatLargeNumber(totalsRow.outputTokens || 0)}
-                  </TableCell>
-                  <TableCell>
-                    {formatLargeNumber(totalsRow.reasoningTokens || 0)}
-                  </TableCell>
-                  <TableCell>
-                    {formatLargeNumber(totalsRow.conversations || 0)}
-                  </TableCell>
-                  <TableCell className="text-green-600">
-                    {formatLargeNumber(totalsRow.toolCalls || 0)}
-                  </TableCell>
-                  <TableCell>
-                    {formatLargeNumber(totalsRow.linesAdded || 0)}/
-                    {formatLargeNumber(totalsRow.linesEdited || 0)}
-                  </TableCell>
-                  <TableCell>{models.join(", ")}</TableCell>
-                </TableRow>
-              </TableFooter>
-            )}
-          </Table>
-        </div>
-      </TabsContent>
-    </Tabs>
+                ))}
+              </TableRow>
+            ))
+          ) : (
+            <TableRow>
+              <TableCell
+                colSpan={columns.length}
+                className="h-24 text-center"
+              >
+                No results.
+              </TableCell>
+            </TableRow>
+          )}
+        </TableBody>
+        {totalsRow && (
+          <TableFooter>
+            <TableRow>
+              <TableCell className="font-medium">
+                Total ({appStats.length}d)
+              </TableCell>
+              <TableCell className="font-mono text-amber-600 dark:text-amber-400">
+                {formatConvertedCurrency(totalsRow.cost || 0)}
+              </TableCell>
+              <TableCell>
+                {formatLargeNumber(totalsRow.cachedTokens || 0)}
+              </TableCell>
+              <TableCell>
+                {formatLargeNumber(totalsRow.inputTokens || 0)}
+              </TableCell>
+              <TableCell>
+                {formatLargeNumber(totalsRow.outputTokens || 0)}
+              </TableCell>
+              <TableCell>
+                {formatLargeNumber(totalsRow.reasoningTokens || 0)}
+              </TableCell>
+              <TableCell>
+                {formatLargeNumber(totalsRow.conversations || 0)}
+              </TableCell>
+              <TableCell className="text-green-600">
+                {formatLargeNumber(totalsRow.toolCalls || 0)}
+              </TableCell>
+              <TableCell>
+                {formatLargeNumber(totalsRow.linesAdded || 0)}/
+                {formatLargeNumber(totalsRow.linesEdited || 0)}
+              </TableCell>
+              <TableCell>{models.join(", ")}</TableCell>
+            </TableRow>
+          </TableFooter>
+        )}
+      </Table>
+    </div>
   );
 }

@@ -9,14 +9,18 @@ import { type UserPreferences } from "@/types";
 import { type User } from "@prisma/client";
 import { useQuery } from "@tanstack/react-query";
 import { convertCurrency } from "@/lib/currency";
-import Link from "next/link";
 import { StatsOverview } from "./_stats/stats-overview";
 import { AppStatsTable } from "./_stats/app-stats-table";
 import { SetupInstructions } from "./_stats/setup-instructions";
+import { SourceBadges, type SelectedSource } from "./_stats/source-badges";
+import { TotalStatsTable } from "./_stats/total-stats-table";
 import { type StatsData } from "./_stats/types";
+import { type ApplicationType } from "@/types";
 
 export default function StatsPage() {
   const { data: session, status } = useSession();
+  const [selectedSource, setSelectedSource] =
+    React.useState<SelectedSource>("total");
 
   const { data: preferences } = useQuery<UserPreferences>({
     queryKey: ["preferences", session?.user?.id],
@@ -158,43 +162,42 @@ export default function StatsPage() {
 
   return (
     <div className="flex flex-col gap-y-8">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">
-            Activity Dashboard
-          </h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            Your agentic development tool usage across all applications
-          </p>
-        </div>
-        <Link
-          className="text-sm text-primary hover:underline shrink-0 hidden sm:block mt-1"
-          href="/leaderboard"
-        >
-          {preferences?.publicProfile
-            ? "View on Leaderboard →"
-            : "View Leaderboard →"}
-        </Link>
-      </div>
-
-      {grandTotal && (
-        <StatsOverview
-          grandTotal={grandTotal}
-          formatConvertedCurrency={formatConvertedCurrency}
-        />
-      )}
 
       {statsData?.stats === null ? (
         <SetupInstructions />
       ) : statsData === undefined ? (
-        <div className="flex items-center justify-center py-8">
+        <div className="flex items-center justify-center py-4">
           <Spinner size="default" />
         </div>
       ) : (
-        <AppStatsTable
-          statsData={statsData}
-          formatConvertedCurrency={formatConvertedCurrency}
-        />
+        <>
+          <SourceBadges
+            statsData={statsData}
+            selectedSource={selectedSource}
+            onSelectSource={setSelectedSource}
+          />
+
+          {selectedSource === "total" ? (
+            <>
+              {grandTotal && (
+                <StatsOverview
+                  grandTotal={grandTotal}
+                  formatConvertedCurrency={formatConvertedCurrency}
+                />
+              )}
+              <TotalStatsTable
+                statsData={statsData}
+                formatConvertedCurrency={formatConvertedCurrency}
+              />
+            </>
+          ) : (
+            <AppStatsTable
+              statsData={statsData}
+              selectedApp={selectedSource as ApplicationType}
+              formatConvertedCurrency={formatConvertedCurrency}
+            />
+          )}
+        </>
       )}
     </div>
   );

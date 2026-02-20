@@ -14,7 +14,7 @@ const Main = ({ children }: { children: React.ReactNode }) => {
         "h-full",
         pathname === "/" && !session
           ? ""
-          : "min-h-0 overflow-auto container mx-auto px-6 py-12 flex-col"
+          : "min-h-0 overflow-auto container mx-auto px-3 py-4 flex-col"
       )}
     >
       {children}
