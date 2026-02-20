@@ -9,17 +9,34 @@ import {
   WholeWord,
 } from "lucide-react";
 import { StatCard } from "./stat-card";
-import { type GrandTotal } from "./types";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { type DayStat, type GrandTotal } from "./types";
 
 const utc = (date: string) => new TZDateMini(date, "UTC");
 
 export function StatsOverview({
   grandTotal,
+  appTotals,
   formatConvertedCurrency,
 }: {
   grandTotal: GrandTotal;
+  appTotals: Record<string, DayStat>;
   formatConvertedCurrency: (amount: number) => string;
 }) {
+  const sortedAppLabels = Object.entries(appTotals)
+    .filter(([, total]) => Number(total.conversations ?? 0) > 0)
+    .sort(
+      ([, a], [, b]) => Number(b.conversations ?? 0) - Number(a.conversations ?? 0)
+    )
+    .map(([app]) => APPLICATION_LABELS[app as keyof typeof APPLICATION_LABELS] ?? app);
+
+  const fallbackLabels = grandTotal.applications.map(
+    (app) => APPLICATION_LABELS[app as keyof typeof APPLICATION_LABELS] ?? app
+  );
+  const appLabels = sortedAppLabels.length > 0 ? sortedAppLabels : fallbackLabels;
+  const visibleAppLabels = appLabels.slice(0, 2);
+  const remainingAppLabels = appLabels.slice(2);
+
   return (
     <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-3">
       <StatCard
@@ -55,9 +72,28 @@ export function StatsOverview({
         label="Applications"
         value={formatLargeNumber(grandTotal.numApps)}
         info={
-          grandTotal.applications
-            .map((app) => APPLICATION_LABELS[app as keyof typeof APPLICATION_LABELS])
-            .join(", ") || ""
+          appLabels.length === 0 ? (
+            ""
+          ) : (
+            <>
+              {visibleAppLabels.join(", ")}
+              {remainingAppLabels.length > 0 && (
+                <>
+                  {" "}
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span className="cursor-help underline decoration-dotted underline-offset-2">
+                        +{remainingAppLabels.length} more
+                      </span>
+                    </TooltipTrigger>
+                    <TooltipContent side="top" sideOffset={6}>
+                      {remainingAppLabels.join(", ")}
+                    </TooltipContent>
+                  </Tooltip>
+                </>
+              )}
+            </>
+          )
         }
         accent="teal"
       />

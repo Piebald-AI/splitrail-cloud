@@ -1,5 +1,6 @@
 import { cn } from "@/lib/utils";
 import { type LucideIcon } from "lucide-react";
+import { type ReactNode } from "react";
 
 type StatCardAccent = "violet" | "amber" | "emerald" | "sky" | "teal";
 
@@ -29,7 +30,7 @@ export function StatCard({
   Icon: LucideIcon;
   label: string;
   value: string;
-  info?: string;
+  info?: ReactNode;
   accent?: StatCardAccent;
 }) {
   return (

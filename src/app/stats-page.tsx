@@ -182,6 +182,7 @@ export default function StatsPage() {
               {grandTotal && (
                 <StatsOverview
                   grandTotal={grandTotal}
+                  appTotals={statsData.stats.totals}
                   formatConvertedCurrency={formatConvertedCurrency}
                 />
               )}
