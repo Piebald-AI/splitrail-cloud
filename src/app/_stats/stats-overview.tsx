@@ -18,7 +18,6 @@ import {
 } from "lucide-react";
 import { StatCard } from "./stat-card";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { Button } from "@/components/ui/button";
 import { type DayStat, type GrandTotal } from "./types";
 
 const utc = (date: string) => new TZDateMini(date, "UTC");
@@ -133,21 +132,21 @@ export function StatsOverview({
         />
       </div>
 
-      <div className="flex justify-end">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => setShowAdvancedInsights((prev) => !prev)}
-          className="gap-2"
-        >
-          {showAdvancedInsights ? "Hide advanced insights" : "Show advanced insights"}
+      <button
+        onClick={() => setShowAdvancedInsights((prev) => !prev)}
+        className="flex w-full items-center gap-3 text-muted-foreground/50 hover:text-muted-foreground/80 transition-colors group py-0.5"
+      >
+        <span className="h-px flex-1 bg-border/40 group-hover:bg-border/70 transition-colors" />
+        <span className="flex items-center gap-1.5 text-[11px] font-medium tracking-widest uppercase select-none">
+          Advanced Insights
           {showAdvancedInsights ? (
-            <ChevronUp className="size-4" />
+            <ChevronUp className="size-3" />
           ) : (
-            <ChevronDown className="size-4" />
+            <ChevronDown className="size-3" />
           )}
-        </Button>
-      </div>
+        </span>
+        <span className="h-px flex-1 bg-border/40 group-hover:bg-border/70 transition-colors" />
+      </button>
 
       {showAdvancedInsights && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
