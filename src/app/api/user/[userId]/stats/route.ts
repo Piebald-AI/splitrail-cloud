@@ -33,8 +33,17 @@ export async function GET(
         input_tokens: Prisma.Decimal;
         output_tokens: Prisma.Decimal;
         reasoning_tokens: Prisma.Decimal;
+        cache_creation_tokens: Prisma.Decimal;
+        cache_read_tokens: Prisma.Decimal;
         conversations: bigint;
         tool_calls: Prisma.Decimal;
+        terminal_commands: Prisma.Decimal;
+        file_searches: Prisma.Decimal;
+        file_content_searches: Prisma.Decimal;
+        files_read: Prisma.Decimal;
+        files_added: Prisma.Decimal;
+        files_edited: Prisma.Decimal;
+        files_deleted: Prisma.Decimal;
         lines_read: Prisma.Decimal;
         lines_edited: Prisma.Decimal;
         lines_added: Prisma.Decimal;
@@ -86,7 +95,16 @@ export async function GET(
             SUM("inputTokens") AS input_tokens,
             SUM("outputTokens") AS output_tokens,
             SUM("reasoningTokens") AS reasoning_tokens,
+            SUM("cacheCreationTokens") AS cache_creation_tokens,
+            SUM("cacheReadTokens") AS cache_read_tokens,
             SUM("toolCalls") AS tool_calls,
+            SUM("terminalCommands") AS terminal_commands,
+            SUM("fileSearches") AS file_searches,
+            SUM("fileContentSearches") AS file_content_searches,
+            SUM("filesRead") AS files_read,
+            SUM("filesAdded") AS files_added,
+            SUM("filesEdited") AS files_edited,
+            SUM("filesDeleted") AS files_deleted,
             SUM("linesRead") AS lines_read,
             SUM("linesEdited") AS lines_edited,
             SUM("linesAdded") AS lines_added,
@@ -107,8 +125,17 @@ export async function GET(
           s.input_tokens,
           s.output_tokens,
           s.reasoning_tokens,
+          s.cache_creation_tokens,
+          s.cache_read_tokens,
           COALESCE(c.conversations, s.conversations_set, 0) AS conversations,
           s.tool_calls,
+          s.terminal_commands,
+          s.file_searches,
+          s.file_content_searches,
+          s.files_read,
+          s.files_added,
+          s.files_edited,
+          s.files_deleted,
           s.lines_read,
           s.lines_edited,
           s.lines_added,
@@ -138,9 +165,19 @@ export async function GET(
         inputTokens: number;
         outputTokens: number;
         cachedTokens: number;
+        cacheCreationTokens: number;
+        cacheReadTokens: number;
+        reasoningTokens: number;
         tokens?: number;
         conversations: number;
         toolCalls: number;
+        terminalCommands: number;
+        fileSearches: number;
+        fileContentSearches: number;
+        filesRead: number;
+        filesAdded: number;
+        filesEdited: number;
+        filesDeleted: number;
         linesRead: number;
         linesAdded: number;
         linesEdited: number;
@@ -162,6 +199,9 @@ export async function GET(
             inputTokens: n(r.input_tokens),
             outputTokens: n(r.output_tokens),
             cachedTokens: n(r.cached_tokens),
+            cacheCreationTokens: n(r.cache_creation_tokens),
+            cacheReadTokens: n(r.cache_read_tokens),
+            reasoningTokens: n(r.reasoning_tokens),
             tokens: n(
               Prisma.Decimal.sum(
                 r.input_tokens,
@@ -172,6 +212,13 @@ export async function GET(
             ),
             conversations: Number(r.conversations),
             toolCalls: n(r.tool_calls),
+            terminalCommands: n(r.terminal_commands),
+            fileSearches: n(r.file_searches),
+            fileContentSearches: n(r.file_content_searches),
+            filesRead: n(r.files_read),
+            filesAdded: n(r.files_added),
+            filesEdited: n(r.files_edited),
+            filesDeleted: n(r.files_deleted),
             linesRead: n(r.lines_read),
             linesAdded: n(r.lines_added),
             linesEdited: n(r.lines_edited),
@@ -199,8 +246,17 @@ export async function GET(
             outputTokens: n(r.output_tokens),
             cachedTokens: n(r.cached_tokens),
             reasoningTokens: n(r.reasoning_tokens),
+            cacheCreationTokens: n(r.cache_creation_tokens),
+            cacheReadTokens: n(r.cache_read_tokens),
             conversations: n(r.conversations),
             toolCalls: n(r.tool_calls),
+            terminalCommands: n(r.terminal_commands),
+            fileSearches: n(r.file_searches),
+            fileContentSearches: n(r.file_content_searches),
+            filesRead: n(r.files_read),
+            filesAdded: n(r.files_added),
+            filesEdited: n(r.files_edited),
+            filesDeleted: n(r.files_deleted),
             linesRead: n(r.lines_read),
             linesAdded: n(r.lines_added),
             linesEdited: n(r.lines_edited),
@@ -217,6 +273,15 @@ export async function GET(
             reasoningTokens: n(r.reasoning_tokens),
             conversations: n(r.conversations),
             toolCalls: n(r.tool_calls),
+            cacheCreationTokens: n(r.cache_creation_tokens),
+            cacheReadTokens: n(r.cache_read_tokens),
+            terminalCommands: n(r.terminal_commands),
+            fileSearches: n(r.file_searches),
+            fileContentSearches: n(r.file_content_searches),
+            filesRead: n(r.files_read),
+            filesAdded: n(r.files_added),
+            filesEdited: n(r.files_edited),
+            filesDeleted: n(r.files_deleted),
             linesRead: n(r.lines_read),
             linesAdded: n(r.lines_added),
             linesEdited: n(r.lines_edited),

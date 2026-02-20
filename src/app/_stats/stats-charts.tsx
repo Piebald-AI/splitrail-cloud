@@ -22,7 +22,7 @@ import { type StatsData } from "./types";
 // Types & constants
 // ---------------------------------------------------------------------------
 
-type Period = "lifetime" | "year" | "30d" | "7d";
+type Period = "lifetime" | "year" | "30d" | "7d" | "custom";
 type ChartType = "area" | "bar";
 
 const PERIOD_OPTIONS: { value: Period; label: string }[] = [
@@ -30,6 +30,7 @@ const PERIOD_OPTIONS: { value: Period; label: string }[] = [
   { value: "year", label: "This year" },
   { value: "30d", label: "Last 30 days" },
   { value: "7d", label: "Last 7 days" },
+  { value: "custom", label: "Custom" },
 ];
 
 const AREA_SERIES = [
@@ -37,6 +38,9 @@ const AREA_SERIES = [
   { key: "cost" as const, normKey: "costNorm" as const, label: "Cost", color: "var(--chart-2)" },
   { key: "toolCalls" as const, normKey: "toolCallsNorm" as const, label: "Tool Calls", color: "var(--chart-3)" },
   { key: "lines" as const, normKey: "linesNorm" as const, label: "Lines", color: "var(--chart-4)" },
+  { key: "files" as const, normKey: "filesNorm" as const, label: "Files", color: "var(--chart-5)" },
+  { key: "terminalCommands" as const, normKey: "terminalCommandsNorm" as const, label: "Terminal", color: "#8b5cf6" },
+  { key: "searches" as const, normKey: "searchesNorm" as const, label: "Searches", color: "#10b981" },
 ] as const;
 
 const AREA_CHART_CONFIG: ChartConfig = {
@@ -44,6 +48,9 @@ const AREA_CHART_CONFIG: ChartConfig = {
   costNorm: { label: "Cost", color: "var(--chart-2)" },
   toolCallsNorm: { label: "Tool Calls", color: "var(--chart-3)" },
   linesNorm: { label: "Lines", color: "var(--chart-4)" },
+  filesNorm: { label: "Files", color: "var(--chart-5)" },
+  terminalCommandsNorm: { label: "Terminal", color: "#8b5cf6" },
+  searchesNorm: { label: "Searches", color: "#10b981" },
 };
 
 // Palette for dynamic model colors
@@ -68,12 +75,27 @@ function toUTCDateKey(d: Date): string {
   return `${d.toISOString().split("T")[0]}T00:00:00.000Z`;
 }
 
-function getDateRange(period: Period, firstDataDate: string): string[] {
+function getDateRange(
+  period: Period,
+  firstDataDate: string,
+  customStart?: string,
+  customEnd?: string
+): string[] {
   const now = new Date();
   const today = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
 
   let start: Date;
-  if (period === "lifetime") {
+  let end: Date = today;
+
+  if (period === "custom" && customStart && customEnd) {
+    start = new Date(customStart + "T00:00:00.000Z");
+    end = new Date(customEnd + "T00:00:00.000Z");
+    if (isNaN(start.getTime()) || isNaN(end.getTime()) || start > end) {
+      start = new Date(today);
+      start.setUTCDate(start.getUTCDate() - 29);
+      end = today;
+    }
+  } else if (period === "lifetime") {
     start = new Date(firstDataDate);
   } else if (period === "year") {
     start = new Date(Date.UTC(today.getUTCFullYear(), 0, 1));
@@ -88,7 +110,7 @@ function getDateRange(period: Period, firstDataDate: string): string[] {
 
   const dates: string[] = [];
   const cursor = new Date(start);
-  while (cursor <= today) {
+  while (cursor <= end) {
     dates.push(toUTCDateKey(cursor));
     cursor.setUTCDate(cursor.getUTCDate() + 1);
   }
@@ -106,6 +128,9 @@ type RawDataPoint = {
   cost: number;
   toolCalls: number;
   lines: number;
+  files: number;
+  terminalCommands: number;
+  searches: number;
 };
 
 type AreaChartPoint = RawDataPoint & {
@@ -113,12 +138,17 @@ type AreaChartPoint = RawDataPoint & {
   costNorm: number;
   toolCallsNorm: number;
   linesNorm: number;
+  filesNorm: number;
+  terminalCommandsNorm: number;
+  searchesNorm: number;
 };
 
 function buildAreaData(
   statsData: StatsData,
   selectedSource: "total" | ApplicationType,
-  period: Period
+  period: Period,
+  customStart?: string,
+  customEnd?: string
 ): AreaChartPoint[] {
   if (!statsData?.stats) return [];
 
@@ -128,11 +158,17 @@ function buildAreaData(
 
   if (allDataDates.length === 0) return [];
 
-  const dates = getDateRange(period, allDataDates[0]);
+  const dates = getDateRange(period, allDataDates[0], customStart, customEnd);
 
   const raw: RawDataPoint[] = dates.map((dateKey) => {
     const dayData = statsData.stats[dateKey];
-    let tokens = 0, cost = 0, toolCalls = 0, lines = 0;
+    let tokens = 0,
+      cost = 0,
+      toolCalls = 0,
+      lines = 0,
+      files = 0,
+      terminalCommands = 0,
+      searches = 0;
 
     if (dayData) {
       if (selectedSource === "total") {
@@ -149,6 +185,15 @@ function buildAreaData(
               (Number(appStat.linesRead) || 0) +
               (Number(appStat.linesAdded) || 0) +
               (Number(appStat.linesEdited) || 0);
+            files +=
+              (Number(appStat.filesRead) || 0) +
+              (Number(appStat.filesAdded) || 0) +
+              (Number(appStat.filesEdited) || 0) +
+              (Number(appStat.filesDeleted) || 0);
+            terminalCommands += Number(appStat.terminalCommands) || 0;
+            searches +=
+              (Number(appStat.fileSearches) || 0) +
+              (Number(appStat.fileContentSearches) || 0);
           }
         });
       } else {
@@ -165,19 +210,41 @@ function buildAreaData(
             (Number(appStat.linesRead) || 0) +
             (Number(appStat.linesAdded) || 0) +
             (Number(appStat.linesEdited) || 0);
+          files =
+            (Number(appStat.filesRead) || 0) +
+            (Number(appStat.filesAdded) || 0) +
+            (Number(appStat.filesEdited) || 0) +
+            (Number(appStat.filesDeleted) || 0);
+          terminalCommands = Number(appStat.terminalCommands) || 0;
+          searches =
+            (Number(appStat.fileSearches) || 0) +
+            (Number(appStat.fileContentSearches) || 0);
         }
       }
     }
 
     const d = new Date(dateKey);
     const displayDate = d.toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
-    return { date: dateKey, displayDate, tokens, cost, toolCalls, lines };
+    return {
+      date: dateKey,
+      displayDate,
+      tokens,
+      cost,
+      toolCalls,
+      lines,
+      files,
+      terminalCommands,
+      searches,
+    };
   });
 
   const maxTokens = Math.max(...raw.map((r) => r.tokens), 1);
   const maxCost = Math.max(...raw.map((r) => r.cost), 1);
   const maxToolCalls = Math.max(...raw.map((r) => r.toolCalls), 1);
   const maxLines = Math.max(...raw.map((r) => r.lines), 1);
+  const maxFiles = Math.max(...raw.map((r) => r.files), 1);
+  const maxTerminalCommands = Math.max(...raw.map((r) => r.terminalCommands), 1);
+  const maxSearches = Math.max(...raw.map((r) => r.searches), 1);
 
   return raw.map((r) => ({
     ...r,
@@ -185,6 +252,9 @@ function buildAreaData(
     costNorm: (r.cost / maxCost) * 100,
     toolCallsNorm: (r.toolCalls / maxToolCalls) * 100,
     linesNorm: (r.lines / maxLines) * 100,
+    filesNorm: (r.files / maxFiles) * 100,
+    terminalCommandsNorm: (r.terminalCommands / maxTerminalCommands) * 100,
+    searchesNorm: (r.searches / maxSearches) * 100,
   }));
 }
 
@@ -199,9 +269,11 @@ type BarChartPoint = { date: string; displayDate: string } & Record<string, numb
 function buildBarData(
   modelData: ModelData,
   period: Period,
-  firstDataDate: string
+  firstDataDate: string,
+  customStart?: string,
+  customEnd?: string
 ): { points: BarChartPoint[]; models: string[] } {
-  const dates = getDateRange(period, firstDataDate);
+  const dates = getDateRange(period, firstDataDate, customStart, customEnd);
 
   const modelSet = new Set<string>();
   dates.forEach((dateKey) => {
@@ -366,8 +438,23 @@ export function StatsCharts({
   const { data: session } = useSession();
   const [period, setPeriod] = React.useState<Period>("30d");
   const [chartType, setChartType] = React.useState<ChartType>("area");
-  const [hiddenArea, setHiddenArea] = React.useState<Set<string>>(new Set(["linesNorm"]));
+  const [hiddenArea, setHiddenArea] = React.useState<Set<string>>(
+    new Set(["linesNorm", "filesNorm", "terminalCommandsNorm", "searchesNorm"])
+  );
   const [hiddenModels, setHiddenModels] = React.useState<Set<string>>(new Set());
+
+  // Custom date range state — default to last 30 days as initial values
+  const todayStr = React.useMemo(() => {
+    const now = new Date();
+    return now.toISOString().split("T")[0];
+  }, []);
+  const thirtyDaysAgoStr = React.useMemo(() => {
+    const d = new Date();
+    d.setUTCDate(d.getUTCDate() - 29);
+    return d.toISOString().split("T")[0];
+  }, []);
+  const [customStart, setCustomStart] = React.useState<string>(thirtyDaysAgoStr);
+  const [customEnd, setCustomEnd] = React.useState<string>(todayStr);
 
   const { data: modelData } = useQuery<ModelData>({
     queryKey: ["modelStats", session?.user?.id, selectedSource],
@@ -397,14 +484,14 @@ export function StatsCharts({
   const firstDataDate = allDataDates[0] ?? new Date().toISOString();
 
   const areaData = React.useMemo(
-    () => buildAreaData(statsData, selectedSource, period),
-    [statsData, selectedSource, period]
+    () => buildAreaData(statsData, selectedSource, period, customStart, customEnd),
+    [statsData, selectedSource, period, customStart, customEnd]
   );
 
   const { points: barPoints, models } = React.useMemo(() => {
     if (!modelData || allDataDates.length === 0) return { points: [], models: [] };
-    return buildBarData(modelData, period, firstDataDate);
-  }, [modelData, period, firstDataDate, allDataDates]);
+    return buildBarData(modelData, period, firstDataDate, customStart, customEnd);
+  }, [modelData, period, firstDataDate, allDataDates, customStart, customEnd]);
 
   const modelColors = React.useMemo(() => {
     const map: Record<string, string> = {};
@@ -419,11 +506,27 @@ export function StatsCharts({
   }, [models]);
 
   const toggleArea = React.useCallback((key: string) => {
-    setHiddenArea((prev) => { const n = new Set(prev); n.has(key) ? n.delete(key) : n.add(key); return n; });
+    setHiddenArea((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) {
+        next.delete(key);
+      } else {
+        next.add(key);
+      }
+      return next;
+    });
   }, []);
 
   const toggleModel = React.useCallback((model: string) => {
-    setHiddenModels((prev) => { const n = new Set(prev); n.has(model) ? n.delete(model) : n.add(model); return n; });
+    setHiddenModels((prev) => {
+      const next = new Set(prev);
+      if (next.has(model)) {
+        next.delete(model);
+      } else {
+        next.add(model);
+      }
+      return next;
+    });
   }, []);
 
   if (!statsData?.stats) return null;
@@ -468,6 +571,29 @@ export function StatsCharts({
           </div>
         </div>
       </div>
+
+      {/* Custom date range picker */}
+      {period === "custom" && (
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-xs text-muted-foreground">From</span>
+          <input
+            type="date"
+            value={customStart}
+            max={customEnd}
+            onChange={(e) => setCustomStart(e.target.value)}
+            className="rounded-md border bg-background px-2 py-1 text-xs font-medium text-foreground transition-colors focus:outline-none focus:ring-1 focus:ring-ring"
+          />
+          <span className="text-xs text-muted-foreground">to</span>
+          <input
+            type="date"
+            value={customEnd}
+            min={customStart}
+            max={todayStr}
+            onChange={(e) => setCustomEnd(e.target.value)}
+            className="rounded-md border bg-background px-2 py-1 text-xs font-medium text-foreground transition-colors focus:outline-none focus:ring-1 focus:ring-ring"
+          />
+        </div>
+      )}
 
       {/* Area chart */}
       {chartType === "area" && (

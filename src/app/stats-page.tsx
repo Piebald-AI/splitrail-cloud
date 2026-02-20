@@ -107,6 +107,41 @@ export default function StatsPage() {
     [preferences, exchangeRates]
   );
 
+  const formatConvertedCurrencyAdaptive = React.useCallback(
+    (amount: number) => {
+      const currency = preferences?.currency || "USD";
+      const locale =
+        typeof window !== "undefined"
+          ? Array.isArray(navigator.languages) && navigator.languages.length > 0
+            ? navigator.languages[0]
+            : (navigator as Navigator & { language?: string }).language ||
+              "en-US"
+          : "en-US";
+
+      const convertedAmount =
+        !exchangeRates?.data || !exchangeRates?.eurToUsd || currency === "USD"
+          ? amount
+          : convertCurrency(
+              amount,
+              currency,
+              exchangeRates.data,
+              exchangeRates.eurToUsd
+            );
+
+      const absValue = Math.abs(convertedAmount);
+      const maximumFractionDigits =
+        absValue >= 1 ? 2 : absValue >= 0.1 ? 3 : absValue >= 0.01 ? 4 : 6;
+
+      return new Intl.NumberFormat(locale, {
+        style: "currency",
+        currency,
+        minimumFractionDigits: 2,
+        maximumFractionDigits,
+      }).format(convertedAmount);
+    },
+    [preferences, exchangeRates]
+  );
+
   // --- Early returns for loading / auth / error states ---
 
   if (status === "loading" || profileLoading) {
@@ -185,6 +220,9 @@ export default function StatsPage() {
                   grandTotal={grandTotal}
                   appTotals={statsData.stats.totals}
                   formatConvertedCurrency={formatConvertedCurrency}
+                  formatConvertedCurrencyAdaptive={
+                    formatConvertedCurrencyAdaptive
+                  }
                 />
               )}
               <StatsCharts

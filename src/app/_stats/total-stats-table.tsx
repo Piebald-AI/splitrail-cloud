@@ -40,6 +40,16 @@ export function TotalStatsTable({
           acc.reasoningTokens + Number(row?.reasoningTokens ?? 0),
         conversations: acc.conversations + Number(row?.conversations ?? 0),
         toolCalls: acc.toolCalls + Number(row?.toolCalls ?? 0),
+        terminalCommands:
+          acc.terminalCommands + Number(row?.terminalCommands ?? 0),
+        searches:
+          acc.searches +
+          Number(row?.fileSearches ?? 0) +
+          Number(row?.fileContentSearches ?? 0),
+        filesRead: acc.filesRead + Number(row?.filesRead ?? 0),
+        filesAdded: acc.filesAdded + Number(row?.filesAdded ?? 0),
+        filesEdited: acc.filesEdited + Number(row?.filesEdited ?? 0),
+        filesDeleted: acc.filesDeleted + Number(row?.filesDeleted ?? 0),
         linesAdded: acc.linesAdded + Number(row?.linesAdded ?? 0),
         linesEdited: acc.linesEdited + Number(row?.linesEdited ?? 0),
       };
@@ -52,6 +62,12 @@ export function TotalStatsTable({
       reasoningTokens: 0,
       conversations: 0,
       toolCalls: 0,
+      terminalCommands: 0,
+      searches: 0,
+      filesRead: 0,
+      filesAdded: 0,
+      filesEdited: 0,
+      filesDeleted: 0,
       linesAdded: 0,
       linesEdited: 0,
     }
@@ -70,6 +86,9 @@ export function TotalStatsTable({
             <TableHead>Reasoning</TableHead>
             <TableHead>Conversations</TableHead>
             <TableHead>Tool Calls</TableHead>
+            <TableHead>Terminal</TableHead>
+            <TableHead>Searches</TableHead>
+            <TableHead>Files R/A/E/D</TableHead>
             <TableHead>Lines +/~</TableHead>
           </TableRow>
         </TableHeader>
@@ -103,6 +122,21 @@ export function TotalStatsTable({
                   {formatLargeNumber(row?.toolCalls ?? 0)}
                 </TableCell>
                 <TableCell>
+                  {formatLargeNumber(row?.terminalCommands ?? 0)}
+                </TableCell>
+                <TableCell>
+                  {formatLargeNumber(
+                    Number(row?.fileSearches ?? 0) +
+                      Number(row?.fileContentSearches ?? 0)
+                  )}
+                </TableCell>
+                <TableCell>
+                  {formatLargeNumber(row?.filesRead ?? 0)}/
+                  {formatLargeNumber(row?.filesAdded ?? 0)}/
+                  {formatLargeNumber(row?.filesEdited ?? 0)}/
+                  {formatLargeNumber(row?.filesDeleted ?? 0)}
+                </TableCell>
+                <TableCell>
                   {formatLargeNumber(row?.linesAdded ?? 0)}/
                   {formatLargeNumber(row?.linesEdited ?? 0)}
                 </TableCell>
@@ -123,6 +157,14 @@ export function TotalStatsTable({
             <TableCell>{formatLargeNumber(grandRow.conversations)}</TableCell>
             <TableCell className="text-green-600">
               {formatLargeNumber(grandRow.toolCalls)}
+            </TableCell>
+            <TableCell>{formatLargeNumber(grandRow.terminalCommands)}</TableCell>
+            <TableCell>{formatLargeNumber(grandRow.searches)}</TableCell>
+            <TableCell>
+              {formatLargeNumber(grandRow.filesRead)}/
+              {formatLargeNumber(grandRow.filesAdded)}/
+              {formatLargeNumber(grandRow.filesEdited)}/
+              {formatLargeNumber(grandRow.filesDeleted)}
             </TableCell>
             <TableCell>
               {formatLargeNumber(grandRow.linesAdded)}/
