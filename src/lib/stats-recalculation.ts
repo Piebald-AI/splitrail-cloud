@@ -154,6 +154,8 @@ interface AggregatedPeriodStats {
   todos_in_progress: bigint;
   todo_writes: bigint;
   todo_reads: bigint;
+  conversations: bigint;
+  models: string[] | null;
 }
 
 export async function recalculateUserStats(
@@ -237,51 +239,159 @@ export async function recalculateUserStats(
     // Single query aggregates all stats for this period type, grouped by period_start and application
     // This replaces hundreds of individual queries with one efficient GROUP BY query
     const aggregatedStats = await db.$queryRaw<AggregatedPeriodStats[]>`
+      WITH base AS (
+        SELECT
+          date,
+          application,
+          role,
+          "inputTokens",
+          "outputTokens",
+          "cacheCreationTokens",
+          "cacheReadTokens",
+          "cachedTokens",
+          "reasoningTokens",
+          cost,
+          "toolCalls",
+          "filesRead",
+          "filesAdded",
+          "filesEdited",
+          "filesDeleted",
+          "linesRead",
+          "linesAdded",
+          "linesEdited",
+          "linesDeleted",
+          "bytesRead",
+          "bytesAdded",
+          "bytesEdited",
+          "bytesDeleted",
+          "codeLines",
+          "docsLines",
+          "dataLines",
+          "mediaLines",
+          "configLines",
+          "otherLines",
+          "terminalCommands",
+          "fileSearches",
+          "fileContentSearches",
+          "todosCreated",
+          "todosCompleted",
+          "todosInProgress",
+          "todoWrites",
+          "todoReads",
+          "conversationHash",
+          model
+        FROM message_stats
+        WHERE "userId" = ${userId}
+          AND application = ANY(${applications})
+      ),
+      aggregated_stats AS (
+        SELECT
+          date_trunc(${config.truncUnit}, date) AS period_start,
+          application,
+          COALESCE(SUM("toolCalls"), 0)::bigint AS tool_calls,
+          COALESCE(SUM(CASE WHEN role = 'assistant' THEN 1 ELSE 0 END), 0)::bigint AS assistant_messages,
+          COALESCE(SUM(CASE WHEN role = 'user' THEN 1 ELSE 0 END), 0)::bigint AS user_messages,
+          COALESCE(SUM("inputTokens"), 0)::bigint AS input_tokens,
+          COALESCE(SUM("outputTokens"), 0)::bigint AS output_tokens,
+          COALESCE(SUM("cacheCreationTokens"), 0)::bigint AS cache_creation_tokens,
+          COALESCE(SUM("cacheReadTokens"), 0)::bigint AS cache_read_tokens,
+          COALESCE(SUM("cachedTokens"), 0)::bigint AS cached_tokens,
+          COALESCE(SUM("reasoningTokens"), 0)::bigint AS reasoning_tokens,
+          COALESCE(SUM(cost), 0)::float AS cost,
+          COALESCE(SUM("filesRead"), 0)::bigint AS files_read,
+          COALESCE(SUM("filesAdded"), 0)::bigint AS files_added,
+          COALESCE(SUM("filesEdited"), 0)::bigint AS files_edited,
+          COALESCE(SUM("filesDeleted"), 0)::bigint AS files_deleted,
+          COALESCE(SUM("linesRead"), 0)::bigint AS lines_read,
+          COALESCE(SUM("linesAdded"), 0)::bigint AS lines_added,
+          COALESCE(SUM("linesEdited"), 0)::bigint AS lines_edited,
+          COALESCE(SUM("linesDeleted"), 0)::bigint AS lines_deleted,
+          COALESCE(SUM("bytesRead"), 0)::bigint AS bytes_read,
+          COALESCE(SUM("bytesAdded"), 0)::bigint AS bytes_added,
+          COALESCE(SUM("bytesEdited"), 0)::bigint AS bytes_edited,
+          COALESCE(SUM("bytesDeleted"), 0)::bigint AS bytes_deleted,
+          COALESCE(SUM("codeLines"), 0)::bigint AS code_lines,
+          COALESCE(SUM("docsLines"), 0)::bigint AS docs_lines,
+          COALESCE(SUM("dataLines"), 0)::bigint AS data_lines,
+          COALESCE(SUM("mediaLines"), 0)::bigint AS media_lines,
+          COALESCE(SUM("configLines"), 0)::bigint AS config_lines,
+          COALESCE(SUM("otherLines"), 0)::bigint AS other_lines,
+          COALESCE(SUM("terminalCommands"), 0)::bigint AS terminal_commands,
+          COALESCE(SUM("fileSearches"), 0)::bigint AS file_searches,
+          COALESCE(SUM("fileContentSearches"), 0)::bigint AS file_content_searches,
+          COALESCE(SUM("todosCreated"), 0)::bigint AS todos_created,
+          COALESCE(SUM("todosCompleted"), 0)::bigint AS todos_completed,
+          COALESCE(SUM("todosInProgress"), 0)::bigint AS todos_in_progress,
+          COALESCE(SUM("todoWrites"), 0)::bigint AS todo_writes,
+          COALESCE(SUM("todoReads"), 0)::bigint AS todo_reads,
+          ARRAY_AGG(DISTINCT model) FILTER (WHERE model IS NOT NULL) AS models
+        FROM base
+        WHERE date_trunc(${config.truncUnit}, date) = ANY(${config.periodStarts})
+        GROUP BY period_start, application
+        HAVING COUNT(*) > 0
+      ),
+      conversation_starts AS (
+        SELECT
+          application,
+          "conversationHash",
+          MIN(date) AS first_message_at
+        FROM base
+        GROUP BY application, "conversationHash"
+      ),
+      conversation_counts AS (
+        SELECT
+          date_trunc(${config.truncUnit}, first_message_at) AS period_start,
+          application,
+          COUNT(*)::bigint AS conversations
+        FROM conversation_starts
+        WHERE date_trunc(${config.truncUnit}, first_message_at) = ANY(${config.periodStarts})
+        GROUP BY period_start, application
+      )
       SELECT
-        date_trunc(${config.truncUnit}, date) AS period_start,
-        application,
-        COALESCE(SUM("toolCalls"), 0)::bigint AS tool_calls,
-        COALESCE(SUM(CASE WHEN role = 'assistant' THEN 1 ELSE 0 END), 0)::bigint AS assistant_messages,
-        COALESCE(SUM(CASE WHEN role = 'user' THEN 1 ELSE 0 END), 0)::bigint AS user_messages,
-        COALESCE(SUM("inputTokens"), 0)::bigint AS input_tokens,
-        COALESCE(SUM("outputTokens"), 0)::bigint AS output_tokens,
-        COALESCE(SUM("cacheCreationTokens"), 0)::bigint AS cache_creation_tokens,
-        COALESCE(SUM("cacheReadTokens"), 0)::bigint AS cache_read_tokens,
-        COALESCE(SUM("cachedTokens"), 0)::bigint AS cached_tokens,
-        COALESCE(SUM("reasoningTokens"), 0)::bigint AS reasoning_tokens,
-        COALESCE(SUM(cost), 0)::float AS cost,
-        COALESCE(SUM("filesRead"), 0)::bigint AS files_read,
-        COALESCE(SUM("filesAdded"), 0)::bigint AS files_added,
-        COALESCE(SUM("filesEdited"), 0)::bigint AS files_edited,
-        COALESCE(SUM("filesDeleted"), 0)::bigint AS files_deleted,
-        COALESCE(SUM("linesRead"), 0)::bigint AS lines_read,
-        COALESCE(SUM("linesAdded"), 0)::bigint AS lines_added,
-        COALESCE(SUM("linesEdited"), 0)::bigint AS lines_edited,
-        COALESCE(SUM("linesDeleted"), 0)::bigint AS lines_deleted,
-        COALESCE(SUM("bytesRead"), 0)::bigint AS bytes_read,
-        COALESCE(SUM("bytesAdded"), 0)::bigint AS bytes_added,
-        COALESCE(SUM("bytesEdited"), 0)::bigint AS bytes_edited,
-        COALESCE(SUM("bytesDeleted"), 0)::bigint AS bytes_deleted,
-        COALESCE(SUM("codeLines"), 0)::bigint AS code_lines,
-        COALESCE(SUM("docsLines"), 0)::bigint AS docs_lines,
-        COALESCE(SUM("dataLines"), 0)::bigint AS data_lines,
-        COALESCE(SUM("mediaLines"), 0)::bigint AS media_lines,
-        COALESCE(SUM("configLines"), 0)::bigint AS config_lines,
-        COALESCE(SUM("otherLines"), 0)::bigint AS other_lines,
-        COALESCE(SUM("terminalCommands"), 0)::bigint AS terminal_commands,
-        COALESCE(SUM("fileSearches"), 0)::bigint AS file_searches,
-        COALESCE(SUM("fileContentSearches"), 0)::bigint AS file_content_searches,
-        COALESCE(SUM("todosCreated"), 0)::bigint AS todos_created,
-        COALESCE(SUM("todosCompleted"), 0)::bigint AS todos_completed,
-        COALESCE(SUM("todosInProgress"), 0)::bigint AS todos_in_progress,
-        COALESCE(SUM("todoWrites"), 0)::bigint AS todo_writes,
-        COALESCE(SUM("todoReads"), 0)::bigint AS todo_reads
-      FROM message_stats
-      WHERE "userId" = ${userId}
-        AND application = ANY(${applications})
-        AND date_trunc(${config.truncUnit}, date) = ANY(${config.periodStarts})
-      GROUP BY period_start, application
-      HAVING COUNT(*) > 0
+        a.period_start,
+        a.application,
+        a.tool_calls,
+        a.assistant_messages,
+        a.user_messages,
+        a.input_tokens,
+        a.output_tokens,
+        a.cache_creation_tokens,
+        a.cache_read_tokens,
+        a.cached_tokens,
+        a.reasoning_tokens,
+        a.cost,
+        a.files_read,
+        a.files_added,
+        a.files_edited,
+        a.files_deleted,
+        a.lines_read,
+        a.lines_added,
+        a.lines_edited,
+        a.lines_deleted,
+        a.bytes_read,
+        a.bytes_added,
+        a.bytes_edited,
+        a.bytes_deleted,
+        a.code_lines,
+        a.docs_lines,
+        a.data_lines,
+        a.media_lines,
+        a.config_lines,
+        a.other_lines,
+        a.terminal_commands,
+        a.file_searches,
+        a.file_content_searches,
+        a.todos_created,
+        a.todos_completed,
+        a.todos_in_progress,
+        a.todo_writes,
+        a.todo_reads,
+        COALESCE(c.conversations, 0)::bigint AS conversations,
+        COALESCE(a.models, ARRAY[]::text[]) AS models
+      FROM aggregated_stats a
+      LEFT JOIN conversation_counts c
+        ON a.period_start = c.period_start
+       AND a.application = c.application
     `;
 
     if (aggregatedStats.length === 0) continue;
@@ -338,6 +448,8 @@ export async function recalculateUserStats(
           todosInProgress: row.todos_in_progress,
           todoWrites: row.todo_writes,
           todoReads: row.todo_reads,
+          conversations: row.conversations,
+          models: row.models ?? [],
         },
         create: {
           userId,
@@ -381,6 +493,8 @@ export async function recalculateUserStats(
           todosInProgress: row.todos_in_progress,
           todoWrites: row.todo_writes,
           todoReads: row.todo_reads,
+          conversations: row.conversations,
+          models: row.models ?? [],
         },
       });
     });

@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
-import { Prisma } from "@prisma/client";
 import { n } from "@/lib/utils";
 import {
   calculateAffectedPeriods,
@@ -24,134 +23,69 @@ export async function GET(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const rows = await db.$queryRaw<
+    const dailyRows = await db.$queryRaw<
       Array<{
-        day: Date | null;
-        application: string | null;
+        day: Date;
+        application: string;
         total_cost: number;
-        cached_tokens: Prisma.Decimal;
-        input_tokens: Prisma.Decimal;
-        output_tokens: Prisma.Decimal;
-        reasoning_tokens: Prisma.Decimal;
-        cache_creation_tokens: Prisma.Decimal;
-        cache_read_tokens: Prisma.Decimal;
+        cached_tokens: bigint;
+        input_tokens: bigint;
+        output_tokens: bigint;
+        reasoning_tokens: bigint;
+        cache_creation_tokens: bigint;
+        cache_read_tokens: bigint;
+        tool_calls: bigint;
+        terminal_commands: bigint;
+        file_searches: bigint;
+        file_content_searches: bigint;
+        files_read: bigint;
+        files_added: bigint;
+        files_edited: bigint;
+        files_deleted: bigint;
+        lines_read: bigint;
+        lines_edited: bigint;
+        lines_added: bigint;
         conversations: bigint;
-        tool_calls: Prisma.Decimal;
-        terminal_commands: Prisma.Decimal;
-        file_searches: Prisma.Decimal;
-        file_content_searches: Prisma.Decimal;
-        files_read: Prisma.Decimal;
-        files_added: Prisma.Decimal;
-        files_edited: Prisma.Decimal;
-        files_deleted: Prisma.Decimal;
-        lines_read: Prisma.Decimal;
-        lines_edited: Prisma.Decimal;
-        lines_added: Prisma.Decimal;
-        models: string[];
-        days_tracked: bigint;
-        num_apps: bigint;
-        applications: string[];
-        first_date: Date;
-        last_date: Date;
+        models: string[] | null;
       }>
     >`
-        WITH base AS (
-          SELECT *,
-            ("date" AT TIME ZONE 'UTC' AT TIME ZONE ${timezone})::date AS local_day
-          FROM message_stats
-          WHERE "userId" = ${userId}
-        ),
-        conversation_starts AS (
-          SELECT
-            "conversationHash",
-            application,
-            MIN(local_day) AS start_day
-          FROM base
-          GROUP BY "conversationHash", application
-        ),
-        conversations_per_day_app AS (
-          SELECT
-            start_day AS day,
-            application,
-            COUNT(*) AS conversations
-          FROM conversation_starts
-          GROUP BY start_day, application
-        ),
-        counts AS (
-          SELECT 
-            COUNT(DISTINCT local_day) AS days_tracked,
-            COUNT(DISTINCT application) AS num_apps,
-            ARRAY_AGG(DISTINCT application) FILTER (WHERE application IS NOT NULL) AS applications,
-            MIN(local_day) AS first_date,
-            MAX(local_day) AS last_date
-          FROM base
-        ),
-        grouped_stats AS (
-          SELECT
-            local_day AS day,
-            application,
-            SUM(cost) AS total_cost,
-            SUM("cachedTokens") AS cached_tokens,
-            SUM("inputTokens") AS input_tokens,
-            SUM("outputTokens") AS output_tokens,
-            SUM("reasoningTokens") AS reasoning_tokens,
-            SUM("cacheCreationTokens") AS cache_creation_tokens,
-            SUM("cacheReadTokens") AS cache_read_tokens,
-            SUM("toolCalls") AS tool_calls,
-            SUM("terminalCommands") AS terminal_commands,
-            SUM("fileSearches") AS file_searches,
-            SUM("fileContentSearches") AS file_content_searches,
-            SUM("filesRead") AS files_read,
-            SUM("filesAdded") AS files_added,
-            SUM("filesEdited") AS files_edited,
-            SUM("filesDeleted") AS files_deleted,
-            SUM("linesRead") AS lines_read,
-            SUM("linesEdited") AS lines_edited,
-            SUM("linesAdded") AS lines_added,
-            ARRAY_AGG(DISTINCT model) FILTER (WHERE model IS NOT NULL) AS models,
-            COUNT(DISTINCT "conversationHash") AS conversations_set
-          FROM base
-          GROUP BY GROUPING SETS (
-            (local_day, application),
-            (application),
-            ()
-          )
-        )
-        SELECT
-          s.day,
-          s.application,
-          s.total_cost,
-          s.cached_tokens,
-          s.input_tokens,
-          s.output_tokens,
-          s.reasoning_tokens,
-          s.cache_creation_tokens,
-          s.cache_read_tokens,
-          COALESCE(c.conversations, s.conversations_set, 0) AS conversations,
-          s.tool_calls,
-          s.terminal_commands,
-          s.file_searches,
-          s.file_content_searches,
-          s.files_read,
-          s.files_added,
-          s.files_edited,
-          s.files_deleted,
-          s.lines_read,
-          s.lines_edited,
-          s.lines_added,
-          s.models,
-          CASE WHEN s.day IS NULL AND s.application IS NULL THEN counts.days_tracked ELSE NULL END AS days_tracked,
-          CASE WHEN s.day IS NULL AND s.application IS NULL THEN counts.num_apps ELSE NULL END AS num_apps,
-          CASE WHEN s.day IS NULL AND s.application IS NULL THEN counts.applications ELSE NULL END AS applications,
-          CASE WHEN s.day IS NULL AND s.application IS NULL THEN counts.first_date ELSE NULL END AS first_date,
-          CASE WHEN s.day IS NULL AND s.application IS NULL THEN counts.last_date ELSE NULL END AS last_date
-        FROM grouped_stats s
-        LEFT JOIN conversations_per_day_app c
-          ON s.day = c.day AND s.application = c.application
-        LEFT JOIN counts
-          ON s.day IS NULL AND s.application IS NULL
-        ORDER BY s.application, s.day NULLS LAST
-      `;
+      SELECT
+        ("periodStart" AT TIME ZONE 'UTC' AT TIME ZONE ${timezone})::date AS day,
+        application,
+        cost AS total_cost,
+        "cachedTokens" AS cached_tokens,
+        "inputTokens" AS input_tokens,
+        "outputTokens" AS output_tokens,
+        "reasoningTokens" AS reasoning_tokens,
+        "cacheCreationTokens" AS cache_creation_tokens,
+        "cacheReadTokens" AS cache_read_tokens,
+        "toolCalls" AS tool_calls,
+        "terminalCommands" AS terminal_commands,
+        "fileSearches" AS file_searches,
+        "fileContentSearches" AS file_content_searches,
+        "filesRead" AS files_read,
+        "filesAdded" AS files_added,
+        "filesEdited" AS files_edited,
+        "filesDeleted" AS files_deleted,
+        "linesRead" AS lines_read,
+        "linesEdited" AS lines_edited,
+        "linesAdded" AS lines_added,
+        conversations,
+        models
+      FROM user_stats
+      WHERE "userId" = ${userId}
+        AND period = 'daily'
+      ORDER BY application, day
+    `;
+
+    if (dailyRows.length === 0) {
+      return NextResponse.json({
+        success: true,
+        data: {
+          stats: null,
+        },
+      });
+    }
 
     type StatsRecord = {
       [key: string]: Record<string, unknown>;
@@ -185,116 +119,221 @@ export async function GET(
         lastDate: Date;
       };
     };
+
+    type TotalsAccumulator = {
+      cost: number;
+      inputTokens: number;
+      outputTokens: number;
+      cachedTokens: number;
+      reasoningTokens: number;
+      cacheCreationTokens: number;
+      cacheReadTokens: number;
+      conversations: number;
+      toolCalls: number;
+      terminalCommands: number;
+      fileSearches: number;
+      fileContentSearches: number;
+      filesRead: number;
+      filesAdded: number;
+      filesEdited: number;
+      filesDeleted: number;
+      linesRead: number;
+      linesAdded: number;
+      linesEdited: number;
+    };
+
     const stats: StatsRecord = {};
+    const totalsByApp: Record<string, TotalsAccumulator> = {};
+    const modelSetsByApp = new Map<string, Set<string>>();
+    const dayKeys = new Set<string>();
+    let firstDate: Date | null = null;
+    let lastDate: Date | null = null;
 
-    if (rows.length > 1) {
-      rows.forEach((r) => {
-        // Handle grand total row (both day and application are null)
-        if (r.day === null && r.application === null) {
-          stats.grandTotal = {
-            daysTracked: Number(r.days_tracked),
-            numApps: Number(r.num_apps),
-            applications: r.applications,
-            cost: r.total_cost,
-            inputTokens: n(r.input_tokens),
-            outputTokens: n(r.output_tokens),
-            cachedTokens: n(r.cached_tokens),
-            cacheCreationTokens: n(r.cache_creation_tokens),
-            cacheReadTokens: n(r.cache_read_tokens),
-            reasoningTokens: n(r.reasoning_tokens),
-            tokens: n(
-              Prisma.Decimal.sum(
-                r.input_tokens,
-                r.output_tokens,
-                r.cached_tokens,
-                r.reasoning_tokens
-              )
-            ),
-            conversations: Number(r.conversations),
-            toolCalls: n(r.tool_calls),
-            terminalCommands: n(r.terminal_commands),
-            fileSearches: n(r.file_searches),
-            fileContentSearches: n(r.file_content_searches),
-            filesRead: n(r.files_read),
-            filesAdded: n(r.files_added),
-            filesEdited: n(r.files_edited),
-            filesDeleted: n(r.files_deleted),
-            linesRead: n(r.lines_read),
-            linesAdded: n(r.lines_added),
-            linesEdited: n(r.lines_edited),
-            firstDate: r.first_date,
-            lastDate: r.last_date,
-          };
-          return;
-        }
+    for (const row of dailyRows) {
+      const dayIso = row.day.toISOString().split("T")[0];
+      const dayKey = `${dayIso}T00:00:00.000Z`;
+      const app = row.application;
 
-        // Skip rows where application is null but day is not (partial rollup totals we don't need)
-        if (!r.application) return;
+      if (!stats[dayKey]) {
+        stats[dayKey] = {};
+      }
+      stats[dayKey][app] = {
+        cost: row.total_cost ?? 0,
+        inputTokens: n(row.input_tokens),
+        outputTokens: n(row.output_tokens),
+        cachedTokens: n(row.cached_tokens),
+        reasoningTokens: n(row.reasoning_tokens),
+        cacheCreationTokens: n(row.cache_creation_tokens),
+        cacheReadTokens: n(row.cache_read_tokens),
+        conversations: n(row.conversations),
+        toolCalls: n(row.tool_calls),
+        terminalCommands: n(row.terminal_commands),
+        fileSearches: n(row.file_searches),
+        fileContentSearches: n(row.file_content_searches),
+        filesRead: n(row.files_read),
+        filesAdded: n(row.files_added),
+        filesEdited: n(row.files_edited),
+        filesDeleted: n(row.files_deleted),
+        linesRead: n(row.lines_read),
+        linesAdded: n(row.lines_added),
+        linesEdited: n(row.lines_edited),
+        models: row.models ?? [],
+      };
 
-        const app = r.application as string;
-        // Fix: Ensure date keys are always midnight UTC, avoiding timezone shifts
-        const dayKey = r.day
-          ? `${r.day.toISOString().split("T")[0]}T00:00:00.000Z`
-          : null;
+      dayKeys.add(dayKey);
+      if (!firstDate || row.day < firstDate) firstDate = row.day;
+      if (!lastDate || row.day > lastDate) lastDate = row.day;
 
-        if (dayKey === null) {
-          // Application totals
-          if (!stats.totals) stats.totals = {};
-          stats.totals[app] = {
-            cost: r.total_cost,
-            inputTokens: n(r.input_tokens),
-            outputTokens: n(r.output_tokens),
-            cachedTokens: n(r.cached_tokens),
-            reasoningTokens: n(r.reasoning_tokens),
-            cacheCreationTokens: n(r.cache_creation_tokens),
-            cacheReadTokens: n(r.cache_read_tokens),
-            conversations: n(r.conversations),
-            toolCalls: n(r.tool_calls),
-            terminalCommands: n(r.terminal_commands),
-            fileSearches: n(r.file_searches),
-            fileContentSearches: n(r.file_content_searches),
-            filesRead: n(r.files_read),
-            filesAdded: n(r.files_added),
-            filesEdited: n(r.files_edited),
-            filesDeleted: n(r.files_deleted),
-            linesRead: n(r.lines_read),
-            linesAdded: n(r.lines_added),
-            linesEdited: n(r.lines_edited),
-            models: r.models || [],
-          };
-        } else {
-          // Daily stats per application
-          if (!stats[dayKey]) stats[dayKey] = {};
-          stats[dayKey][app] = {
-            cost: r.total_cost,
-            inputTokens: n(r.input_tokens),
-            outputTokens: n(r.output_tokens),
-            cachedTokens: n(r.cached_tokens),
-            reasoningTokens: n(r.reasoning_tokens),
-            conversations: n(r.conversations),
-            toolCalls: n(r.tool_calls),
-            cacheCreationTokens: n(r.cache_creation_tokens),
-            cacheReadTokens: n(r.cache_read_tokens),
-            terminalCommands: n(r.terminal_commands),
-            fileSearches: n(r.file_searches),
-            fileContentSearches: n(r.file_content_searches),
-            filesRead: n(r.files_read),
-            filesAdded: n(r.files_added),
-            filesEdited: n(r.files_edited),
-            filesDeleted: n(r.files_deleted),
-            linesRead: n(r.lines_read),
-            linesAdded: n(r.lines_added),
-            linesEdited: n(r.lines_edited),
-            models: r.models || [],
-          };
-        }
-      });
+      if (!totalsByApp[app]) {
+        totalsByApp[app] = {
+          cost: 0,
+          inputTokens: 0,
+          outputTokens: 0,
+          cachedTokens: 0,
+          reasoningTokens: 0,
+          cacheCreationTokens: 0,
+          cacheReadTokens: 0,
+          conversations: 0,
+          toolCalls: 0,
+          terminalCommands: 0,
+          fileSearches: 0,
+          fileContentSearches: 0,
+          filesRead: 0,
+          filesAdded: 0,
+          filesEdited: 0,
+          filesDeleted: 0,
+          linesRead: 0,
+          linesAdded: 0,
+          linesEdited: 0,
+        };
+        modelSetsByApp.set(app, new Set<string>());
+      }
+
+      const appTotals = totalsByApp[app];
+      appTotals.cost += row.total_cost ?? 0;
+      appTotals.inputTokens += n(row.input_tokens);
+      appTotals.outputTokens += n(row.output_tokens);
+      appTotals.cachedTokens += n(row.cached_tokens);
+      appTotals.reasoningTokens += n(row.reasoning_tokens);
+      appTotals.cacheCreationTokens += n(row.cache_creation_tokens);
+      appTotals.cacheReadTokens += n(row.cache_read_tokens);
+      appTotals.conversations += n(row.conversations);
+      appTotals.toolCalls += n(row.tool_calls);
+      appTotals.terminalCommands += n(row.terminal_commands);
+      appTotals.fileSearches += n(row.file_searches);
+      appTotals.fileContentSearches += n(row.file_content_searches);
+      appTotals.filesRead += n(row.files_read);
+      appTotals.filesAdded += n(row.files_added);
+      appTotals.filesEdited += n(row.files_edited);
+      appTotals.filesDeleted += n(row.files_deleted);
+      appTotals.linesRead += n(row.lines_read);
+      appTotals.linesAdded += n(row.lines_added);
+      appTotals.linesEdited += n(row.lines_edited);
+
+      const modelSet = modelSetsByApp.get(app)!;
+      for (const model of row.models ?? []) {
+        modelSet.add(model);
+      }
     }
+
+    stats.totals = {};
+    const applications = Object.keys(totalsByApp);
+    for (const app of applications) {
+      const appTotals = totalsByApp[app];
+      stats.totals[app] = {
+        ...appTotals,
+        models: Array.from(modelSetsByApp.get(app) ?? []).sort(),
+      };
+    }
+
+    const grandConversations = applications.reduce(
+      (sum, app) => sum + totalsByApp[app].conversations,
+      0
+    );
+    const grandTotals = applications.reduce(
+      (acc, app) => {
+        const appTotals = totalsByApp[app];
+        acc.cost += appTotals.cost;
+        acc.inputTokens += appTotals.inputTokens;
+        acc.outputTokens += appTotals.outputTokens;
+        acc.cachedTokens += appTotals.cachedTokens;
+        acc.reasoningTokens += appTotals.reasoningTokens;
+        acc.cacheCreationTokens += appTotals.cacheCreationTokens;
+        acc.cacheReadTokens += appTotals.cacheReadTokens;
+        acc.toolCalls += appTotals.toolCalls;
+        acc.terminalCommands += appTotals.terminalCommands;
+        acc.fileSearches += appTotals.fileSearches;
+        acc.fileContentSearches += appTotals.fileContentSearches;
+        acc.filesRead += appTotals.filesRead;
+        acc.filesAdded += appTotals.filesAdded;
+        acc.filesEdited += appTotals.filesEdited;
+        acc.filesDeleted += appTotals.filesDeleted;
+        acc.linesRead += appTotals.linesRead;
+        acc.linesAdded += appTotals.linesAdded;
+        acc.linesEdited += appTotals.linesEdited;
+        return acc;
+      },
+      {
+        cost: 0,
+        inputTokens: 0,
+        outputTokens: 0,
+        cachedTokens: 0,
+        reasoningTokens: 0,
+        cacheCreationTokens: 0,
+        cacheReadTokens: 0,
+        toolCalls: 0,
+        terminalCommands: 0,
+        fileSearches: 0,
+        fileContentSearches: 0,
+        filesRead: 0,
+        filesAdded: 0,
+        filesEdited: 0,
+        filesDeleted: 0,
+        linesRead: 0,
+        linesAdded: 0,
+        linesEdited: 0,
+      }
+    );
+
+    const firstTrackedDate = firstDate ?? new Date();
+    const lastTrackedDate = lastDate ?? new Date();
+
+    stats.grandTotal = {
+      daysTracked: dayKeys.size,
+      numApps: applications.length,
+      applications,
+      cost: grandTotals.cost,
+      inputTokens: grandTotals.inputTokens,
+      outputTokens: grandTotals.outputTokens,
+      cachedTokens: grandTotals.cachedTokens,
+      reasoningTokens: grandTotals.reasoningTokens,
+      cacheCreationTokens: grandTotals.cacheCreationTokens,
+      cacheReadTokens: grandTotals.cacheReadTokens,
+      tokens:
+        grandTotals.inputTokens +
+        grandTotals.outputTokens +
+        grandTotals.cachedTokens +
+        grandTotals.reasoningTokens,
+      conversations: grandConversations,
+      toolCalls: grandTotals.toolCalls,
+      terminalCommands: grandTotals.terminalCommands,
+      fileSearches: grandTotals.fileSearches,
+      fileContentSearches: grandTotals.fileContentSearches,
+      filesRead: grandTotals.filesRead,
+      filesAdded: grandTotals.filesAdded,
+      filesEdited: grandTotals.filesEdited,
+      filesDeleted: grandTotals.filesDeleted,
+      linesRead: grandTotals.linesRead,
+      linesAdded: grandTotals.linesAdded,
+      linesEdited: grandTotals.linesEdited,
+      firstDate: firstTrackedDate,
+      lastDate: lastTrackedDate,
+    };
 
     return NextResponse.json({
       success: true,
       data: {
-        stats: rows.length > 1 ? stats : null,
+        stats,
       },
     });
   } catch (error) {
