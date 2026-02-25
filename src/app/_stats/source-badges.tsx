@@ -56,11 +56,17 @@ export function SourceBadges({
 }) {
   const { appsWithData, totalConversations } = React.useMemo(() => {
     const totals = statsData?.stats?.totals ?? {};
-    const appsWithData = (Object.keys(totals) as ApplicationType[]).filter(
-      (app) => Number(totals[app]?.conversations ?? 0) > 0
-    );
+    
+    const appsWithData = (Object.keys(totals) as ApplicationType[])
+      .filter(app => Number(totals[app]?.conversations ?? 0) > 0)
+      .map(app => ({
+        app,
+        conversations: Number(totals[app]?.conversations ?? 0),
+      }))
+      .sort((a, b) => b.conversations - a.conversations);
+
     const totalConversations = appsWithData.reduce(
-      (sum, app) => sum + Number(totals[app]?.conversations ?? 0),
+      (sum, app) => sum + app.conversations,
       0
     );
     return { appsWithData, totalConversations };
@@ -74,20 +80,16 @@ export function SourceBadges({
         isSelected={selectedSource === "total"}
         onClick={() => onSelectSource("total")}
       />
-      {appsWithData.map((app) => {
-        const conversations = Number(
-          statsData.stats?.totals?.[app]?.conversations ?? 0
-        );
-        return (
+      {appsWithData.map((app) => (
           <SourceBadge
-            key={app}
-            label={APPLICATION_LABELS[app]}
-            count={conversations}
-            isSelected={selectedSource === app}
-            onClick={() => onSelectSource(app)}
+            key={app.app}
+            label={APPLICATION_LABELS[app.app]}
+            count={app.conversations}
+            isSelected={selectedSource === app.app}
+            onClick={() => onSelectSource(app.app)}
           />
-        );
-      })}
+        )
+      )}
     </div>
   );
 }
