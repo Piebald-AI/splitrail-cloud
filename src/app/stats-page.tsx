@@ -4,8 +4,8 @@ import * as React from "react";
 import { useSession } from "next-auth/react";
 import { formatCurrency } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { Spinner } from "@/components/ui/spinner";
 import { type UserPreferences } from "@/types";
+import { DashboardSkeleton } from "@/components/ui/page-loading";
 import { type User } from "@prisma/client";
 import { useQuery } from "@tanstack/react-query";
 import { convertCurrency } from "@/lib/currency";
@@ -15,7 +15,6 @@ import { SourceBadges, type SelectedSource } from "./_stats/source-badges";
 import { StatsCharts } from "./_stats/stats-charts";
 import { TotalStatsTable } from "./_stats/total-stats-table";
 import { type StatsData } from "./_stats/types";
-import { type ApplicationType } from "@/types";
 
 export default function StatsPage() {
   const { data: session, status } = useSession();
@@ -141,19 +140,15 @@ export default function StatsPage() {
     [preferences, exchangeRates]
   );
 
-  // --- Early returns for loading / auth / error states ---
+  // --- Early returns for auth / error states ---
 
   if (status === "loading" || profileLoading) {
-    return (
-      <div className="container mx-auto p-6 text-center">
-        <Spinner size="lg" className="mx-auto" />
-      </div>
-    );
+    return <DashboardSkeleton />;
   }
 
   if (!session) {
     return (
-      <div className="container mx-auto p-6 text-center">
+      <div className="container mx-auto p-6 text-center animate-in fade-in-0 duration-300">
         <h1 className="text-2xl font-bold mb-4">Profile</h1>
         <p className="text-muted-foreground">
           Please sign in to view your profile.
@@ -164,7 +159,7 @@ export default function StatsPage() {
 
   if (profileError) {
     return (
-      <div className="container mx-auto p-6 text-center">
+      <div className="container mx-auto p-6 text-center animate-in fade-in-0 duration-300">
         <p className="text-destructive">
           Error:{" "}
           {profileError instanceof Error
@@ -180,7 +175,7 @@ export default function StatsPage() {
 
   if (!profileData) {
     return (
-      <div className="container mx-auto p-6 text-center">
+      <div className="container mx-auto p-6 text-center animate-in fade-in-0 duration-300">
         <h1 className="text-2xl font-bold mb-4">Profile</h1>
         <p className="text-muted-foreground">
           No profile data found. Start using Claude Code / Codex CLI / Gemini
@@ -196,14 +191,12 @@ export default function StatsPage() {
   const grandTotal = statsData?.stats?.grandTotal;
 
   return (
-    <div className="flex flex-col gap-y-8">
+    <div className="flex flex-col gap-y-8 animate-in fade-in-0 duration-300">
 
       {statsData?.stats === null ? (
         <SetupInstructions />
       ) : statsData === undefined ? (
-        <div className="flex items-center justify-center py-4">
-          <Spinner size="default" />
-        </div>
+        <DashboardSkeleton />
       ) : (
         <>
           <SourceBadges

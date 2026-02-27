@@ -11,7 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Spinner } from "@/components/ui/spinner";
+import { SettingsSkeleton } from "@/components/ui/page-loading";
 import { Checkbox } from "@/components/ui/checkbox";
 import { CLITokenDisplay } from "@/components/cli-token-display";
 import { DeleteDataByDate } from "@/components/delete-data-by-date";
@@ -226,18 +226,12 @@ export default function SettingsPage() {
   });
 
   if (status === "loading" || isLoading) {
-    return (
-      <div className="container mx-auto p-6">
-        <div className="text-center">
-          <Spinner size="lg" className="mx-auto" />
-        </div>
-      </div>
-    );
+    return <SettingsSkeleton />;
   }
 
   if (!session) {
     return (
-      <div className="container mx-auto p-6">
+      <div className="container mx-auto p-6 animate-in fade-in-0 duration-300">
         <div className="text-center">
           <h1 className="text-2xl font-bold mb-4">Settings</h1>
           <p className="text-muted-foreground">
@@ -253,7 +247,7 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="container mx-auto">
+    <div className="container mx-auto animate-in fade-in-0 duration-300">
       <h1 className="text-3xl font-bold mb-6">Settings</h1>
 
       {/* GPT-5.2-Codex Pricing Notice - only show for Codex CLI users */}

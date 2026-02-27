@@ -3,8 +3,8 @@
 import * as React from "react";
 import { useSession } from "next-auth/react";
 import { formatCurrency } from "@/lib/utils";
-import { Spinner } from "@/components/ui/spinner";
 import { type UserPreferences } from "@/types";
+import { AnalyticsSkeleton } from "@/components/ui/page-loading";
 import { useQuery } from "@tanstack/react-query";
 import { convertCurrency } from "@/lib/currency";
 import { AppStatsTable } from "@/app/_stats/app-stats-table";
@@ -88,23 +88,19 @@ export default function AnalyticsPage() {
   );
 
   if (status === "loading" || statsLoading) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <Spinner size="lg" />
-      </div>
-    );
+    return <AnalyticsSkeleton />;
   }
 
   if (!statsData?.stats) {
     return (
-      <div className="text-center py-12 text-muted-foreground text-sm">
+      <div className="text-center py-12 text-muted-foreground text-sm animate-in fade-in-0 duration-300">
         No stats data available yet.
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col gap-y-8">
+    <div className="flex flex-col gap-y-8 animate-in fade-in-0 duration-300">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
           <SourceBadges

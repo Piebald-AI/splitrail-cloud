@@ -209,7 +209,7 @@ export default function Leaderboard() {
   });
 
   return (
-    <div className="flex flex-col gap-y-8">
+    <div className="flex flex-col gap-y-8 animate-in fade-in-0 duration-300">
       <h1 className="font-bold text-3xl">Leaderboard</h1>
 
       {/* No Data Banner */}
