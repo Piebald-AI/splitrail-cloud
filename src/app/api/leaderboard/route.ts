@@ -71,7 +71,6 @@ export async function GET(request: NextRequest) {
         username: string;
         displayName: string | null;
         avatarUrl: string | null;
-        email: string | null;
         createdAt: Date;
         cost: number;
         tokens: Prisma.Decimal;
@@ -92,7 +91,6 @@ export async function GET(request: NextRequest) {
           users."username",
           users."displayName",
           users."avatarUrl",
-          users."email",
           users."createdAt",
           COALESCE(SUM(message_stats."cost"), 0) as cost,
           COALESCE(SUM(message_stats."cachedTokens" + message_stats."inputTokens" + message_stats."outputTokens" + message_stats."reasoningTokens"), 0) as tokens,
@@ -108,7 +106,7 @@ export async function GET(request: NextRequest) {
         INNER JOIN user_preferences ON users.id = user_preferences."userId"
         LEFT JOIN message_stats ON users.id = message_stats."userId" ${applicationFilter}
         WHERE ${whereClause}
-        GROUP BY users.id, users."githubId", users."username", users."displayName", users."avatarUrl", users."email", users."createdAt"
+        GROUP BY users.id, users."githubId", users."username", users."displayName", users."avatarUrl", users."createdAt"
       )
       SELECT * FROM ranked_users
       ORDER BY rank
@@ -124,7 +122,6 @@ export async function GET(request: NextRequest) {
       username: row.username,
       displayName: row.displayName,
       avatarUrl: row.avatarUrl,
-      email: row.email,
       createdAt: row.createdAt,
       rank: n(row.rank),
 
