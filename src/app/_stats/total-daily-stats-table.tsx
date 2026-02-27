@@ -1,20 +1,82 @@
 "use client";
 
 import * as React from "react";
-import { format } from "date-fns";
+import { addDays, format, getISOWeek } from "date-fns";
 import { TZDateMini } from "@date-fns/tz";
 import { cn, formatLargeNumber } from "@/lib/utils";
 import { APPLICATION_LABELS } from "@/lib/application-config";
 import { type ApplicationType } from "@/types";
 import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { ColumnDef, SortingState } from "@tanstack/react-table";
 import { TableCell, TableFooter, TableRow } from "@/components/ui/table";
 import { StatsFooterMetricCells } from "./stats-footer-cells";
 import { StatsTableShell } from "./stats-table-shell";
-import { type StatsData } from "./types";
+import { type AnalyticsPeriod, type StatsData } from "./types";
 
 const utc = (date: string) => new TZDateMini(date, "UTC");
-const formatDateForDisplay = (date: string) => format(utc(date), "MM/dd/yyyy");
+const formatDateForDisplay = (date: string, period: AnalyticsPeriod) => {
+  const dateObj = utc(date);
+  if (period === "weekly") {
+    return `Week ${getISOWeek(dateObj)}`;
+  }
+  if (period === "monthly") {
+    return format(dateObj, "MMM yyyy");
+  }
+  return format(dateObj, "MM/dd/yyyy");
+};
+
+const getDateHoverText = (date: string, period: AnalyticsPeriod) => {
+  const dateObj = utc(date);
+  if (period === "weekly") {
+    const weekStart = format(dateObj, "MM/dd/yyyy");
+    const weekEnd = format(addDays(dateObj, 6), "MM/dd/yyyy");
+    return `Week ${getISOWeek(dateObj)} (${weekStart} - ${weekEnd})`;
+  }
+  return format(dateObj, "MM/dd/yyyy");
+};
+
+function getPeriodStart(date: Date, period: AnalyticsPeriod): Date {
+  const normalized = new Date(date);
+  normalized.setUTCHours(0, 0, 0, 0);
+  if (period === "weekly") {
+    const day = normalized.getUTCDay();
+    const diff = normalized.getUTCDate() - day + (day === 0 ? -6 : 1);
+    normalized.setUTCDate(diff);
+    normalized.setUTCHours(0, 0, 0, 0);
+    return normalized;
+  }
+  if (period === "monthly") {
+    normalized.setUTCDate(1);
+    return normalized;
+  }
+  return normalized;
+}
+
+function addPeriod(date: Date, period: AnalyticsPeriod): Date {
+  const next = new Date(date);
+  if (period === "weekly") {
+    next.setUTCDate(next.getUTCDate() + 7);
+    return next;
+  }
+  if (period === "monthly") {
+    next.setUTCMonth(next.getUTCMonth() + 1, 1);
+    return next;
+  }
+  next.setUTCDate(next.getUTCDate() + 1);
+  return next;
+}
+
+function getPeriodLabel(period: AnalyticsPeriod): string {
+  if (period === "weekly") return "Weekly";
+  if (period === "monthly") return "Monthly";
+  return "Daily";
+}
+
+function getPeriodCountLabel(count: number, period: AnalyticsPeriod): string {
+  const unit = period === "daily" ? "day" : period === "weekly" ? "week" : "month";
+  return `${count} ${unit}${count === 1 ? "" : "s"}`;
+}
 
 type DayTotal = {
   date: string;
@@ -40,7 +102,8 @@ type DayTotal = {
 
 function getAllDailyTotals(
   statsData: StatsData,
-  includeEmptyDays: boolean
+  includeEmptyDays: boolean,
+  period: AnalyticsPeriod
 ): DayTotal[] {
   if (!statsData?.stats) return [];
 
@@ -50,15 +113,15 @@ function getAllDailyTotals(
 
   if (datKeys.length === 0) return [];
 
-  const startDate = new Date(datKeys.sort()[0]);
-  const today = new Date();
-  today.setUTCHours(0, 0, 0, 0);
+  const startDate = getPeriodStart(new Date(datKeys.sort()[0]), period);
+  const today = getPeriodStart(new Date(), period);
 
   const dateRange: string[] = [];
   const cursor = new Date(startDate);
   while (cursor <= today) {
     dateRange.push(`${cursor.toISOString().split("T")[0]}T00:00:00.000Z`);
-    cursor.setUTCDate(cursor.getUTCDate() + 1);
+    const next = addPeriod(cursor, period);
+    cursor.setTime(next.getTime());
   }
 
   return dateRange
@@ -157,13 +220,29 @@ function getAllDailyTotals(
 
 function createColumns(
   maxStats: Record<string, number>,
-  formatConvertedCurrency: (amount: number) => string
+  formatConvertedCurrency: (amount: number) => string,
+  period: AnalyticsPeriod
 ): ColumnDef<DayTotal>[] {
   return [
     {
       accessorKey: "date",
       header: "Date",
-      cell: ({ row }) => formatDateForDisplay(row.getValue("date")),
+      cell: ({ row }) => {
+        const date = row.getValue("date") as string;
+        const hoverText = getDateHoverText(date, period);
+        return (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span className="cursor-default">
+                {formatDateForDisplay(date, period)}
+              </span>
+            </TooltipTrigger>
+            <TooltipContent side="top" sideOffset={6}>
+              {hoverText}
+            </TooltipContent>
+          </Tooltip>
+        );
+      },
     },
     {
       accessorKey: "cost",
@@ -345,16 +424,18 @@ function createColumns(
 export function TotalDailyStatsTable({
   statsData,
   formatConvertedCurrency,
+  period = "daily",
 }: {
   statsData: StatsData;
   formatConvertedCurrency: (amount: number) => string;
+  period?: AnalyticsPeriod;
 }) {
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [showEmptyDays, setShowEmptyDays] = React.useState(false);
 
   const rows = React.useMemo(
-    () => getAllDailyTotals(statsData, showEmptyDays),
-    [statsData, showEmptyDays]
+    () => getAllDailyTotals(statsData, showEmptyDays, period),
+    [statsData, showEmptyDays, period]
   );
 
   const grandTotal = statsData.stats?.grandTotal;
@@ -385,8 +466,8 @@ export function TotalDailyStatsTable({
   );
 
   const columns = React.useMemo(
-    () => createColumns(maxStats, formatConvertedCurrency),
-    [maxStats, formatConvertedCurrency]
+    () => createColumns(maxStats, formatConvertedCurrency, period),
+    [maxStats, formatConvertedCurrency, period]
   );
 
   if (rows.length === 0 && !showEmptyDays) return null;
@@ -395,7 +476,7 @@ export function TotalDailyStatsTable({
     <div className="space-y-2">
       <div className="flex items-center justify-between gap-2">
         <span className="text-sm font-medium text-muted-foreground">
-          Daily breakdown — all sources
+          {getPeriodLabel(period)} breakdown — all sources
         </span>
         <Button
           size="sm"
@@ -416,7 +497,7 @@ export function TotalDailyStatsTable({
             <TableFooter>
               <TableRow>
                 <TableCell className="font-medium">
-                  Total ({grandTotal.daysTracked}d)
+                  Total ({getPeriodCountLabel(rows.length, period)})
                 </TableCell>
                 <TableCell className="font-mono text-amber-600 dark:text-amber-400">
                   {formatConvertedCurrency(grandTotal.cost ?? 0)}

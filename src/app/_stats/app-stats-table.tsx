@@ -1,19 +1,75 @@
 "use client";
 
 import * as React from "react";
-import { format } from "date-fns";
+import { addDays, format, getISOWeek } from "date-fns";
 import { TZDateMini } from "@date-fns/tz";
 import { cn, formatLargeNumber } from "@/lib/utils";
 import { ApplicationType } from "@/types";
 import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { ColumnDef, SortingState } from "@tanstack/react-table";
 import { TableCell, TableFooter, TableRow } from "@/components/ui/table";
 import { StatsFooterMetricCells } from "./stats-footer-cells";
 import { StatsTableShell } from "./stats-table-shell";
-import { type DayStat, type StatsData } from "./types";
+import { type AnalyticsPeriod, type DayStat, type StatsData } from "./types";
 
 const utc = (date: string) => new TZDateMini(date, "UTC");
-const formatDateForDisplay = (date: string) => format(utc(date), "MM/dd/yyyy");
+const formatDateForDisplay = (date: string, period: AnalyticsPeriod) => {
+  const dateObj = utc(date);
+  if (period === "weekly") {
+    return `Week ${getISOWeek(dateObj)}`;
+  }
+  if (period === "monthly") {
+    return format(dateObj, "MMM yyyy");
+  }
+  return format(dateObj, "MM/dd/yyyy");
+};
+
+const getDateHoverText = (date: string, period: AnalyticsPeriod) => {
+  const dateObj = utc(date);
+  if (period === "weekly") {
+    const weekStart = format(dateObj, "MM/dd/yyyy");
+    const weekEnd = format(addDays(dateObj, 6), "MM/dd/yyyy");
+    return `Week ${getISOWeek(dateObj)} (${weekStart} - ${weekEnd})`;
+  }
+  return format(dateObj, "MM/dd/yyyy");
+};
+
+function getPeriodStart(date: Date, period: AnalyticsPeriod): Date {
+  const normalized = new Date(date);
+  normalized.setUTCHours(0, 0, 0, 0);
+  if (period === "weekly") {
+    const day = normalized.getUTCDay();
+    const diff = normalized.getUTCDate() - day + (day === 0 ? -6 : 1);
+    normalized.setUTCDate(diff);
+    normalized.setUTCHours(0, 0, 0, 0);
+    return normalized;
+  }
+  if (period === "monthly") {
+    normalized.setUTCDate(1);
+    return normalized;
+  }
+  return normalized;
+}
+
+function addPeriod(date: Date, period: AnalyticsPeriod): Date {
+  const next = new Date(date);
+  if (period === "weekly") {
+    next.setUTCDate(next.getUTCDate() + 7);
+    return next;
+  }
+  if (period === "monthly") {
+    next.setUTCMonth(next.getUTCMonth() + 1, 1);
+    return next;
+  }
+  next.setUTCDate(next.getUTCDate() + 1);
+  return next;
+}
+
+function getPeriodCountLabel(count: number, period: AnalyticsPeriod): string {
+  const unit = period === "daily" ? "day" : period === "weekly" ? "week" : "month";
+  return `${count} ${unit}${count === 1 ? "" : "s"}`;
+}
 
 type DayDelta = {
   cost: number;
@@ -34,7 +90,8 @@ type DayDelta = {
 function getStatsForApplication(
   statsData: StatsData,
   app: ApplicationType,
-  includeEmptyDays: boolean
+  includeEmptyDays: boolean,
+  period: AnalyticsPeriod
 ): DayStat[] {
   if (!statsData?.stats) return [];
 
@@ -44,17 +101,17 @@ function getStatsForApplication(
 
   if (appDates.length === 0) return [];
 
-  const startDate = new Date(appDates.sort()[0]);
+  const startDate = getPeriodStart(new Date(appDates.sort()[0]), period);
 
   // Fill through today so empty days are visible
-  const today = new Date();
-  today.setUTCHours(0, 0, 0, 0);
+  const today = getPeriodStart(new Date(), period);
 
   const dateRange: string[] = [];
   const cursor = new Date(startDate);
   while (cursor <= today) {
     dateRange.push(`${cursor.toISOString().split("T")[0]}T00:00:00.000Z`);
-    cursor.setUTCDate(cursor.getUTCDate() + 1);
+    const next = addPeriod(cursor, period);
+    cursor.setTime(next.getTime());
   }
 
   return dateRange.reverse().map((date) => {
@@ -87,9 +144,10 @@ function getStatsForApplication(
 
 function buildDeltasWithEmptyDays(
   statsData: StatsData,
-  app: ApplicationType
+  app: ApplicationType,
+  period: AnalyticsPeriod
 ): Record<string, DayDelta> {
-  const withEmptyDays = getStatsForApplication(statsData, app, true);
+  const withEmptyDays = getStatsForApplication(statsData, app, true, period);
   const deltas: Record<string, DayDelta> = {};
 
   withEmptyDays.forEach((current, index) => {
@@ -169,7 +227,8 @@ function createColumns(
   app: ApplicationType,
   formatConvertedCurrency: (amount: number) => string,
   showDeltas: boolean,
-  deltasByDate: Record<string, DayDelta>
+  deltasByDate: Record<string, DayDelta>,
+  period: AnalyticsPeriod
 ): ColumnDef<DayStat>[] {
   const getDelta = (row: DayStat) => deltasByDate[row.date];
 
@@ -177,7 +236,22 @@ function createColumns(
     {
       accessorKey: "date",
       header: "Date",
-      cell: ({ row }) => formatDateForDisplay(row.getValue("date")),
+      cell: ({ row }) => {
+        const date = row.getValue("date") as string;
+        const hoverText = getDateHoverText(date, period);
+        return (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span className="cursor-default">
+                {formatDateForDisplay(date, period)}
+              </span>
+            </TooltipTrigger>
+            <TooltipContent side="top" sideOffset={6}>
+              {hoverText}
+            </TooltipContent>
+          </Tooltip>
+        );
+      },
     },
     {
       accessorKey: "cost",
@@ -415,22 +489,24 @@ export function AppStatsTable({
   statsData,
   selectedApp,
   formatConvertedCurrency,
+  period = "daily",
 }: {
   statsData: StatsData;
   selectedApp: ApplicationType;
   formatConvertedCurrency: (amount: number) => string;
+  period?: AnalyticsPeriod;
 }) {
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [showEmptyDays, setShowEmptyDays] = React.useState(true);
   const [showDeltas, setShowDeltas] = React.useState(false);
 
   const appStats = React.useMemo(
-    () => getStatsForApplication(statsData, selectedApp, showEmptyDays),
-    [statsData, selectedApp, showEmptyDays]
+    () => getStatsForApplication(statsData, selectedApp, showEmptyDays, period),
+    [statsData, selectedApp, showEmptyDays, period]
   );
   const deltasByDate = React.useMemo(
-    () => buildDeltasWithEmptyDays(statsData, selectedApp),
-    [statsData, selectedApp]
+    () => buildDeltasWithEmptyDays(statsData, selectedApp, period),
+    [statsData, selectedApp, period]
   );
 
   const totalsRow = React.useMemo(
@@ -499,7 +575,8 @@ export function AppStatsTable({
         selectedApp,
         formatConvertedCurrency,
         showDeltas,
-        deltasByDate
+        deltasByDate,
+        period
       ),
     [
       maxStats,
@@ -508,6 +585,7 @@ export function AppStatsTable({
       formatConvertedCurrency,
       showDeltas,
       deltasByDate,
+      period,
     ]
   );
 
@@ -542,7 +620,7 @@ export function AppStatsTable({
             <TableFooter>
               <TableRow>
                 <TableCell className="font-medium">
-                  Total ({appStats.length}d)
+                  Total ({getPeriodCountLabel(appStats.length, period)})
                 </TableCell>
                 <TableCell className="font-mono text-amber-600 dark:text-amber-400">
                   {formatConvertedCurrency(totalsRow.cost || 0)}

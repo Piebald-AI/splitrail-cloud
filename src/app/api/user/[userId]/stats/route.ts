@@ -17,6 +17,11 @@ export async function GET(
     const { userId } = await params;
     const { searchParams } = new URL(request.url);
     const timezone = searchParams.get("timezone") || "UTC";
+    const periodParam = searchParams.get("period");
+    const period =
+      periodParam === "weekly" || periodParam === "monthly"
+        ? periodParam
+        : "daily";
 
     // Users can only access their own stats data (for now)
     if (!session?.user?.id || session.user.id !== userId) {
@@ -74,7 +79,7 @@ export async function GET(
         models
       FROM user_stats
       WHERE "userId" = ${userId}
-        AND period = 'daily'
+        AND period = ${period}
       ORDER BY application, day
     `;
 

@@ -1,3 +1,5 @@
+export type AnalyticsPeriod = "daily" | "weekly" | "monthly";
+
 export type DayStat = {
   date: string;
   cost: number;
