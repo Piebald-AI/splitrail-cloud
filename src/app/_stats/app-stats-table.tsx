@@ -6,29 +6,14 @@ import { TZDateMini } from "@date-fns/tz";
 import { cn, formatLargeNumber } from "@/lib/utils";
 import { ApplicationType } from "@/types";
 import { Button } from "@/components/ui/button";
-import {
-  ColumnDef,
-  SortingState,
-  flexRender,
-  getCoreRowModel,
-  getSortedRowModel,
-  useReactTable,
-} from "@tanstack/react-table";
-import { ChevronDown, ChevronUp } from "lucide-react";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableFooter,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { ColumnDef, SortingState } from "@tanstack/react-table";
+import { TableCell, TableFooter, TableRow } from "@/components/ui/table";
+import { StatsFooterMetricCells } from "./stats-footer-cells";
+import { StatsTableShell } from "./stats-table-shell";
 import { type DayStat, type StatsData } from "./types";
 
 const utc = (date: string) => new TZDateMini(date, "UTC");
 const formatDateForDisplay = (date: string) => format(utc(date), "MM/dd/yyyy");
-const toUtcDayKey = (date: Date) => `${date.toISOString().split("T")[0]}T00:00:00.000Z`;
 
 type DayDelta = {
   cost: number;
@@ -526,15 +511,6 @@ export function AppStatsTable({
     ]
   );
 
-  const table = useReactTable({
-    data: appStats,
-    columns,
-    getCoreRowModel: getCoreRowModel(),
-    onSortingChange: setSorting,
-    getSortedRowModel: getSortedRowModel(),
-    state: { sorting },
-  });
-
   const models = totalsRow?.models || [];
 
   return (
@@ -555,120 +531,31 @@ export function AppStatsTable({
           {showDeltas ? "Hide day-over-day deltas" : "Show day-over-day deltas"}
         </Button>
       </div>
-      <div className="overflow-hidden rounded-md border">
-        <Table>
-        <TableHeader>
-          {table.getHeaderGroups().map((headerGroup) => (
-            <TableRow key={headerGroup.id}>
-              {headerGroup.headers.map((header) => (
-                <TableHead key={header.id}>
-                  {header.isPlaceholder ? null : (
-                    <div
-                      className={
-                        header.column.getCanSort()
-                          ? "cursor-pointer flex items-center gap-x-1"
-                          : ""
-                      }
-                      onClick={header.column.getToggleSortingHandler()}
-                    >
-                      {flexRender(
-                        header.column.columnDef.header,
-                        header.getContext()
-                      )}
-                      {header.column.getIsSorted() === "asc" && (
-                        <ChevronUp className="size-4" />
-                      )}
-                      {header.column.getIsSorted() === "desc" && (
-                        <ChevronDown className="size-4" />
-                      )}
-                    </div>
-                  )}
-                </TableHead>
-              ))}
-            </TableRow>
-          ))}
-        </TableHeader>
-        <TableBody>
-          {table.getRowModel().rows?.length ? (
-            table.getRowModel().rows.map((row) => (
-              <TableRow
-                key={row.id}
-                className={row.original.isEmpty ? "opacity-50" : ""}
-              >
-                {row.getVisibleCells().map((cell) => (
-                  <TableCell key={cell.id}>
-                    {flexRender(
-                      cell.column.columnDef.cell,
-                      cell.getContext()
-                    )}
-                  </TableCell>
-                ))}
+      <StatsTableShell
+        data={appStats}
+        columns={columns}
+        sorting={sorting}
+        onSortingChange={setSorting}
+        getRowClassName={(row) => (row.isEmpty ? "opacity-50" : "")}
+        footer={
+          totalsRow ? (
+            <TableFooter>
+              <TableRow>
+                <TableCell className="font-medium">
+                  Total ({appStats.length}d)
+                </TableCell>
+                <TableCell className="font-mono text-amber-600 dark:text-amber-400">
+                  {formatConvertedCurrency(totalsRow.cost || 0)}
+                </TableCell>
+                <StatsFooterMetricCells
+                  totals={totalsRow}
+                  lastCell={models.join(", ")}
+                />
               </TableRow>
-            ))
-          ) : (
-            <TableRow>
-              <TableCell
-                colSpan={columns.length}
-                className="h-24 text-center"
-              >
-                No results.
-              </TableCell>
-            </TableRow>
-          )}
-        </TableBody>
-        {totalsRow && (
-          <TableFooter>
-            <TableRow>
-              <TableCell className="font-medium">
-                Total ({appStats.length}d)
-              </TableCell>
-              <TableCell className="font-mono text-amber-600 dark:text-amber-400">
-                {formatConvertedCurrency(totalsRow.cost || 0)}
-              </TableCell>
-              <TableCell>
-                {formatLargeNumber(totalsRow.cachedTokens || 0)}
-              </TableCell>
-              <TableCell>
-                {formatLargeNumber(totalsRow.inputTokens || 0)}
-              </TableCell>
-              <TableCell>
-                {formatLargeNumber(totalsRow.outputTokens || 0)}
-              </TableCell>
-              <TableCell>
-                {formatLargeNumber(totalsRow.reasoningTokens || 0)}
-              </TableCell>
-              <TableCell>
-                {formatLargeNumber(totalsRow.conversations || 0)}
-              </TableCell>
-              <TableCell className="text-green-600">
-                {formatLargeNumber(totalsRow.toolCalls || 0)}
-              </TableCell>
-              <TableCell>
-                {formatLargeNumber(totalsRow.terminalCommands || 0)}
-              </TableCell>
-              <TableCell>
-                {formatLargeNumber(
-                  Number(totalsRow.fileSearches || 0) +
-                    Number(totalsRow.fileContentSearches || 0)
-                )}
-              </TableCell>
-              <TableCell>
-                {formatLargeNumber(totalsRow.filesRead || 0)}/
-                {formatLargeNumber(totalsRow.filesAdded || 0)}/
-                {formatLargeNumber(totalsRow.filesEdited || 0)}/
-                {formatLargeNumber(totalsRow.filesDeleted || 0)}
-              </TableCell>
-              <TableCell>
-                {formatLargeNumber(totalsRow.linesRead || 0)}/
-                {formatLargeNumber(totalsRow.linesAdded || 0)}/
-                {formatLargeNumber(totalsRow.linesEdited || 0)}
-              </TableCell>
-              <TableCell>{models.join(", ")}</TableCell>
-            </TableRow>
-          </TableFooter>
-        )}
-        </Table>
-      </div>
+            </TableFooter>
+          ) : null
+        }
+      />
     </div>
   );
 }

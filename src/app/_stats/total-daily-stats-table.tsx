@@ -7,24 +7,10 @@ import { cn, formatLargeNumber } from "@/lib/utils";
 import { APPLICATION_LABELS } from "@/lib/application-config";
 import { type ApplicationType } from "@/types";
 import { Button } from "@/components/ui/button";
-import {
-  ColumnDef,
-  SortingState,
-  flexRender,
-  getCoreRowModel,
-  getSortedRowModel,
-  useReactTable,
-} from "@tanstack/react-table";
-import { ChevronDown, ChevronUp } from "lucide-react";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableFooter,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { ColumnDef, SortingState } from "@tanstack/react-table";
+import { TableCell, TableFooter, TableRow } from "@/components/ui/table";
+import { StatsFooterMetricCells } from "./stats-footer-cells";
+import { StatsTableShell } from "./stats-table-shell";
 import { type StatsData } from "./types";
 
 const utc = (date: string) => new TZDateMini(date, "UTC");
@@ -403,15 +389,6 @@ export function TotalDailyStatsTable({
     [maxStats, formatConvertedCurrency]
   );
 
-  const table = useReactTable({
-    data: rows,
-    columns,
-    getCoreRowModel: getCoreRowModel(),
-    onSortingChange: setSorting,
-    getSortedRowModel: getSortedRowModel(),
-    state: { sorting },
-  });
-
   if (rows.length === 0 && !showEmptyDays) return null;
 
   return (
@@ -428,68 +405,14 @@ export function TotalDailyStatsTable({
           {showEmptyDays ? "Hide empty days" : "Show empty days"}
         </Button>
       </div>
-      <div className="overflow-hidden rounded-md border">
-        <Table>
-          <TableHeader>
-            {table.getHeaderGroups().map((headerGroup) => (
-              <TableRow key={headerGroup.id}>
-                {headerGroup.headers.map((header) => (
-                  <TableHead key={header.id}>
-                    {header.isPlaceholder ? null : (
-                      <div
-                        className={
-                          header.column.getCanSort()
-                            ? "cursor-pointer flex items-center gap-x-1"
-                            : ""
-                        }
-                        onClick={header.column.getToggleSortingHandler()}
-                      >
-                        {flexRender(
-                          header.column.columnDef.header,
-                          header.getContext()
-                        )}
-                        {header.column.getIsSorted() === "asc" && (
-                          <ChevronUp className="size-4" />
-                        )}
-                        {header.column.getIsSorted() === "desc" && (
-                          <ChevronDown className="size-4" />
-                        )}
-                      </div>
-                    )}
-                  </TableHead>
-                ))}
-              </TableRow>
-            ))}
-          </TableHeader>
-          <TableBody>
-            {table.getRowModel().rows?.length ? (
-              table.getRowModel().rows.map((row) => (
-                <TableRow
-                  key={row.id}
-                  className={row.original.isEmpty ? "opacity-50" : ""}
-                >
-                  {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id}>
-                      {flexRender(
-                        cell.column.columnDef.cell,
-                        cell.getContext()
-                      )}
-                    </TableCell>
-                  ))}
-                </TableRow>
-              ))
-            ) : (
-              <TableRow>
-                <TableCell
-                  colSpan={columns.length}
-                  className="h-24 text-center"
-                >
-                  No results.
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-          {grandTotal && (
+      <StatsTableShell
+        data={rows}
+        columns={columns}
+        sorting={sorting}
+        onSortingChange={setSorting}
+        getRowClassName={(row) => (row.isEmpty ? "opacity-50" : "")}
+        footer={
+          grandTotal ? (
             <TableFooter>
               <TableRow>
                 <TableCell className="font-medium">
@@ -498,54 +421,17 @@ export function TotalDailyStatsTable({
                 <TableCell className="font-mono text-amber-600 dark:text-amber-400">
                   {formatConvertedCurrency(grandTotal.cost ?? 0)}
                 </TableCell>
-                <TableCell>
-                  {formatLargeNumber(grandTotal.cachedTokens ?? 0)}
-                </TableCell>
-                <TableCell>
-                  {formatLargeNumber(grandTotal.inputTokens ?? 0)}
-                </TableCell>
-                <TableCell>
-                  {formatLargeNumber(grandTotal.outputTokens ?? 0)}
-                </TableCell>
-                <TableCell>
-                  {formatLargeNumber(grandTotal.reasoningTokens ?? 0)}
-                </TableCell>
-                <TableCell>
-                  {formatLargeNumber(grandTotal.conversations ?? 0)}
-                </TableCell>
-                <TableCell className="text-green-600">
-                  {formatLargeNumber(grandTotal.toolCalls ?? 0)}
-                </TableCell>
-                <TableCell>
-                  {formatLargeNumber(grandTotal.terminalCommands ?? 0)}
-                </TableCell>
-                <TableCell>
-                  {formatLargeNumber(
-                    (grandTotal.fileSearches ?? 0) +
-                      (grandTotal.fileContentSearches ?? 0)
-                  )}
-                </TableCell>
-                <TableCell>
-                  {formatLargeNumber(grandTotal.filesRead ?? 0)}/
-                  {formatLargeNumber(grandTotal.filesAdded ?? 0)}/
-                  {formatLargeNumber(grandTotal.filesEdited ?? 0)}/
-                  {formatLargeNumber(grandTotal.filesDeleted ?? 0)}
-                </TableCell>
-                <TableCell>
-                  {formatLargeNumber(grandTotal.linesRead ?? 0)}/
-                  {formatLargeNumber(grandTotal.linesAdded ?? 0)}/
-                  {formatLargeNumber(grandTotal.linesEdited ?? 0)}
-                </TableCell>
-                <TableCell>
-                  {grandTotal.applications
+                <StatsFooterMetricCells
+                  totals={grandTotal}
+                  lastCell={grandTotal.applications
                     ?.map((a) => APPLICATION_LABELS[a as ApplicationType] ?? a)
                     .join(", ")}
-                </TableCell>
+                />
               </TableRow>
             </TableFooter>
-          )}
-        </Table>
-      </div>
+          ) : null
+        }
+      />
     </div>
   );
 }
