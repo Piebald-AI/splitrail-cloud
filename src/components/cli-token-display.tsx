@@ -6,9 +6,25 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Trash2, Eye, EyeOff, Copy, Plus } from "lucide-react";
+import {
+  Trash2,
+  Eye,
+  EyeOff,
+  Copy,
+  Plus,
+  Terminal,
+  ExternalLink,
+} from "lucide-react";
 import { toast } from "sonner";
 import { formatDate } from "@/lib/utils";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 
 interface ApiToken {
   id: string;
@@ -159,6 +175,12 @@ export function CLITokenDisplay() {
   }, [session, fetchTokens]);
 
   // Removed message effect as Sonner toasts handle their own lifecycle
+  const latestToken = tokens[0]?.token;
+  const setApiTokenCommand = latestToken
+    ? `splitrail config set api-token ${latestToken}`
+    : "splitrail config set api-token <your-token>";
+  const enableAutoUploadCommand = "splitrail config set auto-upload true";
+  const uploadCommand = "splitrail upload";
 
   if (!session) {
     return (
@@ -172,6 +194,105 @@ export function CLITokenDisplay() {
 
   return (
     <div className="space-y-6">
+      <div className="rounded-lg border bg-muted/30 p-3 sm:p-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="space-y-1">
+            <p className="text-sm font-medium">Configure Splitrail CLI anytime</p>
+            <p className="text-xs text-muted-foreground">
+              Keep your CLI linked, then reuse this guide whenever you create and
+              switch to a new token.
+            </p>
+          </div>
+          <Dialog>
+            <DialogTrigger asChild>
+              <Button variant="outline" size="sm">
+                <Terminal className="h-4 w-4" />
+                Configure CLI
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-xl max-w-min">
+              <DialogHeader>
+                <DialogTitle>Splitrail CLI setup</DialogTitle>
+                <DialogDescription>
+                  Use this quick setup anytime. When you create a new token here,
+                  reopen this and copy the set-token command again.
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="space-y-4 text-sm">
+                <ol className="list-decimal space-y-4 pl-5">
+                  <li className="space-y-2">
+                    <p>
+                      Install the CLI from{" "}
+                      <a
+                        href="https://github.com/Piebald-AI/splitrail/releases"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 text-primary hover:underline"
+                      >
+                        GitHub
+                        <ExternalLink className="h-3.5 w-3.5" />
+                      </a>
+                      .
+                    </p>
+                  </li>
+                  <li className="space-y-2">
+                    <p>Set your API token:</p>
+                    <div className="flex items-center gap-2 rounded-md border bg-muted/40 p-2">
+                      <code className="flex-1 overflow-x-auto whitespace-nowrap font-mono text-xs">
+                        {setApiTokenCommand}
+                      </code>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() =>
+                          copyToken(setApiTokenCommand, "cmd-set-api-token")
+                        }
+                      >
+                        <Copy className="h-4 w-4 mr-1" />
+                        {copiedTokens.has("cmd-set-api-token")
+                          ? "Copied!"
+                          : "Copy"}
+                      </Button>
+                    </div>
+                    {!latestToken && (
+                      <p className="text-xs text-muted-foreground">
+                        Create a token first, then copy this command with your
+                        real token value.
+                      </p>
+                    )}
+                  </li>
+                  <li className="space-y-2">
+                    <p>Optional: enable auto-upload:</p>
+                    <div className="flex items-center gap-2 rounded-md border bg-muted/40 p-2">
+                      <code className="flex-1 overflow-x-auto whitespace-nowrap font-mono text-xs">
+                        {enableAutoUploadCommand}
+                      </code>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() =>
+                          copyToken(enableAutoUploadCommand, "cmd-auto-upload")
+                        }
+                      >
+                        <Copy className="h-4 w-4 mr-1" />
+                        {copiedTokens.has("cmd-auto-upload")
+                          ? "Copied!"
+                          : "Copy"}
+                      </Button>
+                    </div>
+                  </li>
+                </ol>
+                <div className="rounded-md border bg-muted/40 p-3 text-xs text-muted-foreground">
+                  Manual upload command:{" "}
+                  <code className="font-mono">{uploadCommand}</code>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
+        </div>
+      </div>
+
       {/* Create New Token */}
       <div className="space-y-4">
         <div className="flex items-center gap-4">
