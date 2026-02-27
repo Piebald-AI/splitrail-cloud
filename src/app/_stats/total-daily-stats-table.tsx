@@ -1,8 +1,6 @@
 "use client";
 
 import * as React from "react";
-import { addDays, format, getISOWeek } from "date-fns";
-import { TZDateMini } from "@date-fns/tz";
 import { cn, formatLargeNumber } from "@/lib/utils";
 import { APPLICATION_LABELS } from "@/lib/application-config";
 import { type ApplicationType } from "@/types";
@@ -13,70 +11,14 @@ import { TableCell, TableFooter, TableRow } from "@/components/ui/table";
 import { StatsFooterMetricCells } from "./stats-footer-cells";
 import { StatsTableShell } from "./stats-table-shell";
 import { type AnalyticsPeriod, type StatsData } from "./types";
-
-const utc = (date: string) => new TZDateMini(date, "UTC");
-const formatDateForDisplay = (date: string, period: AnalyticsPeriod) => {
-  const dateObj = utc(date);
-  if (period === "weekly") {
-    return `Week ${getISOWeek(dateObj)}`;
-  }
-  if (period === "monthly") {
-    return format(dateObj, "MMM yyyy");
-  }
-  return format(dateObj, "MM/dd/yyyy");
-};
-
-const getDateHoverText = (date: string, period: AnalyticsPeriod) => {
-  const dateObj = utc(date);
-  if (period === "weekly") {
-    const weekStart = format(dateObj, "MM/dd/yyyy");
-    const weekEnd = format(addDays(dateObj, 6), "MM/dd/yyyy");
-    return `Week ${getISOWeek(dateObj)} (${weekStart} - ${weekEnd})`;
-  }
-  return format(dateObj, "MM/dd/yyyy");
-};
-
-function getPeriodStart(date: Date, period: AnalyticsPeriod): Date {
-  const normalized = new Date(date);
-  normalized.setUTCHours(0, 0, 0, 0);
-  if (period === "weekly") {
-    const day = normalized.getUTCDay();
-    const diff = normalized.getUTCDate() - day + (day === 0 ? -6 : 1);
-    normalized.setUTCDate(diff);
-    normalized.setUTCHours(0, 0, 0, 0);
-    return normalized;
-  }
-  if (period === "monthly") {
-    normalized.setUTCDate(1);
-    return normalized;
-  }
-  return normalized;
-}
-
-function addPeriod(date: Date, period: AnalyticsPeriod): Date {
-  const next = new Date(date);
-  if (period === "weekly") {
-    next.setUTCDate(next.getUTCDate() + 7);
-    return next;
-  }
-  if (period === "monthly") {
-    next.setUTCMonth(next.getUTCMonth() + 1, 1);
-    return next;
-  }
-  next.setUTCDate(next.getUTCDate() + 1);
-  return next;
-}
-
-function getPeriodLabel(period: AnalyticsPeriod): string {
-  if (period === "weekly") return "Weekly";
-  if (period === "monthly") return "Monthly";
-  return "Daily";
-}
-
-function getPeriodCountLabel(count: number, period: AnalyticsPeriod): string {
-  const unit = period === "daily" ? "day" : period === "weekly" ? "week" : "month";
-  return `${count} ${unit}${count === 1 ? "" : "s"}`;
-}
+import {
+  addPeriod,
+  formatDateForDisplay,
+  getDateHoverText,
+  getPeriodCountLabel,
+  getPeriodLabel,
+  getPeriodStart,
+} from "./date-helpers";
 
 type DayTotal = {
   date: string;

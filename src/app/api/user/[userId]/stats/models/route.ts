@@ -14,9 +14,29 @@ export async function GET(
     const { searchParams } = new URL(request.url);
     const timezone = searchParams.get("timezone") || "UTC";
     const application = searchParams.get("application") || null;
+    const startDateParam = searchParams.get("startDate");
+    const endDateParam = searchParams.get("endDate");
 
     if (!session?.user?.id || session.user.id !== userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const startDate = startDateParam
+      ? new Date(`${startDateParam}T00:00:00.000Z`)
+      : null;
+    const endDate = endDateParam ? new Date(`${endDateParam}T23:59:59.999Z`) : null;
+
+    if (startDateParam && Number.isNaN(startDate?.getTime())) {
+      return NextResponse.json({ error: "Invalid startDate" }, { status: 400 });
+    }
+    if (endDateParam && Number.isNaN(endDate?.getTime())) {
+      return NextResponse.json({ error: "Invalid endDate" }, { status: 400 });
+    }
+    if (startDate && endDate && startDate > endDate) {
+      return NextResponse.json(
+        { error: "startDate must be less than or equal to endDate" },
+        { status: 400 }
+      );
     }
 
     const rows = await db.$queryRaw<
@@ -44,6 +64,8 @@ export async function GET(
       WHERE "userId" = ${userId}
         AND model IS NOT NULL
         ${application ? Prisma.sql`AND application = ${application}` : Prisma.sql``}
+        ${startDate ? Prisma.sql`AND date >= ${startDate}` : Prisma.sql``}
+        ${endDate ? Prisma.sql`AND date <= ${endDate}` : Prisma.sql``}
       GROUP BY day, model
       ORDER BY day, model
     `;

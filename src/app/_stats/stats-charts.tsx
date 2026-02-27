@@ -27,7 +27,7 @@ import {
   type ModelData,
   type Period,
 } from "./stats-charts-config";
-import { buildAreaData, buildBarData } from "./stats-charts-utils";
+import { buildAreaData, buildBarData, getDateRange } from "./stats-charts-utils";
 import { AreaTooltip, BarTooltip } from "./stats-charts-tooltips";
 import { AreaLegend, BarLegend } from "./stats-charts-legends";
 
@@ -64,26 +64,6 @@ export function StatsCharts({
     React.useState<string>(thirtyDaysAgoStr);
   const [customEnd, setCustomEnd] = React.useState<string>(todayStr);
 
-  const { data: modelData } = useQuery<ModelData>({
-    queryKey: ["modelStats", session?.user?.id, selectedSource],
-    queryFn: async () => {
-      if (!session?.user?.id) throw new Error("No session");
-      const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-      const appParam =
-        selectedSource !== "total"
-          ? `&application=${encodeURIComponent(selectedSource)}`
-          : "";
-      const res = await fetch(
-        `/api/user/${session.user.id}/stats/models?timezone=${encodeURIComponent(timezone)}${appParam}`
-      );
-      const json = await res.json();
-      if (json.success) return json.data as ModelData;
-      throw new Error("Failed");
-    },
-    enabled: !!session?.user?.id,
-    staleTime: 5 * 60 * 1000,
-  });
-
   const allDataDates = React.useMemo(
     () =>
       Object.keys(statsData?.stats ?? {})
@@ -92,6 +72,44 @@ export function StatsCharts({
     [statsData]
   );
   const firstDataDate = allDataDates[0] ?? new Date().toISOString();
+  const modelRange = React.useMemo(() => {
+    if (allDataDates.length === 0) return null;
+    const dates = getDateRange(period, firstDataDate, customStart, customEnd);
+    if (dates.length === 0) return null;
+    return {
+      startDate: dates[0].split("T")[0],
+      endDate: dates[dates.length - 1].split("T")[0],
+    };
+  }, [allDataDates, customEnd, customStart, firstDataDate, period]);
+
+  const { data: modelData } = useQuery<ModelData>({
+    queryKey: [
+      "modelStats",
+      session?.user?.id,
+      selectedSource,
+      modelRange?.startDate,
+      modelRange?.endDate,
+    ],
+    queryFn: async () => {
+      if (!session?.user?.id) throw new Error("No session");
+      const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      const appParam =
+        selectedSource !== "total"
+          ? `&application=${encodeURIComponent(selectedSource)}`
+          : "";
+      const dateRangeParam = modelRange
+        ? `&startDate=${encodeURIComponent(modelRange.startDate)}&endDate=${encodeURIComponent(modelRange.endDate)}`
+        : "";
+      const res = await fetch(
+        `/api/user/${session.user.id}/stats/models?timezone=${encodeURIComponent(timezone)}${appParam}${dateRangeParam}`
+      );
+      const json = await res.json();
+      if (json.success) return json.data as ModelData;
+      throw new Error("Failed");
+    },
+    enabled: !!session?.user?.id && !!modelRange,
+    staleTime: 5 * 60 * 1000,
+  });
 
   const areaData = React.useMemo(
     () => buildAreaData(statsData, selectedSource, period, customStart, customEnd),

@@ -396,7 +396,9 @@ export async function recalculateUserStats(
 
     if (aggregatedStats.length === 0) continue;
 
-    // Batch upsert all results for this period type using a non-interactive transaction
+    // Batch upsert all results for this period type using a non-interactive transaction.
+    // If this becomes a bottleneck for very large users, migrate this section to a single
+    // raw SQL INSERT ... ON CONFLICT statement to reduce round-trips.
     const upsertOperations = aggregatedStats.map((row) => {
       const periodEnd = config.getPeriodEnd(row.period_start);
 
