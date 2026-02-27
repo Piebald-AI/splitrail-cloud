@@ -207,11 +207,11 @@ export function CLITokenDisplay() {
                 </DialogDescription>
               </DialogHeader>
 
-              <div className="space-y-4 text-sm">
-                <ol className="list-decimal space-y-4 pl-5">
-                  <li className="space-y-2">
+              <div className="min-w-0 space-y-4 text-sm">
+                <div className="space-y-4">
+                  <div className="space-y-2">
                     <p>
-                      Install the CLI from{" "}
+                      1. Install the CLI from{" "}
                       <a
                         href="https://github.com/Piebald-AI/splitrail/releases"
                         target="_blank"
@@ -223,10 +223,10 @@ export function CLITokenDisplay() {
                       </a>
                       .
                     </p>
-                  </li>
-                  <li className="space-y-2">
-                    <p>Set your API token:</p>
-                    <div className="flex items-center gap-2 rounded-md border bg-muted/40 p-2 min-w-0">
+                  </div>
+                  <div className="space-y-2">
+                    <p>2. Set your API token:</p>
+                    <div className="flex items-center gap-2 rounded-md border bg-muted/40 p-2">
                       <code className="min-w-0 flex-1 overflow-x-auto whitespace-nowrap font-mono text-xs">
                         {setApiTokenCommand}
                       </code>
@@ -250,10 +250,10 @@ export function CLITokenDisplay() {
                         real token value.
                       </p>
                     )}
-                  </li>
-                  <li className="space-y-2">
-                    <p>Optional: enable auto-upload:</p>
-                    <div className="flex items-center gap-2 rounded-md border bg-muted/40 p-2 min-w-0">
+                  </div>
+                  <div className="space-y-2">
+                    <p>3. Optional: enable auto-upload:</p>
+                    <div className="flex items-center gap-2 rounded-md border bg-muted/40 p-2">
                       <code className="min-w-0 flex-1 overflow-x-auto whitespace-nowrap font-mono text-xs">
                         {enableAutoUploadCommand}
                       </code>
@@ -271,8 +271,8 @@ export function CLITokenDisplay() {
                           : "Copy"}
                       </Button>
                     </div>
-                  </li>
-                </ol>
+                  </div>
+                </div>
                 <div className="rounded-md border bg-muted/40 p-3 text-xs text-muted-foreground">
                   Manual upload command:{" "}
                   <code className="font-mono">{uploadCommand}</code>
