@@ -80,6 +80,8 @@ model MessageStats {
   todoWrites            BigInt    @default(0)
   todoReads             BigInt    @default(0)
   
+  createdAt             DateTime?  @default(now())
+  
   user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   
   @@index([userId, date])
