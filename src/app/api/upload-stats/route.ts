@@ -211,6 +211,30 @@ export async function POST(request: NextRequest) {
 
     mark("prepared");
 
+    // Check how many of these messages already exist in the database.
+    // This lets us detect users repeatedly uploading the same data.
+    const incomingHashes = messagesForDb.map((m) => m.globalHash as string);
+    const existingMessages = await db.messageStats.findMany({
+      where: { globalHash: { in: incomingHashes } },
+      select: { globalHash: true },
+    });
+    const duplicateCount = existingMessages.length;
+
+    if (duplicateCount > 0) {
+      console.warn("upload-stats: duplicate messages detected", {
+        userId: user.id,
+        userName: user.displayName ?? user.username ?? user.email ?? "unknown",
+        totalInRequest: messagesForDb.length,
+        duplicates: duplicateCount,
+        newMessages: messagesForDb.length - duplicateCount,
+        duplicatePercent: Math.round(
+          (duplicateCount / messagesForDb.length) * 100
+        ),
+      });
+    }
+
+    mark("duplicateCheck");
+
     // Bulk upsert via Postgres INSERT .. ON CONFLICT to avoid per-row Prisma upserts.
     // Neon/Postgres handles this efficiently; we chunk to avoid oversized SQL.
     const BULK_UPSERT_BATCH_SIZE = 500;
@@ -381,8 +405,11 @@ export async function POST(request: NextRequest) {
       const preparedMs = marks.prepared
         ? Math.round(marks.prepared - startMs)
         : null;
+      const duplicateCheckMs = marks.duplicateCheck
+        ? Math.round(marks.duplicateCheck - (marks.prepared ?? startMs))
+        : null;
       const upsertedMs = marks.upserted
-        ? Math.round(marks.upserted - (marks.prepared ?? startMs))
+        ? Math.round(marks.upserted - (marks.duplicateCheck ?? marks.prepared ?? startMs))
         : null;
       const recalculatedMs = marks.recalculated
         ? Math.round(endMs - (marks.upserted ?? startMs))
@@ -390,8 +417,10 @@ export async function POST(request: NextRequest) {
 
       console.info("upload-stats timings", {
         messages: dedupedBody.length,
+        duplicates: duplicateCount,
         affectedBuckets: affectedBuckets.size,
         preparedMs,
+        duplicateCheckMs,
         upsertedMs,
         recalculatedMs,
         totalMs,
