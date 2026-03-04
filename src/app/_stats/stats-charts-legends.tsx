@@ -1,6 +1,6 @@
 "use client";
 
-import { AREA_SERIES } from "./stats-charts-config";
+import { AREA_SERIES } from "@/app/_stats/stats-charts-config";
 
 export function AreaLegend({
   hidden,

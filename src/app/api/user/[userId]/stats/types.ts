@@ -19,6 +19,22 @@ export type DailyStatsRow = {
   lines_read: bigint;
   lines_edited: bigint;
   lines_added: bigint;
+  lines_deleted: bigint;
+  bytes_read: bigint;
+  bytes_added: bigint;
+  bytes_edited: bigint;
+  bytes_deleted: bigint;
+  code_lines: bigint;
+  docs_lines: bigint;
+  data_lines: bigint;
+  media_lines: bigint;
+  config_lines: bigint;
+  other_lines: bigint;
+  todos_created: bigint;
+  todos_completed: bigint;
+  todos_in_progress: bigint;
+  todo_reads: bigint;
+  todo_writes: bigint;
   conversations: bigint;
   models: string[] | null;
 };
@@ -43,6 +59,22 @@ export type TotalsAccumulator = {
   linesRead: number;
   linesAdded: number;
   linesEdited: number;
+  linesDeleted: number;
+  bytesRead: number;
+  bytesAdded: number;
+  bytesEdited: number;
+  bytesDeleted: number;
+  codeLines: number;
+  docsLines: number;
+  dataLines: number;
+  mediaLines: number;
+  configLines: number;
+  otherLines: number;
+  todosCreated: number;
+  todosCompleted: number;
+  todosInProgress: number;
+  todoReads: number;
+  todoWrites: number;
 };
 
 export type StatsRecord = {
@@ -98,6 +130,22 @@ export const createEmptyTotalsAccumulator = (): TotalsAccumulator => ({
   linesRead: 0,
   linesAdded: 0,
   linesEdited: 0,
+  linesDeleted: 0,
+  bytesRead: 0,
+  bytesAdded: 0,
+  bytesEdited: 0,
+  bytesDeleted: 0,
+  codeLines: 0,
+  docsLines: 0,
+  dataLines: 0,
+  mediaLines: 0,
+  configLines: 0,
+  otherLines: 0,
+  todosCreated: 0,
+  todosCompleted: 0,
+  todosInProgress: 0,
+  todoReads: 0,
+  todoWrites: 0,
 });
 
 export const mergeTotals = (
@@ -123,5 +171,21 @@ export const mergeTotals = (
     acc.linesRead += appTotals.linesRead;
     acc.linesAdded += appTotals.linesAdded;
     acc.linesEdited += appTotals.linesEdited;
+    acc.linesDeleted += appTotals.linesDeleted;
+    acc.bytesRead += appTotals.bytesRead;
+    acc.bytesAdded += appTotals.bytesAdded;
+    acc.bytesEdited += appTotals.bytesEdited;
+    acc.bytesDeleted += appTotals.bytesDeleted;
+    acc.codeLines += appTotals.codeLines;
+    acc.docsLines += appTotals.docsLines;
+    acc.dataLines += appTotals.dataLines;
+    acc.mediaLines += appTotals.mediaLines;
+    acc.configLines += appTotals.configLines;
+    acc.otherLines += appTotals.otherLines;
+    acc.todosCreated += appTotals.todosCreated;
+    acc.todosCompleted += appTotals.todosCompleted;
+    acc.todosInProgress += appTotals.todosInProgress;
+    acc.todoReads += appTotals.todoReads;
+    acc.todoWrites += appTotals.todoWrites;
     return acc;
   }, createEmptyTotalsAccumulator());

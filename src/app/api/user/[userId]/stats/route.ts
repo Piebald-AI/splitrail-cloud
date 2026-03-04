@@ -13,7 +13,7 @@ import {
   mergeTotals,
   type StatsRecord,
   type TotalsAccumulator,
-} from "./types";
+} from "@/app/api/user/[userId]/stats/types";
 
 export async function GET(
   request: NextRequest,
@@ -30,40 +30,118 @@ export async function GET(
         ? periodParam
         : "daily";
 
+    // Validate timezone parameter
+    try {
+      Intl.DateTimeFormat(undefined, { timeZone: timezone });
+    } catch {
+      return NextResponse.json(
+        { error: "Invalid timezone parameter" },
+        { status: 400 }
+      );
+    }
+
     // Users can only access their own stats data (for now)
     if (!session?.user?.id || session.user.id !== userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const dailyRows = await db.$queryRaw<DailyStatsRow[]>`
-      SELECT
-        ("periodStart" AT TIME ZONE 'UTC' AT TIME ZONE ${timezone})::date AS day,
-        application,
-        cost AS total_cost,
-        "cachedTokens" AS cached_tokens,
-        "inputTokens" AS input_tokens,
-        "outputTokens" AS output_tokens,
-        "reasoningTokens" AS reasoning_tokens,
-        "cacheCreationTokens" AS cache_creation_tokens,
-        "cacheReadTokens" AS cache_read_tokens,
-        "toolCalls" AS tool_calls,
-        "terminalCommands" AS terminal_commands,
-        "fileSearches" AS file_searches,
-        "fileContentSearches" AS file_content_searches,
-        "filesRead" AS files_read,
-        "filesAdded" AS files_added,
-        "filesEdited" AS files_edited,
-        "filesDeleted" AS files_deleted,
-        "linesRead" AS lines_read,
-        "linesEdited" AS lines_edited,
-        "linesAdded" AS lines_added,
-        conversations,
-        models
-      FROM user_stats
-      WHERE "userId" = ${userId}
-        AND period = ${period}
-      ORDER BY application, day
-    `;
+    // For daily period, convert periodStart to the user's local timezone so
+    // that days align with the user's wall clock. For weekly/monthly the
+    // periodStart values are computed using UTC boundaries during aggregation,
+    // so applying AT TIME ZONE would shift the bucket key by a day for
+    // negative/positive UTC offsets.
+    const dailyRows =
+      period === "daily"
+        ? await db.$queryRaw<DailyStatsRow[]>`
+            SELECT
+              ("periodStart" AT TIME ZONE 'UTC' AT TIME ZONE ${timezone})::date AS day,
+              application,
+              cost AS total_cost,
+              "cachedTokens" AS cached_tokens,
+              "inputTokens" AS input_tokens,
+              "outputTokens" AS output_tokens,
+              "reasoningTokens" AS reasoning_tokens,
+              "cacheCreationTokens" AS cache_creation_tokens,
+              "cacheReadTokens" AS cache_read_tokens,
+              "toolCalls" AS tool_calls,
+              "terminalCommands" AS terminal_commands,
+              "fileSearches" AS file_searches,
+              "fileContentSearches" AS file_content_searches,
+              "filesRead" AS files_read,
+              "filesAdded" AS files_added,
+              "filesEdited" AS files_edited,
+              "filesDeleted" AS files_deleted,
+              "linesRead" AS lines_read,
+              "linesEdited" AS lines_edited,
+              "linesAdded" AS lines_added,
+              "linesDeleted" AS lines_deleted,
+              "bytesRead" AS bytes_read,
+              "bytesAdded" AS bytes_added,
+              "bytesEdited" AS bytes_edited,
+              "bytesDeleted" AS bytes_deleted,
+              "codeLines" AS code_lines,
+              "docsLines" AS docs_lines,
+              "dataLines" AS data_lines,
+              "mediaLines" AS media_lines,
+              "configLines" AS config_lines,
+              "otherLines" AS other_lines,
+              "todosCreated" AS todos_created,
+              "todosCompleted" AS todos_completed,
+              "todosInProgress" AS todos_in_progress,
+              "todoReads" AS todo_reads,
+              "todoWrites" AS todo_writes,
+              conversations,
+              models
+            FROM user_stats
+            WHERE "userId" = ${userId}
+              AND period = ${period}
+            ORDER BY application, day
+          `
+        : await db.$queryRaw<DailyStatsRow[]>`
+            SELECT
+              "periodStart"::date AS day,
+              application,
+              cost AS total_cost,
+              "cachedTokens" AS cached_tokens,
+              "inputTokens" AS input_tokens,
+              "outputTokens" AS output_tokens,
+              "reasoningTokens" AS reasoning_tokens,
+              "cacheCreationTokens" AS cache_creation_tokens,
+              "cacheReadTokens" AS cache_read_tokens,
+              "toolCalls" AS tool_calls,
+              "terminalCommands" AS terminal_commands,
+              "fileSearches" AS file_searches,
+              "fileContentSearches" AS file_content_searches,
+              "filesRead" AS files_read,
+              "filesAdded" AS files_added,
+              "filesEdited" AS files_edited,
+              "filesDeleted" AS files_deleted,
+              "linesRead" AS lines_read,
+              "linesEdited" AS lines_edited,
+              "linesAdded" AS lines_added,
+              "linesDeleted" AS lines_deleted,
+              "bytesRead" AS bytes_read,
+              "bytesAdded" AS bytes_added,
+              "bytesEdited" AS bytes_edited,
+              "bytesDeleted" AS bytes_deleted,
+              "codeLines" AS code_lines,
+              "docsLines" AS docs_lines,
+              "dataLines" AS data_lines,
+              "mediaLines" AS media_lines,
+              "configLines" AS config_lines,
+              "otherLines" AS other_lines,
+              "todosCreated" AS todos_created,
+              "todosCompleted" AS todos_completed,
+              "todosInProgress" AS todos_in_progress,
+              "todoReads" AS todo_reads,
+              "todoWrites" AS todo_writes,
+              conversations,
+              models
+            FROM user_stats
+            WHERE "userId" = ${userId}
+              AND period = ${period}
+            ORDER BY application, day
+          `;
 
     if (dailyRows.length === 0) {
       return NextResponse.json({
@@ -109,6 +187,22 @@ export async function GET(
         linesRead: n(row.lines_read),
         linesAdded: n(row.lines_added),
         linesEdited: n(row.lines_edited),
+        linesDeleted: n(row.lines_deleted),
+        bytesRead: n(row.bytes_read),
+        bytesAdded: n(row.bytes_added),
+        bytesEdited: n(row.bytes_edited),
+        bytesDeleted: n(row.bytes_deleted),
+        codeLines: n(row.code_lines),
+        docsLines: n(row.docs_lines),
+        dataLines: n(row.data_lines),
+        mediaLines: n(row.media_lines),
+        configLines: n(row.config_lines),
+        otherLines: n(row.other_lines),
+        todosCreated: n(row.todos_created),
+        todosCompleted: n(row.todos_completed),
+        todosInProgress: n(row.todos_in_progress),
+        todoReads: n(row.todo_reads),
+        todoWrites: n(row.todo_writes),
         models: row.models ?? [],
       };
 
@@ -141,6 +235,22 @@ export async function GET(
       appTotals.linesRead += n(row.lines_read);
       appTotals.linesAdded += n(row.lines_added);
       appTotals.linesEdited += n(row.lines_edited);
+      appTotals.linesDeleted += n(row.lines_deleted);
+      appTotals.bytesRead += n(row.bytes_read);
+      appTotals.bytesAdded += n(row.bytes_added);
+      appTotals.bytesEdited += n(row.bytes_edited);
+      appTotals.bytesDeleted += n(row.bytes_deleted);
+      appTotals.codeLines += n(row.code_lines);
+      appTotals.docsLines += n(row.docs_lines);
+      appTotals.dataLines += n(row.data_lines);
+      appTotals.mediaLines += n(row.media_lines);
+      appTotals.configLines += n(row.config_lines);
+      appTotals.otherLines += n(row.other_lines);
+      appTotals.todosCreated += n(row.todos_created);
+      appTotals.todosCompleted += n(row.todos_completed);
+      appTotals.todosInProgress += n(row.todos_in_progress);
+      appTotals.todoReads += n(row.todo_reads);
+      appTotals.todoWrites += n(row.todo_writes);
 
       const modelSet = modelSetsByApp.get(app)!;
       for (const model of row.models ?? []) {

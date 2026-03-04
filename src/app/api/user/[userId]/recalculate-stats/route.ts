@@ -111,10 +111,17 @@ export async function POST(
         }
 
         const conversationKey = `${period}|${application}|${message.conversationHash}`;
-        const existingConversation = conversationFirstOccurrence.get(conversationKey);
+        const existingConversation =
+          conversationFirstOccurrence.get(conversationKey);
         const timestamp = messageDate.getTime();
-        if (!existingConversation || timestamp < existingConversation.timestamp) {
-          conversationFirstOccurrence.set(conversationKey, { bucketKey: key, timestamp });
+        if (
+          !existingConversation ||
+          timestamp < existingConversation.timestamp
+        ) {
+          conversationFirstOccurrence.set(conversationKey, {
+            bucketKey: key,
+            timestamp,
+          });
         }
       }
     }
@@ -148,7 +155,7 @@ export async function POST(
         assistantMessages: BigInt(counter.assistant),
         userMessages: BigInt(counter.user),
         conversations: BigInt(conversationStartsByBucket.get(key) ?? 0),
-        models: Array.from(modelSets.get(key) ?? []),
+        models: Array.from(modelSets.get(key) ?? []).sort(),
         createdAt: now,
         updatedAt: now,
       };

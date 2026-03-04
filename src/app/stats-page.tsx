@@ -8,12 +8,12 @@ import { type User } from "@prisma/client";
 import { useQuery } from "@tanstack/react-query";
 import { useFormatConvertedCurrency } from "@/hooks/use-format-converted-currency";
 import { APPLICATION_LABELS } from "@/lib/application-config";
-import { StatsOverview } from "./_stats/stats-overview";
-import { SetupInstructions } from "./_stats/setup-instructions";
-import { SourceBadges, type SelectedSource } from "./_stats/source-badges";
-import { StatsCharts } from "./_stats/stats-charts";
-import { TotalStatsTable } from "./_stats/total-stats-table";
-import { type StatsData } from "./_stats/types";
+import { StatsOverview } from "@/app/_stats/stats-overview";
+import { SetupInstructions } from "@/app/_stats/setup-instructions";
+import { SourceBadges, type SelectedSource } from "@/app/_stats/source-badges";
+import { StatsCharts } from "@/app/_stats/stats-charts";
+import { TotalStatsTable } from "@/app/_stats/total-stats-table";
+import { type StatsData } from "@/app/_stats/types";
 
 export default function StatsPage() {
   const { data: session, status } = useSession();
@@ -40,7 +40,11 @@ export default function StatsPage() {
     enabled: !!session?.user?.id,
   });
 
-  const { data: statsData } = useQuery({
+  const {
+    data: statsData,
+    isError: statsError,
+    error: statsErrorObj,
+  } = useQuery({
     queryKey: ["userStats", session?.user?.id],
     queryFn: async () => {
       if (!session?.user?.id) throw new Error("No user session");
@@ -89,6 +93,22 @@ export default function StatsPage() {
     );
   }
 
+  if (statsError) {
+    return (
+      <div className="container mx-auto p-6 text-center animate-in fade-in-0 duration-300">
+        <p className="text-destructive">
+          Error loading stats:{" "}
+          {statsErrorObj instanceof Error
+            ? statsErrorObj.message
+            : "An error occurred"}
+        </p>
+        <Button onClick={() => window.location.reload()} className="mt-2">
+          Try Again
+        </Button>
+      </div>
+    );
+  }
+
   if (!profileData) {
     return (
       <div className="container mx-auto p-6 text-center animate-in fade-in-0 duration-300">
@@ -108,7 +128,6 @@ export default function StatsPage() {
 
   return (
     <div className="flex flex-col gap-y-8 animate-in fade-in-0 duration-300">
-
       {statsData?.stats === null ? (
         <SetupInstructions />
       ) : statsData === undefined ? (

@@ -16,7 +16,7 @@ import { useQuery } from "@tanstack/react-query";
 import { ChartContainer, type ChartConfig } from "@/components/ui/chart";
 import { formatLargeNumber } from "@/lib/utils";
 import { type ApplicationType } from "@/types";
-import { type StatsData } from "./types";
+import { type StatsData } from "@/app/_stats/types";
 import {
   AREA_CHART_CONFIG,
   AREA_SERIES,
@@ -26,10 +26,14 @@ import {
   type BarMetric,
   type ModelData,
   type Period,
-} from "./stats-charts-config";
-import { buildAreaData, buildBarData, getDateRange } from "./stats-charts-utils";
-import { AreaTooltip, BarTooltip } from "./stats-charts-tooltips";
-import { AreaLegend, BarLegend } from "./stats-charts-legends";
+} from "@/app/_stats/stats-charts-config";
+import {
+  buildAreaData,
+  buildBarData,
+  getDateRange,
+} from "@/app/_stats/stats-charts-utils";
+import { AreaTooltip, BarTooltip } from "@/app/_stats/stats-charts-tooltips";
+import { AreaLegend, BarLegend } from "@/app/_stats/stats-charts-legends";
 
 export function StatsCharts({
   statsData,
@@ -112,7 +116,8 @@ export function StatsCharts({
   });
 
   const areaData = React.useMemo(
-    () => buildAreaData(statsData, selectedSource, period, customStart, customEnd),
+    () =>
+      buildAreaData(statsData, selectedSource, period, customStart, customEnd),
     [statsData, selectedSource, period, customStart, customEnd]
   );
 
@@ -127,7 +132,15 @@ export function StatsCharts({
       customStart,
       customEnd
     );
-  }, [modelData, period, firstDataDate, barMetric, allDataDates, customStart, customEnd]);
+  }, [
+    modelData,
+    period,
+    firstDataDate,
+    barMetric,
+    allDataDates,
+    customStart,
+    customEnd,
+  ]);
 
   const barFormatValue = React.useCallback(
     (v: number) =>
@@ -232,8 +245,14 @@ export function StatsCharts({
       )}
 
       {/* Area chart — always visible */}
-      <ChartContainer config={AREA_CHART_CONFIG} className="h-56 w-full aspect-auto">
-        <AreaChart data={areaData} margin={{ top: 4, right: 4, bottom: 0, left: -24 }}>
+      <ChartContainer
+        config={AREA_CHART_CONFIG}
+        className="h-56 w-full aspect-auto"
+      >
+        <AreaChart
+          data={areaData}
+          margin={{ top: 4, right: 4, bottom: 0, left: -24 }}
+        >
           <defs>
             {AREA_SERIES.map((s) => (
               <linearGradient

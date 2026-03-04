@@ -1,5 +1,5 @@
 import type { ApplicationType } from "@/types";
-import type { StatsData } from "./types";
+import type { StatsData } from "@/app/_stats/types";
 import type {
   AreaChartPoint,
   BarChartPoint,
@@ -7,7 +7,7 @@ import type {
   ModelData,
   Period,
   RawDataPoint,
-} from "./stats-charts-config";
+} from "@/app/_stats/stats-charts-config";
 
 // ---------------------------------------------------------------------------
 // Date helpers
@@ -169,7 +169,10 @@ export function buildAreaData(
   const maxToolCalls = Math.max(...raw.map((r) => r.toolCalls), 1);
   const maxLines = Math.max(...raw.map((r) => r.lines), 1);
   const maxFiles = Math.max(...raw.map((r) => r.files), 1);
-  const maxTerminalCommands = Math.max(...raw.map((r) => r.terminalCommands), 1);
+  const maxTerminalCommands = Math.max(
+    ...raw.map((r) => r.terminalCommands),
+    1
+  );
   const maxSearches = Math.max(...raw.map((r) => r.searches), 1);
 
   return raw.map((r) => ({

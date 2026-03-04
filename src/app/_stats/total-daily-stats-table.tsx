@@ -5,7 +5,11 @@ import { cn, formatLargeNumber } from "@/lib/utils";
 import { APPLICATION_LABELS } from "@/lib/application-config";
 import { type ApplicationType } from "@/types";
 import { Button } from "@/components/ui/button";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { ColumnDef, SortingState } from "@tanstack/react-table";
 import { TableCell, TableFooter, TableRow } from "@/components/ui/table";
 import { StatsFooterMetricCells } from "./stats-footer-cells";
@@ -115,7 +119,12 @@ function getAllDailyTotals(
       (Object.keys(dayData) as ApplicationType[]).forEach((app) => {
         const s = dayData[app];
         if (!s || typeof s !== "object" || !("cost" in s)) return;
-        if (Number(s.conversations ?? 0) > 0) apps.push(app);
+        const hasActivity =
+          Number(s.conversations ?? 0) > 0 ||
+          (s.cost ?? 0) > 0 ||
+          Number(s.toolCalls ?? 0) > 0 ||
+          Number(s.inputTokens ?? 0) + Number(s.outputTokens ?? 0) > 0;
+        if (hasActivity) apps.push(app);
         cost += s.cost ?? 0;
         cachedTokens += Number(s.cachedTokens ?? 0);
         inputTokens += Number(s.inputTokens ?? 0);
@@ -269,8 +278,7 @@ function createColumns(
         return (
           <div
             className={
-              value === maxStats.reasoningTokens &&
-              maxStats.reasoningTokens > 0
+              value === maxStats.reasoningTokens && maxStats.reasoningTokens > 0
                 ? "text-red-600"
                 : ""
             }
@@ -322,7 +330,8 @@ function createColumns(
     {
       accessorKey: "terminalCommands",
       header: "Terminal",
-      cell: ({ row }) => formatLargeNumber(Number(row.getValue("terminalCommands"))),
+      cell: ({ row }) =>
+        formatLargeNumber(Number(row.getValue("terminalCommands"))),
     },
     {
       accessorKey: "searches",

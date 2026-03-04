@@ -30,6 +30,9 @@ export function useFormatConvertedCurrency(userId?: string) {
     queryKey: ["exchangeRates"],
     queryFn: async () => {
       const response = await fetch("/api/exchange-rates");
+      if (!response.ok) {
+        throw new Error(`Failed to fetch exchange rates: ${response.status}`);
+      }
       const data = await response.json();
       if (data.success) return data as ExchangeRatesResponse;
       throw new Error("Failed to fetch exchange rates");
@@ -49,8 +52,12 @@ export function useFormatConvertedCurrency(userId?: string) {
   const formatConvertedCurrency = React.useCallback(
     (amount: number) => {
       const currency = preferences?.currency || "USD";
-      if (!exchangeRates?.data || !exchangeRates?.eurToUsd || currency === "USD") {
-        return formatCurrency(amount, currency, locale);
+      if (
+        !exchangeRates?.data ||
+        !exchangeRates?.eurToUsd ||
+        currency === "USD"
+      ) {
+        return formatCurrency(amount, "USD", locale);
       }
 
       const convertedAmount = convertCurrency(
@@ -67,15 +74,19 @@ export function useFormatConvertedCurrency(userId?: string) {
   const formatConvertedCurrencyAdaptive = React.useCallback(
     (amount: number) => {
       const currency = preferences?.currency || "USD";
-      const convertedAmount =
-        !exchangeRates?.data || !exchangeRates?.eurToUsd || currency === "USD"
-          ? amount
-          : convertCurrency(
-              amount,
-              currency,
-              exchangeRates.data,
-              exchangeRates.eurToUsd
-            );
+      const canConvert =
+        !!exchangeRates?.data &&
+        !!exchangeRates?.eurToUsd &&
+        currency !== "USD";
+      const convertedAmount = canConvert
+        ? convertCurrency(
+            amount,
+            currency,
+            exchangeRates.data,
+            exchangeRates.eurToUsd
+          )
+        : amount;
+      const displayCurrency = canConvert ? currency : "USD";
 
       const absValue = Math.abs(convertedAmount);
       const maximumFractionDigits =
@@ -83,7 +94,7 @@ export function useFormatConvertedCurrency(userId?: string) {
 
       return new Intl.NumberFormat(locale, {
         style: "currency",
-        currency,
+        currency: displayCurrency,
         minimumFractionDigits: 2,
         maximumFractionDigits,
       }).format(convertedAmount);

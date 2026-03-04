@@ -2,11 +2,7 @@
 
 import { useSession } from "next-auth/react";
 import { useState } from "react";
-import {
-  useMutation,
-  useQuery,
-  useQueryClient,
-} from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -86,8 +82,10 @@ export function CLITokenDisplay() {
       setNewTokenName("");
       toast.success("Token created successfully!");
     },
-    onError: (error) => {
-      toast.error(error.message || "Failed to create token");
+    onError: (error: unknown) => {
+      const message =
+        error instanceof Error ? error.message : "Failed to create token";
+      toast.error(message);
     },
   });
 
@@ -113,24 +111,38 @@ export function CLITokenDisplay() {
       });
       toast.success("Token deleted successfully!");
     },
-    onError: (error) => {
-      toast.error(error.message || "Failed to delete token");
+    onError: (error: unknown) => {
+      const message =
+        error instanceof Error ? error.message : "Failed to delete token";
+      toast.error(message);
     },
   });
 
-  const createNewToken = async () => {
+  const createNewToken = () => {
     if (!session) return;
-    await createTokenMutation.mutateAsync(newTokenName);
+    createTokenMutation.mutate(newTokenName);
   };
 
-  const deleteToken = async (tokenId: string) => {
+  const deleteToken = (tokenId: string) => {
     if (!session) return;
-    await deleteTokenMutation.mutateAsync(tokenId);
+    deleteTokenMutation.mutate(tokenId);
   };
 
   const copyToken = async (token: string, tokenId: string) => {
     try {
-      await navigator.clipboard.writeText(token);
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(token);
+      } else {
+        // Fallback for non-secure contexts
+        const textarea = document.createElement("textarea");
+        textarea.value = token;
+        textarea.style.position = "fixed";
+        textarea.style.left = "-9999px";
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand("copy");
+        document.body.removeChild(textarea);
+      }
       setCopiedTokens((prev) => new Set([...prev, tokenId]));
       toast.success("Copied to clipboard");
       setTimeout(() => {
@@ -163,7 +175,9 @@ export function CLITokenDisplay() {
     return "•".repeat(token.length - 4) + token.slice(-4);
   };
 
-  const latestToken = tokens[0]?.token;
+  const latestToken = [...tokens].sort(
+    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+  )[0]?.token;
   const setApiTokenCommand = latestToken
     ? `splitrail config set api-token ${latestToken}`
     : "splitrail config set api-token <your-token>";
@@ -185,10 +199,12 @@ export function CLITokenDisplay() {
       <div className="rounded-lg border bg-muted/30 p-3 sm:p-4">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="space-y-1">
-            <p className="text-sm font-medium">Configure Splitrail CLI anytime</p>
+            <p className="text-sm font-medium">
+              Configure Splitrail CLI anytime
+            </p>
             <p className="text-xs text-muted-foreground">
-              Keep your CLI linked, then reuse this guide whenever you create and
-              switch to a new token.
+              Keep your CLI linked, then reuse this guide whenever you create
+              and switch to a new token.
             </p>
           </div>
           <Dialog>
@@ -202,8 +218,8 @@ export function CLITokenDisplay() {
               <DialogHeader>
                 <DialogTitle>Splitrail CLI setup</DialogTitle>
                 <DialogDescription>
-                  Use this quick setup anytime. When you create a new token here,
-                  reopen this and copy the set-token command again.
+                  Use this quick setup anytime. When you create a new token
+                  here, reopen this and copy the set-token command again.
                 </DialogDescription>
               </DialogHeader>
 

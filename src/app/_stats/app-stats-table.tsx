@@ -4,7 +4,11 @@ import * as React from "react";
 import { cn, formatLargeNumber } from "@/lib/utils";
 import { ApplicationType } from "@/types";
 import { Button } from "@/components/ui/button";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { ColumnDef, SortingState } from "@tanstack/react-table";
 import { TableCell, TableFooter, TableRow } from "@/components/ui/table";
 import { StatsFooterMetricCells } from "./stats-footer-cells";
@@ -61,32 +65,35 @@ function getStatsForApplication(
     cursor.setTime(next.getTime());
   }
 
-  return dateRange.reverse().map((date) => {
-    const existing = statsData.stats[date]?.[app];
-    if (existing) return { ...existing, date };
+  return dateRange
+    .reverse()
+    .map((date) => {
+      const existing = statsData.stats[date]?.[app];
+      if (existing) return { ...existing, date };
 
-    return {
-      date,
-      cost: 0,
-      cachedTokens: "0",
-      inputTokens: "0",
-      outputTokens: "0",
-      reasoningTokens: "0",
-      conversations: 0,
-      toolCalls: "0",
-      terminalCommands: "0",
-      fileSearches: "0",
-      fileContentSearches: "0",
-      filesRead: "0",
-      filesAdded: "0",
-      filesEdited: "0",
-      filesDeleted: "0",
-      linesRead: "0",
-      linesAdded: "0",
-      linesEdited: "0",
-      isEmpty: true,
-    };
-  }).filter((stat) => includeEmptyDays || !stat.isEmpty);
+      return {
+        date,
+        cost: 0,
+        cachedTokens: "0",
+        inputTokens: "0",
+        outputTokens: "0",
+        reasoningTokens: "0",
+        conversations: 0,
+        toolCalls: "0",
+        terminalCommands: "0",
+        fileSearches: "0",
+        fileContentSearches: "0",
+        filesRead: "0",
+        filesAdded: "0",
+        filesEdited: "0",
+        filesDeleted: "0",
+        linesRead: "0",
+        linesAdded: "0",
+        linesEdited: "0",
+        isEmpty: true,
+      };
+    })
+    .filter((stat) => includeEmptyDays || !stat.isEmpty);
 }
 
 function buildDeltasWithEmptyDays(
@@ -100,9 +107,11 @@ function buildDeltasWithEmptyDays(
   withEmptyDays.forEach((current, index) => {
     const previous = withEmptyDays[index + 1];
     const currentSearches =
-      Number(current.fileSearches ?? 0) + Number(current.fileContentSearches ?? 0);
+      Number(current.fileSearches ?? 0) +
+      Number(current.fileContentSearches ?? 0);
     const previousSearches = previous
-      ? Number(previous.fileSearches ?? 0) + Number(previous.fileContentSearches ?? 0)
+      ? Number(previous.fileSearches ?? 0) +
+        Number(previous.fileContentSearches ?? 0)
       : 0;
     const currentFilesTouched =
       Number(current.filesRead ?? 0) +
@@ -118,21 +127,29 @@ function buildDeltasWithEmptyDays(
 
     deltas[current.date] = {
       cost: current.cost - (previous?.cost ?? 0),
-      cachedTokens: Number(current.cachedTokens) - Number(previous?.cachedTokens ?? 0),
-      inputTokens: Number(current.inputTokens) - Number(previous?.inputTokens ?? 0),
-      outputTokens: Number(current.outputTokens) - Number(previous?.outputTokens ?? 0),
+      cachedTokens:
+        Number(current.cachedTokens) - Number(previous?.cachedTokens ?? 0),
+      inputTokens:
+        Number(current.inputTokens) - Number(previous?.inputTokens ?? 0),
+      outputTokens:
+        Number(current.outputTokens) - Number(previous?.outputTokens ?? 0),
       reasoningTokens:
-        Number(current.reasoningTokens) - Number(previous?.reasoningTokens ?? 0),
+        Number(current.reasoningTokens) -
+        Number(previous?.reasoningTokens ?? 0),
       conversations:
-        Number(current.conversations ?? 0) - Number(previous?.conversations ?? 0),
+        Number(current.conversations ?? 0) -
+        Number(previous?.conversations ?? 0),
       toolCalls: Number(current.toolCalls) - Number(previous?.toolCalls ?? 0),
       terminalCommands:
-        Number(current.terminalCommands ?? 0) - Number(previous?.terminalCommands ?? 0),
+        Number(current.terminalCommands ?? 0) -
+        Number(previous?.terminalCommands ?? 0),
       searches: currentSearches - previousSearches,
       filesTouched: currentFilesTouched - previousFilesTouched,
       linesRead: Number(current.linesRead) - Number(previous?.linesRead ?? 0),
-      linesEdited: Number(current.linesEdited) - Number(previous?.linesEdited ?? 0),
-      linesAdded: Number(current.linesAdded) - Number(previous?.linesAdded ?? 0),
+      linesEdited:
+        Number(current.linesEdited) - Number(previous?.linesEdited ?? 0),
+      linesAdded:
+        Number(current.linesAdded) - Number(previous?.linesAdded ?? 0),
     };
   });
 
@@ -147,9 +164,11 @@ function formatDelta(value: number): string {
 function DeltaText({
   value,
   kind = "number",
+  formatCurrency,
 }: {
   value: number;
   kind?: "number" | "currency";
+  formatCurrency?: (amount: number) => string;
 }) {
   if (value === 0) return null;
 
@@ -162,8 +181,9 @@ function DeltaText({
           : "text-rose-600 dark:text-rose-400"
       )}
     >
-      {kind === "currency" ? (value > 0 ? "+" : "") : ""}
-      {kind === "currency" ? value.toFixed(2) : formatDelta(value)}
+      {kind === "currency"
+        ? `${value > 0 ? "+" : ""}${formatCurrency ? formatCurrency(value) : value.toFixed(2)}`
+        : formatDelta(value)}
     </div>
   );
 }
@@ -218,7 +238,13 @@ function createColumns(
             )}
           >
             {formatConvertedCurrency(cost)}
-            {showDeltas && <DeltaText value={delta?.cost ?? 0} kind="currency" />}
+            {showDeltas && (
+              <DeltaText
+                value={delta?.cost ?? 0}
+                kind="currency"
+                formatCurrency={formatConvertedCurrency}
+              />
+            )}
           </div>
         );
       },
@@ -425,7 +451,8 @@ function createColumns(
       id: "models",
       header: "Models",
       cell: ({ row }) => {
-        const models = statsData?.stats?.[row.original.date]?.[app]?.models || [];
+        const models =
+          statsData?.stats?.[row.original.date]?.[app]?.models || [];
         return models.join(", ");
       },
     },

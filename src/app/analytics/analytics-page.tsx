@@ -22,7 +22,12 @@ export default function AnalyticsPage() {
     session?.user?.id
   );
 
-  const { data: statsData, isLoading: statsLoading } = useQuery({
+  const {
+    data: statsData,
+    isLoading: statsLoading,
+    isError: statsError,
+    error: statsErrorObj,
+  } = useQuery({
     queryKey: ["userStats", session?.user?.id, period],
     queryFn: async () => {
       if (!session?.user?.id) throw new Error("No user session");
@@ -40,6 +45,27 @@ export default function AnalyticsPage() {
 
   if (status === "loading" || statsLoading) {
     return <AnalyticsSkeleton />;
+  }
+
+  if (!session) {
+    return (
+      <div className="text-center py-12 text-muted-foreground text-sm animate-in fade-in-0 duration-300">
+        Please sign in to view your analytics.
+      </div>
+    );
+  }
+
+  if (statsError) {
+    return (
+      <div className="text-center py-12 text-sm animate-in fade-in-0 duration-300">
+        <p className="text-destructive">
+          Error loading stats:{" "}
+          {statsErrorObj instanceof Error
+            ? statsErrorObj.message
+            : "An error occurred"}
+        </p>
+      </div>
+    );
   }
 
   if (!statsData?.stats) {
@@ -66,7 +92,11 @@ export default function AnalyticsPage() {
           variant="outline"
           value={period}
           onValueChange={(value) => {
-            if (value === "daily" || value === "weekly" || value === "monthly") {
+            if (
+              value === "daily" ||
+              value === "weekly" ||
+              value === "monthly"
+            ) {
               setPeriod(value);
             }
           }}
@@ -75,10 +105,18 @@ export default function AnalyticsPage() {
           <ToggleGroupItem value="daily" aria-label="Daily period" className="">
             Daily
           </ToggleGroupItem>
-          <ToggleGroupItem value="weekly" aria-label="Weekly period" className="px-2">
+          <ToggleGroupItem
+            value="weekly"
+            aria-label="Weekly period"
+            className="px-2"
+          >
             Weekly
           </ToggleGroupItem>
-          <ToggleGroupItem value="monthly" aria-label="Monthly period" className="px-3">
+          <ToggleGroupItem
+            value="monthly"
+            aria-label="Monthly period"
+            className="px-3"
+          >
             Monthly
           </ToggleGroupItem>
         </ToggleGroup>

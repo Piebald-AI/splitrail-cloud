@@ -16,9 +16,13 @@ import {
   SquareTerminal,
   WholeWord,
 } from "lucide-react";
-import { StatCard } from "./stat-card";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { type DayStat, type GrandTotal } from "./types";
+import { StatCard } from "@/app/_stats/stat-card";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { type DayStat, type GrandTotal } from "@/app/_stats/types";
 
 const utc = (date: string) => new TZDateMini(date, "UTC");
 
@@ -37,14 +41,19 @@ export function StatsOverview({
   const sortedAppLabels = Object.entries(appTotals)
     .filter(([, total]) => Number(total.conversations ?? 0) > 0)
     .sort(
-      ([, a], [, b]) => Number(b.conversations ?? 0) - Number(a.conversations ?? 0)
+      ([, a], [, b]) =>
+        Number(b.conversations ?? 0) - Number(a.conversations ?? 0)
     )
-    .map(([app]) => APPLICATION_LABELS[app as keyof typeof APPLICATION_LABELS] ?? app);
+    .map(
+      ([app]) =>
+        APPLICATION_LABELS[app as keyof typeof APPLICATION_LABELS] ?? app
+    );
 
   const fallbackLabels = grandTotal.applications.map(
     (app) => APPLICATION_LABELS[app as keyof typeof APPLICATION_LABELS] ?? app
   );
-  const appLabels = sortedAppLabels.length > 0 ? sortedAppLabels : fallbackLabels;
+  const appLabels =
+    sortedAppLabels.length > 0 ? sortedAppLabels : fallbackLabels;
   const visibleAppLabels = appLabels.slice(0, 2);
   const remainingAppLabels = appLabels.slice(2);
   const daysTracked = Math.max(grandTotal.daysTracked, 1);
@@ -57,16 +66,20 @@ export function StatsOverview({
     grandTotal.fileSearches + grandTotal.fileContentSearches;
   const costPer1kTokens =
     grandTotal.tokens > 0 ? (grandTotal.cost / grandTotal.tokens) * 1000 : 0;
-  const cacheTokenTotal = grandTotal.cacheCreationTokens + grandTotal.cacheReadTokens;
+  const cacheTokenTotal =
+    grandTotal.cacheCreationTokens + grandTotal.cacheReadTokens;
   const cacheReuseRate =
-    cacheTokenTotal > 0 ? (grandTotal.cacheReadTokens / cacheTokenTotal) * 100 : 0;
+    cacheTokenTotal > 0
+      ? (grandTotal.cacheReadTokens / cacheTokenTotal) * 100
+      : 0;
   const tokensPerToolCall =
     grandTotal.toolCalls > 0 ? grandTotal.tokens / grandTotal.toolCalls : 0;
   const toolCallsPerConversation =
     grandTotal.conversations > 0
       ? grandTotal.toolCalls / grandTotal.conversations
       : 0;
-  const writeActions = grandTotal.filesAdded + grandTotal.filesEdited + grandTotal.filesDeleted;
+  const writeActions =
+    grandTotal.filesAdded + grandTotal.filesEdited + grandTotal.filesDeleted;
   const writeShare = filesTouched > 0 ? (writeActions / filesTouched) * 100 : 0;
 
   return (
