@@ -22,7 +22,14 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { type DayStat, type GrandTotal } from "@/app/_stats/types";
+import {
+  addCounterValues,
+  compareCounterValues,
+  counterToApproxNumber,
+  isPositiveCounter,
+  type GrandTotal,
+  type TotalsRow,
+} from "@/app/_stats/types";
 
 const utc = (date: string) => new TZDateMini(date, "UTC");
 
@@ -33,16 +40,16 @@ export function StatsOverview({
   formatConvertedCurrencyAdaptive,
 }: {
   grandTotal: GrandTotal;
-  appTotals: Record<string, DayStat>;
+  appTotals: Record<string, TotalsRow>;
   formatConvertedCurrency: (amount: number) => string;
   formatConvertedCurrencyAdaptive: (amount: number) => string;
 }) {
   const [showAdvancedInsights, setShowAdvancedInsights] = React.useState(false);
   const sortedAppLabels = Object.entries(appTotals)
-    .filter(([, total]) => Number(total.conversations ?? 0) > 0)
+    .filter(([, total]) => isPositiveCounter(total.conversations))
     .sort(
       ([, a], [, b]) =>
-        Number(b.conversations ?? 0) - Number(a.conversations ?? 0)
+        compareCounterValues(b.conversations, a.conversations)
     )
     .map(
       ([app]) =>
@@ -57,30 +64,48 @@ export function StatsOverview({
   const visibleAppLabels = appLabels.slice(0, 2);
   const remainingAppLabels = appLabels.slice(2);
   const daysTracked = Math.max(grandTotal.daysTracked, 1);
-  const filesTouched =
-    grandTotal.filesRead +
-    grandTotal.filesAdded +
-    grandTotal.filesEdited +
-    grandTotal.filesDeleted;
-  const totalSearches =
-    grandTotal.fileSearches + grandTotal.fileContentSearches;
+  const filesTouched = addCounterValues(
+    grandTotal.filesRead,
+    grandTotal.filesAdded,
+    grandTotal.filesEdited,
+    grandTotal.filesDeleted
+  );
+  const totalSearches = addCounterValues(
+    grandTotal.fileSearches,
+    grandTotal.fileContentSearches
+  );
+  const cacheTokenTotal = addCounterValues(
+    grandTotal.cacheCreationTokens,
+    grandTotal.cacheReadTokens
+  );
+  const tokensApprox = counterToApproxNumber(grandTotal.tokens);
+  const toolCallsApprox = counterToApproxNumber(grandTotal.toolCalls);
+  const conversationsApprox = counterToApproxNumber(grandTotal.conversations);
+  const terminalCommandsApprox = counterToApproxNumber(grandTotal.terminalCommands);
+  const filesTouchedApprox = counterToApproxNumber(filesTouched);
+  const totalSearchesApprox = counterToApproxNumber(totalSearches);
+  const cacheReadTokensApprox = counterToApproxNumber(grandTotal.cacheReadTokens);
+  const cacheTokenTotalApprox = counterToApproxNumber(cacheTokenTotal);
+  const writeActions = addCounterValues(
+    grandTotal.filesAdded,
+    grandTotal.filesEdited,
+    grandTotal.filesDeleted
+  );
+  const writeActionsApprox = counterToApproxNumber(writeActions);
   const costPer1kTokens =
-    grandTotal.tokens > 0 ? (grandTotal.cost / grandTotal.tokens) * 1000 : 0;
-  const cacheTokenTotal =
-    grandTotal.cacheCreationTokens + grandTotal.cacheReadTokens;
+    tokensApprox > 0 ? (grandTotal.cost / tokensApprox) * 1000 : 0;
   const cacheReuseRate =
-    cacheTokenTotal > 0
-      ? (grandTotal.cacheReadTokens / cacheTokenTotal) * 100
+    cacheTokenTotalApprox > 0
+      ? (cacheReadTokensApprox / cacheTokenTotalApprox) * 100
       : 0;
   const tokensPerToolCall =
-    grandTotal.toolCalls > 0 ? grandTotal.tokens / grandTotal.toolCalls : 0;
+    toolCallsApprox > 0 ? tokensApprox / toolCallsApprox : 0;
   const toolCallsPerConversation =
-    grandTotal.conversations > 0
-      ? grandTotal.toolCalls / grandTotal.conversations
+    conversationsApprox > 0
+      ? toolCallsApprox / conversationsApprox
       : 0;
-  const writeActions =
-    grandTotal.filesAdded + grandTotal.filesEdited + grandTotal.filesDeleted;
-  const writeShare = filesTouched > 0 ? (writeActions / filesTouched) * 100 : 0;
+  const writeShare =
+    filesTouchedApprox > 0 ? (writeActionsApprox / filesTouchedApprox) * 100 : 0;
 
   return (
     <div className="space-y-3">
@@ -89,7 +114,7 @@ export function StatsOverview({
           Icon={WholeWord}
           label="Tokens"
           value={formatLargeNumber(grandTotal.tokens)}
-          info={`${formatLargeNumber(grandTotal.tokens / daysTracked)}/day avg`}
+          info={`${formatLargeNumber(tokensApprox / daysTracked)}/day avg`}
           accent="violet"
         />
         <StatCard
@@ -103,7 +128,7 @@ export function StatsOverview({
           Icon={Hammer}
           label="Tool Calls"
           value={formatLargeNumber(grandTotal.toolCalls)}
-          info={`${formatLargeNumber(grandTotal.toolCalls / daysTracked)}/day avg`}
+          info={`${formatLargeNumber(toolCallsApprox / daysTracked)}/day avg`}
           accent="emerald"
         />
         <StatCard
@@ -181,21 +206,21 @@ export function StatsOverview({
             Icon={FileText}
             label="Files Touched"
             value={formatLargeNumber(filesTouched)}
-            info={`${formatLargeNumber(filesTouched / daysTracked)}/day avg`}
+            info={`${formatLargeNumber(filesTouchedApprox / daysTracked)}/day avg`}
             accent="sky"
           />
           <StatCard
             Icon={SquareTerminal}
             label="Terminal Cmds"
             value={formatLargeNumber(grandTotal.terminalCommands)}
-            info={`${formatLargeNumber(grandTotal.terminalCommands / daysTracked)}/day avg`}
+            info={`${formatLargeNumber(terminalCommandsApprox / daysTracked)}/day avg`}
             accent="teal"
           />
           <StatCard
             Icon={Search}
             label="Searches"
             value={formatLargeNumber(totalSearches)}
-            info={`${formatLargeNumber(totalSearches / daysTracked)}/day avg`}
+            info={`${formatLargeNumber(totalSearchesApprox / daysTracked)}/day avg`}
             accent="sky"
           />
           <StatCard

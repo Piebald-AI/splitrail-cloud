@@ -11,32 +11,50 @@ import {
 } from "@/components/ui/tooltip";
 import { ColumnDef, SortingState } from "@tanstack/react-table";
 import { TableCell, TableFooter, TableRow } from "@/components/ui/table";
-import { StatsFooterMetricCells } from "./stats-footer-cells";
-import { StatsTableShell } from "./stats-table-shell";
-import { type AnalyticsPeriod, type DayStat, type StatsData } from "./types";
+import { StatsFooterMetricCells } from "@/app/_stats/stats-footer-cells";
+import { StatsTableShell } from "@/app/_stats/stats-table-shell";
+import {
+  addCounterValues,
+  compareCounterValues,
+  counterSortingFn,
+  counterToBigInt,
+  isPositiveCounter,
+  subtractCounterValues,
+  ZERO_COUNTER,
+  type AnalyticsPeriod,
+  type CounterInput,
+  type DayStat,
+  type StatsData,
+  type TotalsRow,
+} from "@/app/_stats/types";
 import {
   addPeriod,
   formatDateForDisplay,
   getDateHoverText,
   getPeriodCountLabel,
   getPeriodStart,
-} from "./date-helpers";
+} from "@/app/_stats/date-helpers";
 
 type DayDelta = {
   cost: number;
-  cachedTokens: number;
-  inputTokens: number;
-  outputTokens: number;
-  reasoningTokens: number;
-  conversations: number;
-  toolCalls: number;
-  terminalCommands: number;
-  searches: number;
-  filesTouched: number;
-  linesRead: number;
-  linesEdited: number;
-  linesAdded: number;
+  cachedTokens: bigint;
+  inputTokens: bigint;
+  outputTokens: bigint;
+  reasoningTokens: bigint;
+  conversations: bigint;
+  toolCalls: bigint;
+  terminalCommands: bigint;
+  searches: bigint;
+  filesTouched: bigint;
+  linesRead: bigint;
+  linesEdited: bigint;
+  linesAdded: bigint;
 };
+
+function formatCounterDelta(value: bigint): string {
+  if (value === 0n) return "0";
+  return `${value > 0n ? "+" : ""}${formatLargeNumber(value)}`;
+}
 
 function getStatsForApplication(
   statsData: StatsData,
@@ -74,22 +92,41 @@ function getStatsForApplication(
       return {
         date,
         cost: 0,
-        cachedTokens: "0",
-        inputTokens: "0",
-        outputTokens: "0",
-        reasoningTokens: "0",
-        conversations: 0,
-        toolCalls: "0",
-        terminalCommands: "0",
-        fileSearches: "0",
-        fileContentSearches: "0",
-        filesRead: "0",
-        filesAdded: "0",
-        filesEdited: "0",
-        filesDeleted: "0",
-        linesRead: "0",
-        linesAdded: "0",
-        linesEdited: "0",
+        cachedTokens: ZERO_COUNTER,
+        inputTokens: ZERO_COUNTER,
+        outputTokens: ZERO_COUNTER,
+        reasoningTokens: ZERO_COUNTER,
+        cacheCreationTokens: ZERO_COUNTER,
+        cacheReadTokens: ZERO_COUNTER,
+        conversations: ZERO_COUNTER,
+        toolCalls: ZERO_COUNTER,
+        terminalCommands: ZERO_COUNTER,
+        fileSearches: ZERO_COUNTER,
+        fileContentSearches: ZERO_COUNTER,
+        filesRead: ZERO_COUNTER,
+        filesAdded: ZERO_COUNTER,
+        filesEdited: ZERO_COUNTER,
+        filesDeleted: ZERO_COUNTER,
+        linesRead: ZERO_COUNTER,
+        linesAdded: ZERO_COUNTER,
+        linesEdited: ZERO_COUNTER,
+        linesDeleted: ZERO_COUNTER,
+        bytesRead: ZERO_COUNTER,
+        bytesAdded: ZERO_COUNTER,
+        bytesEdited: ZERO_COUNTER,
+        bytesDeleted: ZERO_COUNTER,
+        codeLines: ZERO_COUNTER,
+        docsLines: ZERO_COUNTER,
+        dataLines: ZERO_COUNTER,
+        mediaLines: ZERO_COUNTER,
+        configLines: ZERO_COUNTER,
+        otherLines: ZERO_COUNTER,
+        todosCreated: ZERO_COUNTER,
+        todosCompleted: ZERO_COUNTER,
+        todosInProgress: ZERO_COUNTER,
+        todoReads: ZERO_COUNTER,
+        todoWrites: ZERO_COUNTER,
+        models: [],
         isEmpty: true,
       };
     })
@@ -106,71 +143,79 @@ function buildDeltasWithEmptyDays(
 
   withEmptyDays.forEach((current, index) => {
     const previous = withEmptyDays[index + 1];
-    const currentSearches =
-      Number(current.fileSearches ?? 0) +
-      Number(current.fileContentSearches ?? 0);
+    const currentSearches = addCounterValues(
+      current.fileSearches,
+      current.fileContentSearches
+    );
     const previousSearches = previous
-      ? Number(previous.fileSearches ?? 0) +
-        Number(previous.fileContentSearches ?? 0)
-      : 0;
-    const currentFilesTouched =
-      Number(current.filesRead ?? 0) +
-      Number(current.filesAdded ?? 0) +
-      Number(current.filesEdited ?? 0) +
-      Number(current.filesDeleted ?? 0);
+      ? addCounterValues(previous.fileSearches, previous.fileContentSearches)
+      : 0n;
+    const currentFilesTouched = addCounterValues(
+      current.filesRead,
+      current.filesAdded,
+      current.filesEdited,
+      current.filesDeleted
+    );
     const previousFilesTouched = previous
-      ? Number(previous.filesRead ?? 0) +
-        Number(previous.filesAdded ?? 0) +
-        Number(previous.filesEdited ?? 0) +
-        Number(previous.filesDeleted ?? 0)
-      : 0;
+      ? addCounterValues(
+          previous.filesRead,
+          previous.filesAdded,
+          previous.filesEdited,
+          previous.filesDeleted
+        )
+      : 0n;
 
     deltas[current.date] = {
       cost: current.cost - (previous?.cost ?? 0),
-      cachedTokens:
-        Number(current.cachedTokens) - Number(previous?.cachedTokens ?? 0),
-      inputTokens:
-        Number(current.inputTokens) - Number(previous?.inputTokens ?? 0),
-      outputTokens:
-        Number(current.outputTokens) - Number(previous?.outputTokens ?? 0),
-      reasoningTokens:
-        Number(current.reasoningTokens) -
-        Number(previous?.reasoningTokens ?? 0),
-      conversations:
-        Number(current.conversations ?? 0) -
-        Number(previous?.conversations ?? 0),
-      toolCalls: Number(current.toolCalls) - Number(previous?.toolCalls ?? 0),
-      terminalCommands:
-        Number(current.terminalCommands ?? 0) -
-        Number(previous?.terminalCommands ?? 0),
+      cachedTokens: subtractCounterValues(
+        current.cachedTokens,
+        previous?.cachedTokens
+      ),
+      inputTokens: subtractCounterValues(
+        current.inputTokens,
+        previous?.inputTokens
+      ),
+      outputTokens: subtractCounterValues(
+        current.outputTokens,
+        previous?.outputTokens
+      ),
+      reasoningTokens: subtractCounterValues(
+        current.reasoningTokens,
+        previous?.reasoningTokens
+      ),
+      conversations: subtractCounterValues(
+        current.conversations,
+        previous?.conversations
+      ),
+      toolCalls: subtractCounterValues(current.toolCalls, previous?.toolCalls),
+      terminalCommands: subtractCounterValues(
+        current.terminalCommands,
+        previous?.terminalCommands
+      ),
       searches: currentSearches - previousSearches,
       filesTouched: currentFilesTouched - previousFilesTouched,
-      linesRead: Number(current.linesRead) - Number(previous?.linesRead ?? 0),
-      linesEdited:
-        Number(current.linesEdited) - Number(previous?.linesEdited ?? 0),
-      linesAdded:
-        Number(current.linesAdded) - Number(previous?.linesAdded ?? 0),
+      linesRead: subtractCounterValues(current.linesRead, previous?.linesRead),
+      linesEdited: subtractCounterValues(
+        current.linesEdited,
+        previous?.linesEdited
+      ),
+      linesAdded: subtractCounterValues(current.linesAdded, previous?.linesAdded),
     };
   });
 
   return deltas;
 }
 
-function formatDelta(value: number): string {
-  if (value === 0) return "0";
-  return `${value > 0 ? "+" : ""}${formatLargeNumber(value)}`;
-}
-
 function DeltaText({
   value,
-  kind = "number",
+  kind = "counter",
   formatCurrency,
 }: {
-  value: number;
-  kind?: "number" | "currency";
+  value: bigint | number;
+  kind?: "counter" | "currency";
   formatCurrency?: (amount: number) => string;
 }) {
-  if (value === 0) return null;
+  if ((typeof value === "bigint" && value === 0n) || value === 0) return null;
 
   return (
     <div
@@ -182,14 +227,33 @@ function DeltaText({
       )}
     >
       {kind === "currency"
-        ? `${value > 0 ? "+" : ""}${formatCurrency ? formatCurrency(value) : value.toFixed(2)}`
-        : formatDelta(value)}
+        ? `${value > 0 ? "+" : ""}${
+            formatCurrency
+              ? formatCurrency(typeof value === "number" ? value : Number(value))
+              : typeof value === "number"
+                ? value.toFixed(2)
+                : Number(value).toFixed(2)
+          }`
+        : formatCounterDelta(typeof value === "bigint" ? value : BigInt(value))}
     </div>
   );
 }
 
 function createColumns(
-  maxStats: Record<string, number>,
+  maxStats: {
+    cost: number;
+    cachedTokens: bigint;
+    inputTokens: bigint;
+    outputTokens: bigint;
+    reasoningTokens: bigint;
+    conversations: bigint;
+    toolCalls: bigint;
+    terminalCommands: bigint;
+    searches: bigint;
+    filesTouched: bigint;
+    linesAdded: bigint;
+    linesEdited: bigint;
+  },
   statsData: StatsData,
   app: ApplicationType,
   formatConvertedCurrency: (amount: number) => string,
@@ -198,6 +262,8 @@ function createColumns(
   period: AnalyticsPeriod
 ): ColumnDef<DayStat>[] {
   const getDelta = (row: DayStat) => deltasByDate[row.date];
+  const isMaxCounter = (value: CounterInput, maxValue: bigint) =>
+    compareCounterValues(value, maxValue) === 0 && isPositiveCounter(maxValue);
 
   return [
     {
@@ -252,19 +318,18 @@ function createColumns(
     {
       accessorKey: "cachedTokens",
       header: "Cached Tokens",
+      sortingFn: counterSortingFn<DayStat>((row) => row.cachedTokens),
       cell: ({ row }) => {
-        const value = Number(row.getValue("cachedTokens"));
+        const value = row.original.cachedTokens;
         const delta = getDelta(row.original);
         return (
           <div
             className={
-              value === maxStats.cachedTokens && maxStats.cachedTokens > 0
-                ? "text-red-600"
-                : ""
+              isMaxCounter(value, maxStats.cachedTokens) ? "text-red-600" : ""
             }
           >
             {formatLargeNumber(value)}
-            {showDeltas && <DeltaText value={delta?.cachedTokens ?? 0} />}
+            {showDeltas && <DeltaText value={delta?.cachedTokens ?? 0n} />}
           </div>
         );
       },
@@ -272,19 +337,18 @@ function createColumns(
     {
       accessorKey: "inputTokens",
       header: "Input Tokens",
+      sortingFn: counterSortingFn<DayStat>((row) => row.inputTokens),
       cell: ({ row }) => {
-        const value = Number(row.getValue("inputTokens"));
+        const value = row.original.inputTokens;
         const delta = getDelta(row.original);
         return (
           <div
             className={
-              value === maxStats.inputTokens && maxStats.inputTokens > 0
-                ? "text-red-600"
-                : ""
+              isMaxCounter(value, maxStats.inputTokens) ? "text-red-600" : ""
             }
           >
             {formatLargeNumber(value)}
-            {showDeltas && <DeltaText value={delta?.inputTokens ?? 0} />}
+            {showDeltas && <DeltaText value={delta?.inputTokens ?? 0n} />}
           </div>
         );
       },
@@ -292,19 +356,18 @@ function createColumns(
     {
       accessorKey: "outputTokens",
       header: "Output Tokens",
+      sortingFn: counterSortingFn<DayStat>((row) => row.outputTokens),
       cell: ({ row }) => {
-        const value = Number(row.getValue("outputTokens"));
+        const value = row.original.outputTokens;
         const delta = getDelta(row.original);
         return (
           <div
             className={
-              value === maxStats.outputTokens && maxStats.outputTokens > 0
-                ? "text-red-600"
-                : ""
+              isMaxCounter(value, maxStats.outputTokens) ? "text-red-600" : ""
             }
           >
             {formatLargeNumber(value)}
-            {showDeltas && <DeltaText value={delta?.outputTokens ?? 0} />}
+            {showDeltas && <DeltaText value={delta?.outputTokens ?? 0n} />}
           </div>
         );
       },
@@ -312,19 +375,20 @@ function createColumns(
     {
       accessorKey: "reasoningTokens",
       header: "Reasoning",
+      sortingFn: counterSortingFn<DayStat>((row) => row.reasoningTokens),
       cell: ({ row }) => {
-        const value = Number(row.getValue("reasoningTokens"));
+        const value = row.original.reasoningTokens;
         const delta = getDelta(row.original);
         return (
           <div
             className={
-              value === maxStats.reasoningTokens && maxStats.reasoningTokens > 0
+              isMaxCounter(value, maxStats.reasoningTokens)
                 ? "text-red-600"
                 : ""
             }
           >
             {formatLargeNumber(value)}
-            {showDeltas && <DeltaText value={delta?.reasoningTokens ?? 0} />}
+            {showDeltas && <DeltaText value={delta?.reasoningTokens ?? 0n} />}
           </div>
         );
       },
@@ -332,19 +396,20 @@ function createColumns(
     {
       accessorKey: "conversations",
       header: "Conversations",
+      sortingFn: counterSortingFn<DayStat>((row) => row.conversations),
       cell: ({ row }) => {
-        const value = Number(row.getValue("conversations") || 0);
+        const value = row.original.conversations;
         const delta = getDelta(row.original);
         return (
           <div
             className={
-              value === maxStats.conversations && maxStats.conversations > 0
+              isMaxCounter(value, maxStats.conversations)
                 ? "text-red-600"
                 : ""
             }
           >
             {formatLargeNumber(value)}
-            {showDeltas && <DeltaText value={delta?.conversations ?? 0} />}
+            {showDeltas && <DeltaText value={delta?.conversations ?? 0n} />}
           </div>
         );
       },
@@ -352,14 +417,15 @@ function createColumns(
     {
       accessorKey: "toolCalls",
       header: "Tool Calls",
+      sortingFn: counterSortingFn<DayStat>((row) => row.toolCalls),
       cell: ({ row }) => {
-        const value = Number(row.getValue("toolCalls"));
+        const value = row.original.toolCalls;
         const isEmpty = row.original.isEmpty;
         const delta = getDelta(row.original);
         return (
           <div
             className={
-              value === maxStats.toolCalls && maxStats.toolCalls > 0
+              isMaxCounter(value, maxStats.toolCalls)
                 ? "text-red-600"
                 : !isEmpty
                   ? "text-green-600"
@@ -367,7 +433,7 @@ function createColumns(
             }
           >
             {formatLargeNumber(value)}
-            {showDeltas && <DeltaText value={delta?.toolCalls ?? 0} />}
+            {showDeltas && <DeltaText value={delta?.toolCalls ?? 0n} />}
           </div>
         );
       },
@@ -375,13 +441,14 @@ function createColumns(
     {
       accessorKey: "terminalCommands",
       header: "Terminal",
+      sortingFn: counterSortingFn<DayStat>((row) => row.terminalCommands),
       cell: ({ row }) => {
-        const value = Number(row.getValue("terminalCommands") ?? 0);
+        const value = row.original.terminalCommands;
         const delta = getDelta(row.original);
         return (
           <div>
             {formatLargeNumber(value)}
-            {showDeltas && <DeltaText value={delta?.terminalCommands ?? 0} />}
+            {showDeltas && <DeltaText value={delta?.terminalCommands ?? 0n} />}
           </div>
         );
       },
@@ -389,15 +456,19 @@ function createColumns(
     {
       id: "searches",
       header: "Searches",
+      sortingFn: counterSortingFn<DayStat>((row) =>
+        addCounterValues(row.fileSearches, row.fileContentSearches)
+      ),
       cell: ({ row }) => {
-        const value =
-          Number(row.original.fileSearches ?? 0) +
-          Number(row.original.fileContentSearches ?? 0);
+        const value = addCounterValues(
+          row.original.fileSearches,
+          row.original.fileContentSearches
+        );
         const delta = getDelta(row.original);
         return (
           <div>
             {formatLargeNumber(value)}
-            {showDeltas && <DeltaText value={delta?.searches ?? 0} />}
+            {showDeltas && <DeltaText value={delta?.searches ?? 0n} />}
           </div>
         );
       },
@@ -405,19 +476,25 @@ function createColumns(
     {
       id: "files",
       header: "Files R/A/E/D",
+      sortingFn: counterSortingFn<DayStat>((row) =>
+        addCounterValues(
+          row.filesRead,
+          row.filesAdded,
+          row.filesEdited,
+          row.filesDeleted
+        )
+      ),
       cell: ({ row }) => {
-        const filesRead = Number(row.original.filesRead ?? 0);
-        const filesAdded = Number(row.original.filesAdded ?? 0);
-        const filesEdited = Number(row.original.filesEdited ?? 0);
-        const filesDeleted = Number(row.original.filesDeleted ?? 0);
         const delta = getDelta(row.original);
         return (
           <div>
             <span>
-              {formatLargeNumber(filesRead)}/{formatLargeNumber(filesAdded)}/
-              {formatLargeNumber(filesEdited)}/{formatLargeNumber(filesDeleted)}
+              {formatLargeNumber(row.original.filesRead)}/
+              {formatLargeNumber(row.original.filesAdded)}/
+              {formatLargeNumber(row.original.filesEdited)}/
+              {formatLargeNumber(row.original.filesDeleted)}
             </span>
-            {showDeltas && <DeltaText value={delta?.filesTouched ?? 0} />}
+            {showDeltas && <DeltaText value={delta?.filesTouched ?? 0n} />}
           </div>
         );
       },
@@ -425,6 +502,9 @@ function createColumns(
     {
       id: "lines",
       header: "Lines",
+      sortingFn: counterSortingFn<DayStat>((row) =>
+        addCounterValues(row.linesRead, row.linesEdited, row.linesAdded)
+      ),
       cell: ({ row }) => {
         const delta = getDelta(row.original);
         return (
@@ -436,11 +516,11 @@ function createColumns(
             </span>
             {showDeltas && (
               <DeltaText
-                value={
-                  (delta?.linesRead ?? 0) +
-                  (delta?.linesEdited ?? 0) +
-                  (delta?.linesAdded ?? 0)
-                }
+                value={addCounterValues(
+                  delta?.linesRead,
+                  delta?.linesEdited,
+                  delta?.linesAdded
+                )}
               />
             )}
           </div>
@@ -483,7 +563,7 @@ export function AppStatsTable({
     [statsData, selectedApp, period]
   );
 
-  const totalsRow = React.useMemo(
+  const totalsRow = React.useMemo<TotalsRow | undefined>(
     () => statsData.stats?.totals?.[selectedApp],
     [selectedApp, statsData]
   );
@@ -493,49 +573,74 @@ export function AppStatsTable({
       appStats.reduce(
         (acc, s) => ({
           cost: Math.max(acc.cost, s.cost),
-          cachedTokens: Math.max(acc.cachedTokens, Number(s.cachedTokens)),
-          inputTokens: Math.max(acc.inputTokens, Number(s.inputTokens)),
-          outputTokens: Math.max(acc.outputTokens, Number(s.outputTokens)),
-          reasoningTokens: Math.max(
-            acc.reasoningTokens,
-            Number(s.reasoningTokens || 0)
-          ),
-          conversations: Math.max(
-            acc.conversations,
-            Number(s.conversations || 0)
-          ),
-          toolCalls: Math.max(acc.toolCalls, Number(s.toolCalls)),
-          terminalCommands: Math.max(
-            acc.terminalCommands,
-            Number(s.terminalCommands || 0)
-          ),
-          searches: Math.max(
-            acc.searches,
-            Number(s.fileSearches || 0) + Number(s.fileContentSearches || 0)
-          ),
-          filesTouched: Math.max(
-            acc.filesTouched,
-            Number(s.filesRead || 0) +
-              Number(s.filesAdded || 0) +
-              Number(s.filesEdited || 0) +
-              Number(s.filesDeleted || 0)
-          ),
-          linesAdded: Math.max(acc.linesAdded, Number(s.linesAdded)),
-          linesEdited: Math.max(acc.linesEdited, Number(s.linesEdited)),
+          cachedTokens:
+            compareCounterValues(s.cachedTokens, acc.cachedTokens) > 0
+              ? counterToBigInt(s.cachedTokens)
+              : acc.cachedTokens,
+          inputTokens:
+            compareCounterValues(s.inputTokens, acc.inputTokens) > 0
+              ? counterToBigInt(s.inputTokens)
+              : acc.inputTokens,
+          outputTokens:
+            compareCounterValues(s.outputTokens, acc.outputTokens) > 0
+              ? counterToBigInt(s.outputTokens)
+              : acc.outputTokens,
+          reasoningTokens:
+            compareCounterValues(s.reasoningTokens, acc.reasoningTokens) > 0
+              ? counterToBigInt(s.reasoningTokens)
+              : acc.reasoningTokens,
+          conversations:
+            compareCounterValues(s.conversations, acc.conversations) > 0
+              ? counterToBigInt(s.conversations)
+              : acc.conversations,
+          toolCalls:
+            compareCounterValues(s.toolCalls, acc.toolCalls) > 0
+              ? counterToBigInt(s.toolCalls)
+              : acc.toolCalls,
+          terminalCommands:
+            compareCounterValues(s.terminalCommands, acc.terminalCommands) > 0
+              ? counterToBigInt(s.terminalCommands)
+              : acc.terminalCommands,
+          searches: (() => {
+            const searches = addCounterValues(
+              s.fileSearches,
+              s.fileContentSearches
+            );
+            return searches > acc.searches ? searches : acc.searches;
+          })(),
+          filesTouched: (() => {
+            const filesTouched = addCounterValues(
+              s.filesRead,
+              s.filesAdded,
+              s.filesEdited,
+              s.filesDeleted
+            );
+            return filesTouched > acc.filesTouched
+              ? filesTouched
+              : acc.filesTouched;
+          })(),
+          linesAdded:
+            compareCounterValues(s.linesAdded, acc.linesAdded) > 0
+              ? counterToBigInt(s.linesAdded)
+              : acc.linesAdded,
+          linesEdited:
+            compareCounterValues(s.linesEdited, acc.linesEdited) > 0
+              ? counterToBigInt(s.linesEdited)
+              : acc.linesEdited,
         }),
         {
           cost: 0,
-          cachedTokens: 0,
-          inputTokens: 0,
-          outputTokens: 0,
-          reasoningTokens: 0,
-          conversations: 0,
-          toolCalls: 0,
-          terminalCommands: 0,
-          searches: 0,
-          filesTouched: 0,
-          linesAdded: 0,
-          linesEdited: 0,
+          cachedTokens: 0n,
+          inputTokens: 0n,
+          outputTokens: 0n,
+          reasoningTokens: 0n,
+          conversations: 0n,
+          toolCalls: 0n,
+          terminalCommands: 0n,
+          searches: 0n,
+          filesTouched: 0n,
+          linesAdded: 0n,
+          linesEdited: 0n,
         }
       ),
     [appStats]

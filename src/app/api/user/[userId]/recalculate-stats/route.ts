@@ -72,7 +72,7 @@ export async function POST(
           messageDate,
           timezone
         );
-        const periodEnd = getPeriodEndForDate(period, messageDate);
+        const periodEnd = getPeriodEndForDate(period, periodStart);
         const key = `${period}|${application}|${periodStart.toISOString()}`;
 
         // Initialize accumulator if needed
@@ -110,18 +110,21 @@ export async function POST(
           models.add(message.model);
         }
 
-        const conversationKey = `${period}|${application}|${message.conversationHash}`;
-        const existingConversation =
-          conversationFirstOccurrence.get(conversationKey);
-        const timestamp = messageDate.getTime();
-        if (
-          !existingConversation ||
-          timestamp < existingConversation.timestamp
-        ) {
-          conversationFirstOccurrence.set(conversationKey, {
-            bucketKey: key,
-            timestamp,
-          });
+        const conversationHash = message.conversationHash?.trim();
+        if (conversationHash) {
+          const conversationKey = `${period}|${application}|${conversationHash}`;
+          const existingConversation =
+            conversationFirstOccurrence.get(conversationKey);
+          const timestamp = messageDate.getTime();
+          if (
+            !existingConversation ||
+            timestamp < existingConversation.timestamp
+          ) {
+            conversationFirstOccurrence.set(conversationKey, {
+              bucketKey: key,
+              timestamp,
+            });
+          }
         }
       }
     }

@@ -1,5 +1,9 @@
 import type { ApplicationType } from "@/types";
-import type { StatsData } from "@/app/_stats/types";
+import {
+  addCounterValues,
+  counterToApproxNumber,
+  type StatsData,
+} from "@/app/_stats/types";
 import type {
   AreaChartPoint,
   BarChartPoint,
@@ -84,63 +88,71 @@ export function buildAreaData(
 
   const raw: RawDataPoint[] = dates.map((dateKey) => {
     const dayData = statsData.stats[dateKey];
-    let tokens = 0,
+    let tokens = 0n,
       cost = 0,
-      toolCalls = 0,
-      lines = 0,
-      files = 0,
-      terminalCommands = 0,
-      searches = 0;
+      toolCalls = 0n,
+      lines = 0n,
+      files = 0n,
+      terminalCommands = 0n,
+      searches = 0n;
 
     if (dayData) {
       if (selectedSource === "total") {
         Object.values(dayData).forEach((appStat) => {
           if (appStat && typeof appStat === "object" && "cost" in appStat) {
-            tokens +=
-              (Number(appStat.inputTokens) || 0) +
-              (Number(appStat.outputTokens) || 0) +
-              (Number(appStat.cachedTokens) || 0) +
-              (Number(appStat.reasoningTokens) || 0);
+            tokens += addCounterValues(
+              appStat.inputTokens,
+              appStat.outputTokens,
+              appStat.cachedTokens,
+              appStat.reasoningTokens
+            );
             cost += Number(appStat.cost) || 0;
-            toolCalls += Number(appStat.toolCalls) || 0;
-            lines +=
-              (Number(appStat.linesRead) || 0) +
-              (Number(appStat.linesAdded) || 0) +
-              (Number(appStat.linesEdited) || 0);
-            files +=
-              (Number(appStat.filesRead) || 0) +
-              (Number(appStat.filesAdded) || 0) +
-              (Number(appStat.filesEdited) || 0) +
-              (Number(appStat.filesDeleted) || 0);
-            terminalCommands += Number(appStat.terminalCommands) || 0;
-            searches +=
-              (Number(appStat.fileSearches) || 0) +
-              (Number(appStat.fileContentSearches) || 0);
+            toolCalls += addCounterValues(appStat.toolCalls);
+            lines += addCounterValues(
+              appStat.linesRead,
+              appStat.linesAdded,
+              appStat.linesEdited
+            );
+            files += addCounterValues(
+              appStat.filesRead,
+              appStat.filesAdded,
+              appStat.filesEdited,
+              appStat.filesDeleted
+            );
+            terminalCommands += addCounterValues(appStat.terminalCommands);
+            searches += addCounterValues(
+              appStat.fileSearches,
+              appStat.fileContentSearches
+            );
           }
         });
       } else {
         const appStat = dayData[selectedSource];
         if (appStat) {
-          tokens =
-            (Number(appStat.inputTokens) || 0) +
-            (Number(appStat.outputTokens) || 0) +
-            (Number(appStat.cachedTokens) || 0) +
-            (Number(appStat.reasoningTokens) || 0);
+          tokens = addCounterValues(
+            appStat.inputTokens,
+            appStat.outputTokens,
+            appStat.cachedTokens,
+            appStat.reasoningTokens
+          );
           cost = Number(appStat.cost) || 0;
-          toolCalls = Number(appStat.toolCalls) || 0;
-          lines =
-            (Number(appStat.linesRead) || 0) +
-            (Number(appStat.linesAdded) || 0) +
-            (Number(appStat.linesEdited) || 0);
-          files =
-            (Number(appStat.filesRead) || 0) +
-            (Number(appStat.filesAdded) || 0) +
-            (Number(appStat.filesEdited) || 0) +
-            (Number(appStat.filesDeleted) || 0);
-          terminalCommands += Number(appStat.terminalCommands) || 0;
-          searches +=
-            (Number(appStat.fileSearches) || 0) +
-            (Number(appStat.fileContentSearches) || 0);
+          toolCalls = addCounterValues(appStat.toolCalls);
+          lines = addCounterValues(
+            appStat.linesRead,
+            appStat.linesAdded,
+            appStat.linesEdited
+          );
+          files = addCounterValues(
+            appStat.filesRead,
+            appStat.filesAdded,
+            appStat.filesEdited,
+            appStat.filesDeleted
+          );
+          terminalCommands = addCounterValues(appStat.terminalCommands);
+          searches = addCounterValues(
+            appStat.fileSearches,
+            appStat.fileContentSearches
+          );
         }
       }
     }
@@ -154,13 +166,13 @@ export function buildAreaData(
     return {
       date: dateKey,
       displayDate,
-      tokens,
+      tokens: counterToApproxNumber(tokens),
       cost,
-      toolCalls,
-      lines,
-      files,
-      terminalCommands,
-      searches,
+      toolCalls: counterToApproxNumber(toolCalls),
+      lines: counterToApproxNumber(lines),
+      files: counterToApproxNumber(files),
+      terminalCommands: counterToApproxNumber(terminalCommands),
+      searches: counterToApproxNumber(searches),
     };
   });
 
@@ -204,7 +216,11 @@ export function buildBarData(
   const modelSet = new Set<string>();
   dates.forEach((dateKey) => {
     const day = modelData[dateKey];
-    if (day) Object.keys(day).forEach((m) => modelSet.add(m));
+    if (day) {
+      Object.keys(day).forEach((m) => {
+        modelSet.add(m);
+      });
+    }
   });
   const models = Array.from(modelSet).sort();
 

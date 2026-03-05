@@ -39,113 +39,223 @@ export type DailyStatsRow = {
   models: string[] | null;
 };
 
+export type SerializedStatsCounters = {
+  inputTokens: string;
+  outputTokens: string;
+  cachedTokens: string;
+  reasoningTokens: string;
+  cacheCreationTokens: string;
+  cacheReadTokens: string;
+  conversations: string;
+  toolCalls: string;
+  terminalCommands: string;
+  fileSearches: string;
+  fileContentSearches: string;
+  filesRead: string;
+  filesAdded: string;
+  filesEdited: string;
+  filesDeleted: string;
+  linesRead: string;
+  linesAdded: string;
+  linesEdited: string;
+  linesDeleted: string;
+  bytesRead: string;
+  bytesAdded: string;
+  bytesEdited: string;
+  bytesDeleted: string;
+  codeLines: string;
+  docsLines: string;
+  dataLines: string;
+  mediaLines: string;
+  configLines: string;
+  otherLines: string;
+  todosCreated: string;
+  todosCompleted: string;
+  todosInProgress: string;
+  todoReads: string;
+  todoWrites: string;
+};
+
 export type TotalsAccumulator = {
   cost: number;
-  inputTokens: number;
-  outputTokens: number;
-  cachedTokens: number;
-  reasoningTokens: number;
-  cacheCreationTokens: number;
-  cacheReadTokens: number;
-  conversations: number;
-  toolCalls: number;
-  terminalCommands: number;
-  fileSearches: number;
-  fileContentSearches: number;
-  filesRead: number;
-  filesAdded: number;
-  filesEdited: number;
-  filesDeleted: number;
-  linesRead: number;
-  linesAdded: number;
-  linesEdited: number;
-  linesDeleted: number;
-  bytesRead: number;
-  bytesAdded: number;
-  bytesEdited: number;
-  bytesDeleted: number;
-  codeLines: number;
-  docsLines: number;
-  dataLines: number;
-  mediaLines: number;
-  configLines: number;
-  otherLines: number;
-  todosCreated: number;
-  todosCompleted: number;
-  todosInProgress: number;
-  todoReads: number;
-  todoWrites: number;
+  inputTokens: bigint;
+  outputTokens: bigint;
+  cachedTokens: bigint;
+  reasoningTokens: bigint;
+  cacheCreationTokens: bigint;
+  cacheReadTokens: bigint;
+  conversations: bigint;
+  toolCalls: bigint;
+  terminalCommands: bigint;
+  fileSearches: bigint;
+  fileContentSearches: bigint;
+  filesRead: bigint;
+  filesAdded: bigint;
+  filesEdited: bigint;
+  filesDeleted: bigint;
+  linesRead: bigint;
+  linesAdded: bigint;
+  linesEdited: bigint;
+  linesDeleted: bigint;
+  bytesRead: bigint;
+  bytesAdded: bigint;
+  bytesEdited: bigint;
+  bytesDeleted: bigint;
+  codeLines: bigint;
+  docsLines: bigint;
+  dataLines: bigint;
+  mediaLines: bigint;
+  configLines: bigint;
+  otherLines: bigint;
+  todosCreated: bigint;
+  todosCompleted: bigint;
+  todosInProgress: bigint;
+  todoReads: bigint;
+  todoWrites: bigint;
+};
+
+export type SerializedDayStats = SerializedStatsCounters & {
+  cost: number;
+  models: string[];
+};
+
+export type SerializedTotals = SerializedStatsCounters & {
+  cost: number;
+};
+
+export type GrandTotal = SerializedTotals & {
+  daysTracked: number;
+  numApps: number;
+  applications: string[];
+  tokens?: string;
+  firstDate: string;
+  lastDate: string;
 };
 
 export type StatsRecord = {
   [key: string]: Record<string, unknown>;
 } & {
-  totals?: Record<string, unknown>;
-  grandTotal?: {
-    daysTracked: number;
-    numApps: number;
-    applications: string[];
-    cost: number;
-    inputTokens: number;
-    outputTokens: number;
-    cachedTokens: number;
-    cacheCreationTokens: number;
-    cacheReadTokens: number;
-    reasoningTokens: number;
-    tokens?: number;
-    conversations: number;
-    toolCalls: number;
-    terminalCommands: number;
-    fileSearches: number;
-    fileContentSearches: number;
-    filesRead: number;
-    filesAdded: number;
-    filesEdited: number;
-    filesDeleted: number;
-    linesRead: number;
-    linesAdded: number;
-    linesEdited: number;
-    firstDate: Date;
-    lastDate: Date;
-  };
+  totals?: Record<string, SerializedTotals & { models: string[] }>;
+  grandTotal?: GrandTotal;
 };
 
 export const createEmptyTotalsAccumulator = (): TotalsAccumulator => ({
   cost: 0,
-  inputTokens: 0,
-  outputTokens: 0,
-  cachedTokens: 0,
-  reasoningTokens: 0,
-  cacheCreationTokens: 0,
-  cacheReadTokens: 0,
-  conversations: 0,
-  toolCalls: 0,
-  terminalCommands: 0,
-  fileSearches: 0,
-  fileContentSearches: 0,
-  filesRead: 0,
-  filesAdded: 0,
-  filesEdited: 0,
-  filesDeleted: 0,
-  linesRead: 0,
-  linesAdded: 0,
-  linesEdited: 0,
-  linesDeleted: 0,
-  bytesRead: 0,
-  bytesAdded: 0,
-  bytesEdited: 0,
-  bytesDeleted: 0,
-  codeLines: 0,
-  docsLines: 0,
-  dataLines: 0,
-  mediaLines: 0,
-  configLines: 0,
-  otherLines: 0,
-  todosCreated: 0,
-  todosCompleted: 0,
-  todosInProgress: 0,
-  todoReads: 0,
-  todoWrites: 0,
+  inputTokens: 0n,
+  outputTokens: 0n,
+  cachedTokens: 0n,
+  reasoningTokens: 0n,
+  cacheCreationTokens: 0n,
+  cacheReadTokens: 0n,
+  conversations: 0n,
+  toolCalls: 0n,
+  terminalCommands: 0n,
+  fileSearches: 0n,
+  fileContentSearches: 0n,
+  filesRead: 0n,
+  filesAdded: 0n,
+  filesEdited: 0n,
+  filesDeleted: 0n,
+  linesRead: 0n,
+  linesAdded: 0n,
+  linesEdited: 0n,
+  linesDeleted: 0n,
+  bytesRead: 0n,
+  bytesAdded: 0n,
+  bytesEdited: 0n,
+  bytesDeleted: 0n,
+  codeLines: 0n,
+  docsLines: 0n,
+  dataLines: 0n,
+  mediaLines: 0n,
+  configLines: 0n,
+  otherLines: 0n,
+  todosCreated: 0n,
+  todosCompleted: 0n,
+  todosInProgress: 0n,
+  todoReads: 0n,
+  todoWrites: 0n,
+});
+
+export const serializeStatsCounters = (
+  counters: TotalsAccumulator
+): SerializedTotals => ({
+  cost: counters.cost,
+  inputTokens: counters.inputTokens.toString(),
+  outputTokens: counters.outputTokens.toString(),
+  cachedTokens: counters.cachedTokens.toString(),
+  reasoningTokens: counters.reasoningTokens.toString(),
+  cacheCreationTokens: counters.cacheCreationTokens.toString(),
+  cacheReadTokens: counters.cacheReadTokens.toString(),
+  conversations: counters.conversations.toString(),
+  toolCalls: counters.toolCalls.toString(),
+  terminalCommands: counters.terminalCommands.toString(),
+  fileSearches: counters.fileSearches.toString(),
+  fileContentSearches: counters.fileContentSearches.toString(),
+  filesRead: counters.filesRead.toString(),
+  filesAdded: counters.filesAdded.toString(),
+  filesEdited: counters.filesEdited.toString(),
+  filesDeleted: counters.filesDeleted.toString(),
+  linesRead: counters.linesRead.toString(),
+  linesAdded: counters.linesAdded.toString(),
+  linesEdited: counters.linesEdited.toString(),
+  linesDeleted: counters.linesDeleted.toString(),
+  bytesRead: counters.bytesRead.toString(),
+  bytesAdded: counters.bytesAdded.toString(),
+  bytesEdited: counters.bytesEdited.toString(),
+  bytesDeleted: counters.bytesDeleted.toString(),
+  codeLines: counters.codeLines.toString(),
+  docsLines: counters.docsLines.toString(),
+  dataLines: counters.dataLines.toString(),
+  mediaLines: counters.mediaLines.toString(),
+  configLines: counters.configLines.toString(),
+  otherLines: counters.otherLines.toString(),
+  todosCreated: counters.todosCreated.toString(),
+  todosCompleted: counters.todosCompleted.toString(),
+  todosInProgress: counters.todosInProgress.toString(),
+  todoReads: counters.todoReads.toString(),
+  todoWrites: counters.todoWrites.toString(),
+});
+
+export const serializeDailyStatsRow = (
+  row: DailyStatsRow
+): SerializedDayStats => ({
+  cost: row.total_cost ?? 0,
+  inputTokens: row.input_tokens.toString(),
+  outputTokens: row.output_tokens.toString(),
+  cachedTokens: row.cached_tokens.toString(),
+  reasoningTokens: row.reasoning_tokens.toString(),
+  cacheCreationTokens: row.cache_creation_tokens.toString(),
+  cacheReadTokens: row.cache_read_tokens.toString(),
+  conversations: row.conversations.toString(),
+  toolCalls: row.tool_calls.toString(),
+  terminalCommands: row.terminal_commands.toString(),
+  fileSearches: row.file_searches.toString(),
+  fileContentSearches: row.file_content_searches.toString(),
+  filesRead: row.files_read.toString(),
+  filesAdded: row.files_added.toString(),
+  filesEdited: row.files_edited.toString(),
+  filesDeleted: row.files_deleted.toString(),
+  linesRead: row.lines_read.toString(),
+  linesAdded: row.lines_added.toString(),
+  linesEdited: row.lines_edited.toString(),
+  linesDeleted: row.lines_deleted.toString(),
+  bytesRead: row.bytes_read.toString(),
+  bytesAdded: row.bytes_added.toString(),
+  bytesEdited: row.bytes_edited.toString(),
+  bytesDeleted: row.bytes_deleted.toString(),
+  codeLines: row.code_lines.toString(),
+  docsLines: row.docs_lines.toString(),
+  dataLines: row.data_lines.toString(),
+  mediaLines: row.media_lines.toString(),
+  configLines: row.config_lines.toString(),
+  otherLines: row.other_lines.toString(),
+  todosCreated: row.todos_created.toString(),
+  todosCompleted: row.todos_completed.toString(),
+  todosInProgress: row.todos_in_progress.toString(),
+  todoReads: row.todo_reads.toString(),
+  todoWrites: row.todo_writes.toString(),
+  models: row.models ?? [],
 });
 
 export const mergeTotals = (

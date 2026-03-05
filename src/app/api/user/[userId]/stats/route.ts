@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
-import { n } from "@/lib/utils";
 import {
   calculateAffectedPeriods,
   deleteAffectedUserStats,
@@ -11,6 +10,8 @@ import {
   createEmptyTotalsAccumulator,
   type DailyStatsRow,
   mergeTotals,
+  serializeDailyStatsRow,
+  serializeStatsCounters,
   type StatsRecord,
   type TotalsAccumulator,
 } from "@/app/api/user/[userId]/stats/types";
@@ -168,42 +169,7 @@ export async function GET(
         stats[dayKey] = {};
       }
       stats[dayKey][app] = {
-        cost: row.total_cost ?? 0,
-        inputTokens: n(row.input_tokens),
-        outputTokens: n(row.output_tokens),
-        cachedTokens: n(row.cached_tokens),
-        reasoningTokens: n(row.reasoning_tokens),
-        cacheCreationTokens: n(row.cache_creation_tokens),
-        cacheReadTokens: n(row.cache_read_tokens),
-        conversations: n(row.conversations),
-        toolCalls: n(row.tool_calls),
-        terminalCommands: n(row.terminal_commands),
-        fileSearches: n(row.file_searches),
-        fileContentSearches: n(row.file_content_searches),
-        filesRead: n(row.files_read),
-        filesAdded: n(row.files_added),
-        filesEdited: n(row.files_edited),
-        filesDeleted: n(row.files_deleted),
-        linesRead: n(row.lines_read),
-        linesAdded: n(row.lines_added),
-        linesEdited: n(row.lines_edited),
-        linesDeleted: n(row.lines_deleted),
-        bytesRead: n(row.bytes_read),
-        bytesAdded: n(row.bytes_added),
-        bytesEdited: n(row.bytes_edited),
-        bytesDeleted: n(row.bytes_deleted),
-        codeLines: n(row.code_lines),
-        docsLines: n(row.docs_lines),
-        dataLines: n(row.data_lines),
-        mediaLines: n(row.media_lines),
-        configLines: n(row.config_lines),
-        otherLines: n(row.other_lines),
-        todosCreated: n(row.todos_created),
-        todosCompleted: n(row.todos_completed),
-        todosInProgress: n(row.todos_in_progress),
-        todoReads: n(row.todo_reads),
-        todoWrites: n(row.todo_writes),
-        models: row.models ?? [],
+        ...serializeDailyStatsRow(row),
       };
 
       dayKeys.add(dayKey);
@@ -217,40 +183,40 @@ export async function GET(
 
       const appTotals = totalsByApp[app];
       appTotals.cost += row.total_cost ?? 0;
-      appTotals.inputTokens += n(row.input_tokens);
-      appTotals.outputTokens += n(row.output_tokens);
-      appTotals.cachedTokens += n(row.cached_tokens);
-      appTotals.reasoningTokens += n(row.reasoning_tokens);
-      appTotals.cacheCreationTokens += n(row.cache_creation_tokens);
-      appTotals.cacheReadTokens += n(row.cache_read_tokens);
-      appTotals.conversations += n(row.conversations);
-      appTotals.toolCalls += n(row.tool_calls);
-      appTotals.terminalCommands += n(row.terminal_commands);
-      appTotals.fileSearches += n(row.file_searches);
-      appTotals.fileContentSearches += n(row.file_content_searches);
-      appTotals.filesRead += n(row.files_read);
-      appTotals.filesAdded += n(row.files_added);
-      appTotals.filesEdited += n(row.files_edited);
-      appTotals.filesDeleted += n(row.files_deleted);
-      appTotals.linesRead += n(row.lines_read);
-      appTotals.linesAdded += n(row.lines_added);
-      appTotals.linesEdited += n(row.lines_edited);
-      appTotals.linesDeleted += n(row.lines_deleted);
-      appTotals.bytesRead += n(row.bytes_read);
-      appTotals.bytesAdded += n(row.bytes_added);
-      appTotals.bytesEdited += n(row.bytes_edited);
-      appTotals.bytesDeleted += n(row.bytes_deleted);
-      appTotals.codeLines += n(row.code_lines);
-      appTotals.docsLines += n(row.docs_lines);
-      appTotals.dataLines += n(row.data_lines);
-      appTotals.mediaLines += n(row.media_lines);
-      appTotals.configLines += n(row.config_lines);
-      appTotals.otherLines += n(row.other_lines);
-      appTotals.todosCreated += n(row.todos_created);
-      appTotals.todosCompleted += n(row.todos_completed);
-      appTotals.todosInProgress += n(row.todos_in_progress);
-      appTotals.todoReads += n(row.todo_reads);
-      appTotals.todoWrites += n(row.todo_writes);
+      appTotals.inputTokens += row.input_tokens;
+      appTotals.outputTokens += row.output_tokens;
+      appTotals.cachedTokens += row.cached_tokens;
+      appTotals.reasoningTokens += row.reasoning_tokens;
+      appTotals.cacheCreationTokens += row.cache_creation_tokens;
+      appTotals.cacheReadTokens += row.cache_read_tokens;
+      appTotals.conversations += row.conversations;
+      appTotals.toolCalls += row.tool_calls;
+      appTotals.terminalCommands += row.terminal_commands;
+      appTotals.fileSearches += row.file_searches;
+      appTotals.fileContentSearches += row.file_content_searches;
+      appTotals.filesRead += row.files_read;
+      appTotals.filesAdded += row.files_added;
+      appTotals.filesEdited += row.files_edited;
+      appTotals.filesDeleted += row.files_deleted;
+      appTotals.linesRead += row.lines_read;
+      appTotals.linesAdded += row.lines_added;
+      appTotals.linesEdited += row.lines_edited;
+      appTotals.linesDeleted += row.lines_deleted;
+      appTotals.bytesRead += row.bytes_read;
+      appTotals.bytesAdded += row.bytes_added;
+      appTotals.bytesEdited += row.bytes_edited;
+      appTotals.bytesDeleted += row.bytes_deleted;
+      appTotals.codeLines += row.code_lines;
+      appTotals.docsLines += row.docs_lines;
+      appTotals.dataLines += row.data_lines;
+      appTotals.mediaLines += row.media_lines;
+      appTotals.configLines += row.config_lines;
+      appTotals.otherLines += row.other_lines;
+      appTotals.todosCreated += row.todos_created;
+      appTotals.todosCompleted += row.todos_completed;
+      appTotals.todosInProgress += row.todos_in_progress;
+      appTotals.todoReads += row.todo_reads;
+      appTotals.todoWrites += row.todo_writes;
 
       const modelSet = modelSetsByApp.get(app)!;
       for (const model of row.models ?? []) {
@@ -263,13 +229,17 @@ export async function GET(
     for (const app of applications) {
       const appTotals = totalsByApp[app];
       stats.totals[app] = {
-        ...appTotals,
+        ...serializeStatsCounters(appTotals),
         models: Array.from(modelSetsByApp.get(app) ?? []).sort(),
       };
     }
 
     const grandTotals = mergeTotals(totalsByApp);
-    const grandConversations = grandTotals.conversations;
+    const totalTokens =
+      grandTotals.inputTokens +
+      grandTotals.outputTokens +
+      grandTotals.cachedTokens +
+      grandTotals.reasoningTokens;
 
     const firstTrackedDate = firstDate ?? new Date();
     const lastTrackedDate = lastDate ?? new Date();
@@ -278,32 +248,10 @@ export async function GET(
       daysTracked: dayKeys.size,
       numApps: applications.length,
       applications,
-      cost: grandTotals.cost,
-      inputTokens: grandTotals.inputTokens,
-      outputTokens: grandTotals.outputTokens,
-      cachedTokens: grandTotals.cachedTokens,
-      reasoningTokens: grandTotals.reasoningTokens,
-      cacheCreationTokens: grandTotals.cacheCreationTokens,
-      cacheReadTokens: grandTotals.cacheReadTokens,
-      tokens:
-        grandTotals.inputTokens +
-        grandTotals.outputTokens +
-        grandTotals.cachedTokens +
-        grandTotals.reasoningTokens,
-      conversations: grandConversations,
-      toolCalls: grandTotals.toolCalls,
-      terminalCommands: grandTotals.terminalCommands,
-      fileSearches: grandTotals.fileSearches,
-      fileContentSearches: grandTotals.fileContentSearches,
-      filesRead: grandTotals.filesRead,
-      filesAdded: grandTotals.filesAdded,
-      filesEdited: grandTotals.filesEdited,
-      filesDeleted: grandTotals.filesDeleted,
-      linesRead: grandTotals.linesRead,
-      linesAdded: grandTotals.linesAdded,
-      linesEdited: grandTotals.linesEdited,
-      firstDate: firstTrackedDate,
-      lastDate: lastTrackedDate,
+      ...serializeStatsCounters(grandTotals),
+      tokens: totalTokens.toString(),
+      firstDate: firstTrackedDate.toISOString(),
+      lastDate: lastTrackedDate.toISOString(),
     };
 
     return NextResponse.json({

@@ -3,24 +3,28 @@
 import * as React from "react";
 import { formatLargeNumber } from "@/lib/utils";
 import { TableCell } from "@/components/ui/table";
+import {
+  addCounterValues,
+  type CounterInput,
+} from "@/app/_stats/types";
 
 type TotalsMetrics = {
-  cachedTokens?: number | string | null;
-  inputTokens?: number | string | null;
-  outputTokens?: number | string | null;
-  reasoningTokens?: number | string | null;
-  conversations?: number | string | null;
-  toolCalls?: number | string | null;
-  terminalCommands?: number | string | null;
-  fileSearches?: number | string | null;
-  fileContentSearches?: number | string | null;
-  filesRead?: number | string | null;
-  filesAdded?: number | string | null;
-  filesEdited?: number | string | null;
-  filesDeleted?: number | string | null;
-  linesRead?: number | string | null;
-  linesAdded?: number | string | null;
-  linesEdited?: number | string | null;
+  cachedTokens?: CounterInput;
+  inputTokens?: CounterInput;
+  outputTokens?: CounterInput;
+  reasoningTokens?: CounterInput;
+  conversations?: CounterInput;
+  toolCalls?: CounterInput;
+  terminalCommands?: CounterInput;
+  fileSearches?: CounterInput;
+  fileContentSearches?: CounterInput;
+  filesRead?: CounterInput;
+  filesAdded?: CounterInput;
+  filesEdited?: CounterInput;
+  filesDeleted?: CounterInput;
+  linesRead?: CounterInput;
+  linesAdded?: CounterInput;
+  linesEdited?: CounterInput;
 };
 
 export function StatsFooterMetricCells({
@@ -32,32 +36,32 @@ export function StatsFooterMetricCells({
 }) {
   return (
     <>
-      <TableCell>{formatLargeNumber(Number(totals.cachedTokens ?? 0))}</TableCell>
-      <TableCell>{formatLargeNumber(Number(totals.inputTokens ?? 0))}</TableCell>
-      <TableCell>{formatLargeNumber(Number(totals.outputTokens ?? 0))}</TableCell>
-      <TableCell>{formatLargeNumber(Number(totals.reasoningTokens ?? 0))}</TableCell>
-      <TableCell>{formatLargeNumber(Number(totals.conversations ?? 0))}</TableCell>
+      <TableCell>{formatLargeNumber(totals.cachedTokens ?? 0n)}</TableCell>
+      <TableCell>{formatLargeNumber(totals.inputTokens ?? 0n)}</TableCell>
+      <TableCell>{formatLargeNumber(totals.outputTokens ?? 0n)}</TableCell>
+      <TableCell>{formatLargeNumber(totals.reasoningTokens ?? 0n)}</TableCell>
+      <TableCell>{formatLargeNumber(totals.conversations ?? 0n)}</TableCell>
       <TableCell className="text-green-600">
-        {formatLargeNumber(Number(totals.toolCalls ?? 0))}
+        {formatLargeNumber(totals.toolCalls ?? 0n)}
       </TableCell>
       <TableCell>
-        {formatLargeNumber(Number(totals.terminalCommands ?? 0))}
+        {formatLargeNumber(totals.terminalCommands ?? 0n)}
       </TableCell>
       <TableCell>
         {formatLargeNumber(
-          Number(totals.fileSearches ?? 0) + Number(totals.fileContentSearches ?? 0)
+          addCounterValues(totals.fileSearches, totals.fileContentSearches)
         )}
       </TableCell>
       <TableCell>
-        {formatLargeNumber(Number(totals.filesRead ?? 0))}/
-        {formatLargeNumber(Number(totals.filesAdded ?? 0))}/
-        {formatLargeNumber(Number(totals.filesEdited ?? 0))}/
-        {formatLargeNumber(Number(totals.filesDeleted ?? 0))}
+        {formatLargeNumber(totals.filesRead ?? 0n)}/
+        {formatLargeNumber(totals.filesAdded ?? 0n)}/
+        {formatLargeNumber(totals.filesEdited ?? 0n)}/
+        {formatLargeNumber(totals.filesDeleted ?? 0n)}
       </TableCell>
       <TableCell>
-        {formatLargeNumber(Number(totals.linesRead ?? 0))}/
-        {formatLargeNumber(Number(totals.linesAdded ?? 0))}/
-        {formatLargeNumber(Number(totals.linesEdited ?? 0))}
+        {formatLargeNumber(totals.linesRead ?? 0n)}/
+        {formatLargeNumber(totals.linesAdded ?? 0n)}/
+        {formatLargeNumber(totals.linesEdited ?? 0n)}
       </TableCell>
       <TableCell>{lastCell}</TableCell>
     </>

@@ -4,7 +4,12 @@ import * as React from "react";
 import { cn, formatLargeNumber } from "@/lib/utils";
 import { APPLICATION_LABELS } from "@/lib/application-config";
 import { type ApplicationType } from "@/types";
-import { type StatsData } from "./types";
+import {
+  compareCounterValues,
+  counterToBigInt,
+  isPositiveCounter,
+  type StatsData,
+} from "./types";
 
 export type SelectedSource = "total" | ApplicationType;
 
@@ -15,7 +20,7 @@ function SourceBadge({
   onClick,
 }: {
   label: string;
-  count?: number;
+  count?: bigint;
   isSelected: boolean;
   onClick: () => void;
 }) {
@@ -56,18 +61,18 @@ export function SourceBadges({
 }) {
   const { appsWithData, totalConversations } = React.useMemo(() => {
     const totals = statsData?.stats?.totals ?? {};
-    
+
     const appsWithData = (Object.keys(totals) as ApplicationType[])
-      .filter(app => Number(totals[app]?.conversations ?? 0) > 0)
-      .map(app => ({
+      .filter((app) => isPositiveCounter(totals[app]?.conversations))
+      .map((app) => ({
         app,
-        conversations: Number(totals[app]?.conversations ?? 0),
+        conversations: counterToBigInt(totals[app]?.conversations),
       }))
-      .sort((a, b) => b.conversations - a.conversations);
+      .sort((a, b) => compareCounterValues(b.conversations, a.conversations));
 
     const totalConversations = appsWithData.reduce(
       (sum, app) => sum + app.conversations,
-      0
+      0n
     );
     return { appsWithData, totalConversations };
   }, [statsData]);

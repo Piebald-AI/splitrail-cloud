@@ -14,7 +14,16 @@ import { ColumnDef, SortingState } from "@tanstack/react-table";
 import { TableCell, TableFooter, TableRow } from "@/components/ui/table";
 import { StatsFooterMetricCells } from "./stats-footer-cells";
 import { StatsTableShell } from "./stats-table-shell";
-import { type AnalyticsPeriod, type StatsData } from "./types";
+import {
+  addCounterValues,
+  compareCounterValues,
+  counterSortingFn,
+  counterToBigInt,
+  isPositiveCounter,
+  type AnalyticsPeriod,
+  type CounterInput,
+  type StatsData,
+} from "./types";
 import {
   addPeriod,
   formatDateForDisplay,
@@ -27,21 +36,21 @@ import {
 type DayTotal = {
   date: string;
   cost: number;
-  cachedTokens: number;
-  inputTokens: number;
-  outputTokens: number;
-  reasoningTokens: number;
-  conversations: number;
-  toolCalls: number;
-  terminalCommands: number;
-  searches: number;
-  filesRead: number;
-  filesAdded: number;
-  filesEdited: number;
-  filesDeleted: number;
-  linesRead: number;
-  linesAdded: number;
-  linesEdited: number;
+  cachedTokens: bigint;
+  inputTokens: bigint;
+  outputTokens: bigint;
+  reasoningTokens: bigint;
+  conversations: bigint;
+  toolCalls: bigint;
+  terminalCommands: bigint;
+  searches: bigint;
+  filesRead: bigint;
+  filesAdded: bigint;
+  filesEdited: bigint;
+  filesDeleted: bigint;
+  linesRead: bigint;
+  linesAdded: bigint;
+  linesEdited: bigint;
   apps: string[];
   isEmpty: boolean;
 };
@@ -78,21 +87,21 @@ function getAllDailyTotals(
         return {
           date,
           cost: 0,
-          cachedTokens: 0,
-          inputTokens: 0,
-          outputTokens: 0,
-          reasoningTokens: 0,
-          conversations: 0,
-          toolCalls: 0,
-          terminalCommands: 0,
-          searches: 0,
-          filesRead: 0,
-          filesAdded: 0,
-          filesEdited: 0,
-          filesDeleted: 0,
-          linesRead: 0,
-          linesAdded: 0,
-          linesEdited: 0,
+          cachedTokens: 0n,
+          inputTokens: 0n,
+          outputTokens: 0n,
+          reasoningTokens: 0n,
+          conversations: 0n,
+          toolCalls: 0n,
+          terminalCommands: 0n,
+          searches: 0n,
+          filesRead: 0n,
+          filesAdded: 0n,
+          filesEdited: 0n,
+          filesDeleted: 0n,
+          linesRead: 0n,
+          linesAdded: 0n,
+          linesEdited: 0n,
           apps: [],
           isEmpty: true,
         };
@@ -100,48 +109,47 @@ function getAllDailyTotals(
 
       const apps: string[] = [];
       let cost = 0,
-        cachedTokens = 0,
-        inputTokens = 0,
-        outputTokens = 0,
-        reasoningTokens = 0,
-        conversations = 0,
-        toolCalls = 0,
-        terminalCommands = 0,
-        searches = 0,
-        filesRead = 0,
-        filesAdded = 0,
-        filesEdited = 0,
-        filesDeleted = 0,
-        linesRead = 0,
-        linesAdded = 0,
-        linesEdited = 0;
+        cachedTokens = 0n,
+        inputTokens = 0n,
+        outputTokens = 0n,
+        reasoningTokens = 0n,
+        conversations = 0n,
+        toolCalls = 0n,
+        terminalCommands = 0n,
+        searches = 0n,
+        filesRead = 0n,
+        filesAdded = 0n,
+        filesEdited = 0n,
+        filesDeleted = 0n,
+        linesRead = 0n,
+        linesAdded = 0n,
+        linesEdited = 0n;
 
       (Object.keys(dayData) as ApplicationType[]).forEach((app) => {
         const s = dayData[app];
         if (!s || typeof s !== "object" || !("cost" in s)) return;
         const hasActivity =
-          Number(s.conversations ?? 0) > 0 ||
+          isPositiveCounter(s.conversations) ||
           (s.cost ?? 0) > 0 ||
-          Number(s.toolCalls ?? 0) > 0 ||
-          Number(s.inputTokens ?? 0) + Number(s.outputTokens ?? 0) > 0;
+          isPositiveCounter(s.toolCalls) ||
+          isPositiveCounter(addCounterValues(s.inputTokens, s.outputTokens));
         if (hasActivity) apps.push(app);
         cost += s.cost ?? 0;
-        cachedTokens += Number(s.cachedTokens ?? 0);
-        inputTokens += Number(s.inputTokens ?? 0);
-        outputTokens += Number(s.outputTokens ?? 0);
-        reasoningTokens += Number(s.reasoningTokens ?? 0);
-        conversations += Number(s.conversations ?? 0);
-        toolCalls += Number(s.toolCalls ?? 0);
-        terminalCommands += Number(s.terminalCommands ?? 0);
-        searches +=
-          Number(s.fileSearches ?? 0) + Number(s.fileContentSearches ?? 0);
-        filesRead += Number(s.filesRead ?? 0);
-        filesAdded += Number(s.filesAdded ?? 0);
-        filesEdited += Number(s.filesEdited ?? 0);
-        filesDeleted += Number(s.filesDeleted ?? 0);
-        linesRead += Number(s.linesRead ?? 0);
-        linesAdded += Number(s.linesAdded ?? 0);
-        linesEdited += Number(s.linesEdited ?? 0);
+        cachedTokens += counterToBigInt(s.cachedTokens);
+        inputTokens += counterToBigInt(s.inputTokens);
+        outputTokens += counterToBigInt(s.outputTokens);
+        reasoningTokens += counterToBigInt(s.reasoningTokens);
+        conversations += counterToBigInt(s.conversations);
+        toolCalls += counterToBigInt(s.toolCalls);
+        terminalCommands += counterToBigInt(s.terminalCommands);
+        searches += addCounterValues(s.fileSearches, s.fileContentSearches);
+        filesRead += counterToBigInt(s.filesRead);
+        filesAdded += counterToBigInt(s.filesAdded);
+        filesEdited += counterToBigInt(s.filesEdited);
+        filesDeleted += counterToBigInt(s.filesDeleted);
+        linesRead += counterToBigInt(s.linesRead);
+        linesAdded += counterToBigInt(s.linesAdded);
+        linesEdited += counterToBigInt(s.linesEdited);
       });
 
       return {
@@ -170,10 +178,21 @@ function getAllDailyTotals(
 }
 
 function createColumns(
-  maxStats: Record<string, number>,
+  maxStats: {
+    cost: number;
+    cachedTokens: bigint;
+    inputTokens: bigint;
+    outputTokens: bigint;
+    reasoningTokens: bigint;
+    conversations: bigint;
+    toolCalls: bigint;
+  },
   formatConvertedCurrency: (amount: number) => string,
   period: AnalyticsPeriod
 ): ColumnDef<DayTotal>[] {
+  const isMaxCounter = (value: CounterInput, maxValue: bigint) =>
+    compareCounterValues(value, maxValue) === 0 && isPositiveCounter(maxValue);
+
   return [
     {
       accessorKey: "date",
@@ -219,15 +238,12 @@ function createColumns(
     {
       accessorKey: "cachedTokens",
       header: "Cached Tokens",
+      sortingFn: counterSortingFn<DayTotal>((row) => row.cachedTokens),
       cell: ({ row }) => {
-        const value = Number(row.getValue("cachedTokens"));
+        const value = row.original.cachedTokens;
         return (
           <div
-            className={
-              value === maxStats.cachedTokens && maxStats.cachedTokens > 0
-                ? "text-red-600"
-                : ""
-            }
+            className={isMaxCounter(value, maxStats.cachedTokens) ? "text-red-600" : ""}
           >
             {formatLargeNumber(value)}
           </div>
@@ -237,15 +253,12 @@ function createColumns(
     {
       accessorKey: "inputTokens",
       header: "Input Tokens",
+      sortingFn: counterSortingFn<DayTotal>((row) => row.inputTokens),
       cell: ({ row }) => {
-        const value = Number(row.getValue("inputTokens"));
+        const value = row.original.inputTokens;
         return (
           <div
-            className={
-              value === maxStats.inputTokens && maxStats.inputTokens > 0
-                ? "text-red-600"
-                : ""
-            }
+            className={isMaxCounter(value, maxStats.inputTokens) ? "text-red-600" : ""}
           >
             {formatLargeNumber(value)}
           </div>
@@ -255,15 +268,12 @@ function createColumns(
     {
       accessorKey: "outputTokens",
       header: "Output Tokens",
+      sortingFn: counterSortingFn<DayTotal>((row) => row.outputTokens),
       cell: ({ row }) => {
-        const value = Number(row.getValue("outputTokens"));
+        const value = row.original.outputTokens;
         return (
           <div
-            className={
-              value === maxStats.outputTokens && maxStats.outputTokens > 0
-                ? "text-red-600"
-                : ""
-            }
+            className={isMaxCounter(value, maxStats.outputTokens) ? "text-red-600" : ""}
           >
             {formatLargeNumber(value)}
           </div>
@@ -273,15 +283,12 @@ function createColumns(
     {
       accessorKey: "reasoningTokens",
       header: "Reasoning",
+      sortingFn: counterSortingFn<DayTotal>((row) => row.reasoningTokens),
       cell: ({ row }) => {
-        const value = Number(row.getValue("reasoningTokens"));
+        const value = row.original.reasoningTokens;
         return (
           <div
-            className={
-              value === maxStats.reasoningTokens && maxStats.reasoningTokens > 0
-                ? "text-red-600"
-                : ""
-            }
+            className={isMaxCounter(value, maxStats.reasoningTokens) ? "text-red-600" : ""}
           >
             {formatLargeNumber(value)}
           </div>
@@ -291,15 +298,12 @@ function createColumns(
     {
       accessorKey: "conversations",
       header: "Conversations",
+      sortingFn: counterSortingFn<DayTotal>((row) => row.conversations),
       cell: ({ row }) => {
-        const value = Number(row.getValue("conversations"));
+        const value = row.original.conversations;
         return (
           <div
-            className={
-              value === maxStats.conversations && maxStats.conversations > 0
-                ? "text-red-600"
-                : ""
-            }
+            className={isMaxCounter(value, maxStats.conversations) ? "text-red-600" : ""}
           >
             {formatLargeNumber(value)}
           </div>
@@ -309,13 +313,14 @@ function createColumns(
     {
       accessorKey: "toolCalls",
       header: "Tool Calls",
+      sortingFn: counterSortingFn<DayTotal>((row) => row.toolCalls),
       cell: ({ row }) => {
-        const value = Number(row.getValue("toolCalls"));
+        const value = row.original.toolCalls;
         const isEmpty = row.original.isEmpty;
         return (
           <div
             className={
-              value === maxStats.toolCalls && maxStats.toolCalls > 0
+              isMaxCounter(value, maxStats.toolCalls)
                 ? "text-red-600"
                 : !isEmpty
                   ? "text-green-600"
@@ -330,17 +335,26 @@ function createColumns(
     {
       accessorKey: "terminalCommands",
       header: "Terminal",
-      cell: ({ row }) =>
-        formatLargeNumber(Number(row.getValue("terminalCommands"))),
+      sortingFn: counterSortingFn<DayTotal>((row) => row.terminalCommands),
+      cell: ({ row }) => formatLargeNumber(row.original.terminalCommands),
     },
     {
       accessorKey: "searches",
       header: "Searches",
-      cell: ({ row }) => formatLargeNumber(Number(row.getValue("searches"))),
+      sortingFn: counterSortingFn<DayTotal>((row) => row.searches),
+      cell: ({ row }) => formatLargeNumber(row.original.searches),
     },
     {
       id: "files",
       header: "Files R/A/E/D",
+      sortingFn: counterSortingFn<DayTotal>((row) =>
+        addCounterValues(
+          row.filesRead,
+          row.filesAdded,
+          row.filesEdited,
+          row.filesDeleted
+        )
+      ),
       cell: ({ row }) => (
         <span>
           {formatLargeNumber(row.original.filesRead)}/
@@ -353,6 +367,9 @@ function createColumns(
     {
       id: "lines",
       header: "Lines R/+/~",
+      sortingFn: counterSortingFn<DayTotal>((row) =>
+        addCounterValues(row.linesRead, row.linesAdded, row.linesEdited)
+      ),
       cell: ({ row }) => (
         <span className={row.original.isEmpty ? "" : "text-blue-500"}>
           {formatLargeNumber(row.original.linesRead)}/
@@ -396,21 +413,27 @@ export function TotalDailyStatsTable({
       rows.reduce(
         (acc, s) => ({
           cost: Math.max(acc.cost, s.cost),
-          cachedTokens: Math.max(acc.cachedTokens, s.cachedTokens),
-          inputTokens: Math.max(acc.inputTokens, s.inputTokens),
-          outputTokens: Math.max(acc.outputTokens, s.outputTokens),
-          reasoningTokens: Math.max(acc.reasoningTokens, s.reasoningTokens),
-          conversations: Math.max(acc.conversations, s.conversations),
-          toolCalls: Math.max(acc.toolCalls, s.toolCalls),
+          cachedTokens: s.cachedTokens > acc.cachedTokens ? s.cachedTokens : acc.cachedTokens,
+          inputTokens: s.inputTokens > acc.inputTokens ? s.inputTokens : acc.inputTokens,
+          outputTokens: s.outputTokens > acc.outputTokens ? s.outputTokens : acc.outputTokens,
+          reasoningTokens:
+            s.reasoningTokens > acc.reasoningTokens
+              ? s.reasoningTokens
+              : acc.reasoningTokens,
+          conversations:
+            s.conversations > acc.conversations
+              ? s.conversations
+              : acc.conversations,
+          toolCalls: s.toolCalls > acc.toolCalls ? s.toolCalls : acc.toolCalls,
         }),
         {
           cost: 0,
-          cachedTokens: 0,
-          inputTokens: 0,
-          outputTokens: 0,
-          reasoningTokens: 0,
-          conversations: 0,
-          toolCalls: 0,
+          cachedTokens: 0n,
+          inputTokens: 0n,
+          outputTokens: 0n,
+          reasoningTokens: 0n,
+          conversations: 0n,
+          toolCalls: 0n,
         }
       ),
     [rows]
