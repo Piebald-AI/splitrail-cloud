@@ -16,6 +16,10 @@ import {
   type TotalsAccumulator,
 } from "@/app/api/user/[userId]/stats/types";
 
+function parseDailyStatsDay(day: DailyStatsRow["day"]): Date {
+  return day instanceof Date ? day : new Date(day);
+}
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ userId: string }> }
@@ -161,7 +165,8 @@ export async function GET(
     let lastDate: Date | null = null;
 
     for (const row of dailyRows) {
-      const dayIso = row.day.toISOString().split("T")[0];
+      const day = parseDailyStatsDay(row.day);
+      const dayIso = day.toISOString().split("T")[0];
       const dayKey = `${dayIso}T00:00:00.000Z`;
       const app = row.application;
 
@@ -173,8 +178,8 @@ export async function GET(
       };
 
       dayKeys.add(dayKey);
-      if (!firstDate || row.day < firstDate) firstDate = row.day;
-      if (!lastDate || row.day > lastDate) lastDate = row.day;
+      if (!firstDate || day < firstDate) firstDate = day;
+      if (!lastDate || day > lastDate) lastDate = day;
 
       if (!totalsByApp[app]) {
         totalsByApp[app] = createEmptyTotalsAccumulator();
@@ -322,7 +327,8 @@ export async function DELETE(
       endDateTime
     );
 
-    // Delete messages and aggregated stats in a transaction for atomicity
+    // Delete messages and rebuild affected aggregates in one transaction so
+    // clients never observe a partially-updated stats state.
     const result = await db.$transaction(async (tx) => {
       // Delete MessageStats
       const deleteResult = await tx.messageStats.deleteMany({
@@ -339,6 +345,8 @@ export async function DELETE(
       // Delete affected UserStats (within transaction for atomicity)
       await deleteAffectedUserStats(userId, applications, affectedPeriods, tx);
 
+      await recalculateUserStats(userId, applications, affectedPeriods, tx);
+
       return {
         deletedMessages: deleteResult.count,
         affectedDays:
@@ -352,10 +360,7 @@ export async function DELETE(
         },
         applications,
       };
-    });
-
-    // Recalculate UserStats outside transaction to avoid timeout issues
-    await recalculateUserStats(userId, applications, affectedPeriods);
+    }, { timeout: 30000 });
 
     return NextResponse.json({
       success: true,

@@ -136,69 +136,67 @@ function buildDeltasWithEmptyDays(
   statsData: StatsData,
   app: ApplicationType,
   period: AnalyticsPeriod
-): Record<string, DayDelta> {
+): Record<string, DayDelta | null> {
   const withEmptyDays = getStatsForApplication(statsData, app, true, period);
-  const deltas: Record<string, DayDelta> = {};
+  const deltas: Record<string, DayDelta | null> = {};
 
   withEmptyDays.forEach((current, index) => {
     const previous = withEmptyDays[index + 1];
+    if (!previous) {
+      deltas[current.date] = null;
+      return;
+    }
+
     const currentSearches = addCounterValues(
       current.fileSearches,
       current.fileContentSearches
     );
-    const previousSearches = previous
-      ? addCounterValues(previous.fileSearches, previous.fileContentSearches)
-      : 0n;
+    const previousSearches = addCounterValues(
+      previous.fileSearches,
+      previous.fileContentSearches
+    );
     const currentFilesTouched = addCounterValues(
       current.filesRead,
       current.filesAdded,
       current.filesEdited,
       current.filesDeleted
     );
-    const previousFilesTouched = previous
-      ? addCounterValues(
-          previous.filesRead,
-          previous.filesAdded,
-          previous.filesEdited,
-          previous.filesDeleted
-        )
-      : 0n;
+    const previousFilesTouched = addCounterValues(
+      previous.filesRead,
+      previous.filesAdded,
+      previous.filesEdited,
+      previous.filesDeleted
+    );
 
     deltas[current.date] = {
-      cost: current.cost - (previous?.cost ?? 0),
-      cachedTokens: subtractCounterValues(
-        current.cachedTokens,
-        previous?.cachedTokens
-      ),
-      inputTokens: subtractCounterValues(
-        current.inputTokens,
-        previous?.inputTokens
-      ),
+      cost: current.cost - previous.cost,
+      cachedTokens: subtractCounterValues(current.cachedTokens, previous.cachedTokens),
+      inputTokens: subtractCounterValues(current.inputTokens, previous.inputTokens),
       outputTokens: subtractCounterValues(
         current.outputTokens,
-        previous?.outputTokens
+        previous.outputTokens
       ),
       reasoningTokens: subtractCounterValues(
         current.reasoningTokens,
-        previous?.reasoningTokens
+        previous.reasoningTokens
       ),
       conversations: subtractCounterValues(
         current.conversations,
-        previous?.conversations
+        previous.conversations
       ),
-      toolCalls: subtractCounterValues(current.toolCalls, previous?.toolCalls),
+      toolCalls: subtractCounterValues(current.toolCalls, previous.toolCalls),
       terminalCommands: subtractCounterValues(
         current.terminalCommands,
-        previous?.terminalCommands
+        previous.terminalCommands
       ),
       searches: currentSearches - previousSearches,
       filesTouched: currentFilesTouched - previousFilesTouched,
-      linesRead: subtractCounterValues(current.linesRead, previous?.linesRead),
+      linesRead: subtractCounterValues(current.linesRead, previous.linesRead),
       linesEdited: subtractCounterValues(
         current.linesEdited,
-        previous?.linesEdited
+        previous.linesEdited
       ),
-      linesAdded: subtractCounterValues(current.linesAdded, previous?.linesAdded),
+      linesAdded: subtractCounterValues(current.linesAdded, previous.linesAdded),
     };
   });
 
@@ -257,7 +255,7 @@ function createColumns(
   app: ApplicationType,
   formatConvertedCurrency: (amount: number) => string,
   showDeltas: boolean,
-  deltasByDate: Record<string, DayDelta>,
+  deltasByDate: Record<string, DayDelta | null>,
   period: AnalyticsPeriod
 ): ColumnDef<DayStat>[] {
   const getDelta = (row: DayStat) => deltasByDate[row.date];

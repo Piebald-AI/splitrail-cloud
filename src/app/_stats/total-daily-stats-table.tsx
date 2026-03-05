@@ -12,8 +12,8 @@ import {
 } from "@/components/ui/tooltip";
 import { ColumnDef, SortingState } from "@tanstack/react-table";
 import { TableCell, TableFooter, TableRow } from "@/components/ui/table";
-import { StatsFooterMetricCells } from "./stats-footer-cells";
-import { StatsTableShell } from "./stats-table-shell";
+import { StatsFooterMetricCells } from "@/app/_stats/stats-footer-cells";
+import { StatsTableShell } from "@/app/_stats/stats-table-shell";
 import {
   addCounterValues,
   compareCounterValues,
@@ -131,6 +131,19 @@ function getAllDailyTotals(
           isPositiveCounter(s.conversations) ||
           (s.cost ?? 0) > 0 ||
           isPositiveCounter(s.toolCalls) ||
+          isPositiveCounter(s.terminalCommands) ||
+          isPositiveCounter(addCounterValues(s.fileSearches, s.fileContentSearches)) ||
+          isPositiveCounter(
+            addCounterValues(
+              s.filesRead,
+              s.filesAdded,
+              s.filesEdited,
+              s.filesDeleted
+            )
+          ) ||
+          isPositiveCounter(
+            addCounterValues(s.linesRead, s.linesAdded, s.linesEdited)
+          ) ||
           isPositiveCounter(addCounterValues(s.inputTokens, s.outputTokens));
         if (hasActivity) apps.push(app);
         cost += s.cost ?? 0;

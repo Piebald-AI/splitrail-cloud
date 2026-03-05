@@ -1,5 +1,5 @@
 export type DailyStatsRow = {
-  day: Date;
+  day: Date | string;
   application: string;
   total_cost: number;
   cached_tokens: bigint;
@@ -127,12 +127,12 @@ export type GrandTotal = SerializedTotals & {
   daysTracked: number;
   numApps: number;
   applications: string[];
-  tokens?: string;
+  tokens: string;
   firstDate: string;
   lastDate: string;
 };
 
-export type StatsByDateRecord = Record<string, Record<string, unknown>>;
+export type StatsByDateRecord = Record<string, Record<string, SerializedDayStats>>;
 
 export type StatsRecord = {
   dateStats: StatsByDateRecord;

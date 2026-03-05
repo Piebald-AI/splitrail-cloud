@@ -84,7 +84,11 @@ export function StatsCharts({
     };
   }, [allDataDates, customEnd, customStart, firstDataDate, period]);
 
-  const { data: modelData } = useQuery<ModelData>({
+  const {
+    data: modelData,
+    isError: isModelDataError,
+    error: modelDataError,
+  } = useQuery<ModelData, Error>({
     queryKey: [
       "modelStats",
       session?.user?.id,
@@ -105,9 +109,41 @@ export function StatsCharts({
       const res = await fetch(
         `/api/user/${session.user.id}/stats/models?timezone=${encodeURIComponent(timezone)}${appParam}${dateRangeParam}`
       );
-      const json = await res.json();
-      if (json.success) return json.data as ModelData;
-      throw new Error("Failed");
+      const responseText = await res.text();
+      let json:
+        | {
+            success?: boolean;
+            data?: ModelData;
+            error?: string;
+          }
+        | null = null;
+
+      try {
+        json = responseText
+          ? (JSON.parse(responseText) as {
+              success?: boolean;
+              data?: ModelData;
+              error?: string;
+            })
+          : null;
+      } catch {
+        json = null;
+      }
+
+      if (!res.ok) {
+        throw new Error(
+          json?.error ??
+            `${res.status} ${res.statusText}${
+              responseText ? `: ${responseText}` : ""
+            }`
+        );
+      }
+
+      if (!json?.success) {
+        throw new Error(json?.error ?? "Model stats request did not succeed");
+      }
+
+      return json.data as ModelData;
     },
     enabled: !!session?.user?.id && !!modelRange,
     staleTime: 5 * 60 * 1000,
@@ -383,7 +419,11 @@ export function StatsCharts({
             )}
           </BarChart>
         </ChartContainer>
-        {models.length > 0 ? (
+        {isModelDataError ? (
+          <p className="text-xs text-destructive text-center py-2">
+            {modelDataError.message}
+          </p>
+        ) : models.length > 0 ? (
           <BarLegend
             models={models}
             modelColors={modelColors}

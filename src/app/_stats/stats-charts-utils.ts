@@ -1,4 +1,5 @@
 import type { ApplicationType } from "@/types";
+import { getPeriodEndForDate, getPeriodStartForDate } from "@/lib/dateUtils";
 import {
   addCounterValues,
   counterToApproxNumber,
@@ -21,39 +22,76 @@ export function toUTCDateKey(d: Date): string {
   return `${d.toISOString().split("T")[0]}T00:00:00.000Z`;
 }
 
+function parseDateKey(value: string): Date | null {
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    return null;
+  }
+
+  return new Date(
+    parsed.getUTCFullYear(),
+    parsed.getUTCMonth(),
+    parsed.getUTCDate()
+  );
+}
+
+/** Reinterpret local-time year/month/day as a UTC midnight date (for chart axis keys). */
+function localDateToUTCMidnight(date: Date): Date {
+  return new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+}
+
 export function getDateRange(
   period: Period,
   firstDataDate: string,
   customStart?: string,
   customEnd?: string
 ): string[] {
-  const now = new Date();
-  const today = new Date(
-    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())
+  const today = localDateToUTCMidnight(getPeriodEndForDate("daily", new Date()));
+  const fallbackStart = localDateToUTCMidnight(
+    getPeriodStartForDate(
+      "daily",
+      new Date(today.getTime() - 29 * 24 * 60 * 60 * 1000)
+    )
   );
 
-  let start: Date;
+  let start = fallbackStart;
   let end: Date = today;
 
   if (period === "custom" && customStart && customEnd) {
-    start = new Date(customStart + "T00:00:00.000Z");
-    end = new Date(customEnd + "T00:00:00.000Z");
-    if (isNaN(start.getTime()) || isNaN(end.getTime()) || start > end) {
-      start = new Date(today);
-      start.setUTCDate(start.getUTCDate() - 29);
+    const customStartDate = parseDateKey(`${customStart}T00:00:00.000Z`);
+    const customEndDate = parseDateKey(`${customEnd}T00:00:00.000Z`);
+
+    if (
+      !customStartDate ||
+      !customEndDate ||
+      customStartDate > customEndDate
+    ) {
+      start = fallbackStart;
       end = today;
+    } else {
+      start = localDateToUTCMidnight(
+        getPeriodStartForDate("daily", customStartDate)
+      );
+      end = localDateToUTCMidnight(
+        getPeriodEndForDate("daily", customEndDate)
+      );
     }
   } else if (period === "lifetime") {
-    start = new Date(firstDataDate);
+    const firstDate = parseDateKey(firstDataDate);
+    start = firstDate
+      ? localDateToUTCMidnight(getPeriodStartForDate("daily", firstDate))
+      : fallbackStart;
   } else if (period === "year") {
-    start = new Date(Date.UTC(today.getUTCFullYear(), 0, 1));
+    start = localDateToUTCMidnight(getPeriodStartForDate("yearly", new Date()));
   } else if (period === "30d") {
-    start = new Date(today);
-    start.setUTCDate(start.getUTCDate() - 29);
+    start = fallbackStart;
   } else {
-    // 7d
-    start = new Date(today);
-    start.setUTCDate(start.getUTCDate() - 6);
+    start = localDateToUTCMidnight(
+      getPeriodStartForDate(
+        "daily",
+        new Date(today.getTime() - 6 * 24 * 60 * 60 * 1000)
+      )
+    );
   }
 
   const dates: string[] = [];
