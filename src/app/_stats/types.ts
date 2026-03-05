@@ -64,7 +64,8 @@ export type GrandTotal = StatsCounters & {
 
 export type DayStatsByApp = Record<string, DayStat>;
 export type StatsByDate = Record<string, DayStatsByApp>;
-export type StatsCollection = StatsByDate & {
+export type StatsCollection = {
+  dateStats: StatsByDate;
   totals: Record<string, TotalsRow>;
   grandTotal: GrandTotal;
 };

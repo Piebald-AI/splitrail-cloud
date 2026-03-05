@@ -132,9 +132,10 @@ export type GrandTotal = SerializedTotals & {
   lastDate: string;
 };
 
+export type StatsByDateRecord = Record<string, Record<string, unknown>>;
+
 export type StatsRecord = {
-  [key: string]: Record<string, unknown>;
-} & {
+  dateStats: StatsByDateRecord;
   totals?: Record<string, SerializedTotals & { models: string[] }>;
   grandTotal?: GrandTotal;
 };

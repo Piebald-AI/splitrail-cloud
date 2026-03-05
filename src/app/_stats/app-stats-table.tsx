@@ -64,9 +64,8 @@ function getStatsForApplication(
 ): DayStat[] {
   if (!statsData?.stats) return [];
 
-  const appDates = Object.keys(statsData.stats)
-    .filter((k) => k !== "totals" && k !== "grandTotal")
-    .filter((date) => statsData.stats[date]?.[app]);
+  const dateStats = statsData.stats.dateStats;
+  const appDates = Object.keys(dateStats).filter((date) => dateStats[date]?.[app]);
 
   if (appDates.length === 0) return [];
 
@@ -86,7 +85,7 @@ function getStatsForApplication(
   return dateRange
     .reverse()
     .map((date) => {
-      const existing = statsData.stats[date]?.[app];
+      const existing = dateStats[date]?.[app];
       if (existing) return { ...existing, date };
 
       return {
@@ -532,7 +531,7 @@ function createColumns(
       header: "Models",
       cell: ({ row }) => {
         const models =
-          statsData?.stats?.[row.original.date]?.[app]?.models || [];
+          statsData?.stats?.dateStats?.[row.original.date]?.[app]?.models || [];
         return models.join(", ");
       },
     },

@@ -70,9 +70,7 @@ export function StatsCharts({
 
   const allDataDates = React.useMemo(
     () =>
-      Object.keys(statsData?.stats ?? {})
-        .filter((k) => k !== "totals" && k !== "grandTotal")
-        .sort(),
+      Object.keys(statsData?.stats?.dateStats ?? {}).sort(),
     [statsData]
   );
   const firstDataDate = allDataDates[0] ?? new Date().toISOString();

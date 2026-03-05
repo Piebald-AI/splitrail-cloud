@@ -153,7 +153,7 @@ export async function GET(
       });
     }
 
-    const stats: StatsRecord = {};
+    const stats: StatsRecord = { dateStats: {} };
     const totalsByApp: Record<string, TotalsAccumulator> = {};
     const modelSetsByApp = new Map<string, Set<string>>();
     const dayKeys = new Set<string>();
@@ -165,10 +165,10 @@ export async function GET(
       const dayKey = `${dayIso}T00:00:00.000Z`;
       const app = row.application;
 
-      if (!stats[dayKey]) {
-        stats[dayKey] = {};
+      if (!stats.dateStats[dayKey]) {
+        stats.dateStats[dayKey] = {};
       }
-      stats[dayKey][app] = {
+      stats.dateStats[dayKey][app] = {
         ...serializeDailyStatsRow(row),
       };
 

@@ -62,9 +62,8 @@ function getAllDailyTotals(
 ): DayTotal[] {
   if (!statsData?.stats) return [];
 
-  const datKeys = Object.keys(statsData.stats).filter(
-    (k) => k !== "totals" && k !== "grandTotal"
-  );
+  const dateStats = statsData.stats.dateStats;
+  const datKeys = Object.keys(dateStats);
 
   if (datKeys.length === 0) return [];
 
@@ -82,7 +81,7 @@ function getAllDailyTotals(
   return dateRange
     .reverse()
     .map((date) => {
-      const dayData = statsData.stats[date];
+      const dayData = dateStats[date];
       if (!dayData) {
         return {
           date,

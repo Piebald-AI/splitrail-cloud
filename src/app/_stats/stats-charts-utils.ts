@@ -78,16 +78,15 @@ export function buildAreaData(
 ): AreaChartPoint[] {
   if (!statsData?.stats) return [];
 
-  const allDataDates = Object.keys(statsData.stats)
-    .filter((k) => k !== "totals" && k !== "grandTotal")
-    .sort();
+  const dateStats = statsData.stats.dateStats;
+  const allDataDates = Object.keys(dateStats).sort();
 
   if (allDataDates.length === 0) return [];
 
   const dates = getDateRange(period, allDataDates[0], customStart, customEnd);
 
   const raw: RawDataPoint[] = dates.map((dateKey) => {
-    const dayData = statsData.stats[dateKey];
+    const dayData = dateStats[dateKey];
     let tokens = 0n,
       cost = 0,
       toolCalls = 0n,
