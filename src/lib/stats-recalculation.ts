@@ -278,6 +278,7 @@ export async function recalculateUserStats(
           "conversationHash",
           MIN(date) AS first_message_at
         FROM base
+        WHERE "conversationHash" IS NOT NULL
         GROUP BY application, "conversationHash"
       ),
       conversation_counts AS (

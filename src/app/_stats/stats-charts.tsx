@@ -176,13 +176,7 @@ export function StatsCharts({
     customEnd,
   ]);
 
-  const barFormatValue = React.useCallback(
-    (v: number) =>
-      barMetric === "cost" ? formatConvertedCurrency(v) : formatLargeNumber(v),
-    [barMetric, formatConvertedCurrency]
-  );
-
-  const barYAxisFormatter = React.useCallback(
+  const formatBarValue = React.useCallback(
     (v: number) =>
       barMetric === "cost" ? formatConvertedCurrency(v) : formatLargeNumber(v),
     [barMetric, formatConvertedCurrency]
@@ -394,14 +388,14 @@ export function StatsCharts({
               axisLine={false}
               tickLine={false}
               tick={{ fontSize: 11 }}
-              tickFormatter={barYAxisFormatter}
+              tickFormatter={formatBarValue}
               className="fill-muted-foreground"
             />
             <Tooltip
               content={
                 <BarTooltip
                   modelColors={modelColors}
-                  formatValue={barFormatValue}
+                  formatValue={formatBarValue}
                 />
               }
             />

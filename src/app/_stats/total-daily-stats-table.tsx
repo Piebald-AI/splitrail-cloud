@@ -23,7 +23,7 @@ import {
   type AnalyticsPeriod,
   type CounterInput,
   type StatsData,
-} from "./types";
+} from "@/app/_stats/types";
 import {
   addPeriod,
   formatDateForDisplay,
@@ -31,7 +31,7 @@ import {
   getPeriodCountLabel,
   getPeriodLabel,
   getPeriodStart,
-} from "./date-helpers";
+} from "@/app/_stats/date-helpers";
 
 type DayTotal = {
   date: string;
@@ -144,7 +144,9 @@ function getAllDailyTotals(
           isPositiveCounter(
             addCounterValues(s.linesRead, s.linesAdded, s.linesEdited)
           ) ||
-          isPositiveCounter(addCounterValues(s.inputTokens, s.outputTokens));
+          isPositiveCounter(addCounterValues(s.inputTokens, s.outputTokens)) ||
+          isPositiveCounter(s.cachedTokens) ||
+          isPositiveCounter(s.reasoningTokens);
         if (hasActivity) apps.push(app);
         cost += s.cost ?? 0;
         cachedTokens += counterToBigInt(s.cachedTokens);

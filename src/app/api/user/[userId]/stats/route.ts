@@ -30,7 +30,14 @@ export async function GET(
     const { searchParams } = new URL(request.url);
     const timezone = searchParams.get("timezone") || "UTC";
     const periodParam = searchParams.get("period");
-    const period =
+    const validPeriods = ["daily", "weekly", "monthly"] as const;
+    if (periodParam && !validPeriods.includes(periodParam as (typeof validPeriods)[number])) {
+      return NextResponse.json(
+        { error: `Invalid period parameter: "${periodParam}". Must be one of: ${validPeriods.join(", ")}` },
+        { status: 400 }
+      );
+    }
+    const period: (typeof validPeriods)[number] =
       periodParam === "weekly" || periodParam === "monthly"
         ? periodParam
         : "daily";
@@ -149,10 +156,23 @@ export async function GET(
           `;
 
     if (dailyRows.length === 0) {
+      const emptyCounters = serializeStatsCounters(createEmptyTotalsAccumulator());
       return NextResponse.json({
         success: true,
         data: {
-          stats: null,
+          stats: {
+            dateStats: {},
+            totals: {},
+            grandTotal: {
+              daysTracked: 0,
+              numApps: 0,
+              applications: [],
+              ...emptyCounters,
+              tokens: "0",
+              firstDate: new Date().toISOString(),
+              lastDate: new Date().toISOString(),
+            },
+          },
         },
       });
     }
