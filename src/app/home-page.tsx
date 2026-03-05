@@ -43,8 +43,8 @@ export default function HomePage() {
           <p className="text-lg md:text-xl text-muted-foreground mb-1">
             Instantly hunt down and aggregate usage stats for all your agentic
             AI development tools: Claude Code / Codex CLI* / Gemini CLI* / Qwen
-            Code / Cline / Roo Code / Kilo Code / GitHub Copilot / OpenCode / Pi
-            Agent / Piebald.{" "}
+            Code / Cline / Roo Code / Kilo Code / Kilo CLI / GitHub Copilot /
+            OpenCode / Pi Agent / Piebald.{" "}
           </p>
           <p className="text-lg md:text-xl text-muted-foreground mb-4 font-bold">
             Sync your data across devices with{" "}

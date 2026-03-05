@@ -60,7 +60,7 @@ The platform tracks statistics from multiple agentic AI coding tools, not just C
 - `open_code` - OpenCode
 - `cline` - Cline (VSCode extension)
 - `roo_code`, `kilo_code`, `qwen_code` - Other AI coding assistants
-- `codex_cli`, `gemini_cli` - Alternative CLIs
+- `codex_cli`, `gemini_cli`, `kilo_cli` - Alternative CLIs
 - `copilot` - GitHub Copilot
 - `pi_agent` - Pi Agent
 
