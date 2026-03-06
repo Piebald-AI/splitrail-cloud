@@ -13,7 +13,16 @@ import {
 } from "recharts";
 import { useSession } from "next-auth/react";
 import { useQuery } from "@tanstack/react-query";
+import { format } from "date-fns";
+import { CalendarIcon } from "lucide-react";
 import { ChartContainer, type ChartConfig } from "@/components/ui/chart";
+import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { formatLargeNumber } from "@/lib/utils";
 import { type ApplicationType } from "@/types";
 import { type StatsData } from "@/app/_stats/types";
@@ -55,18 +64,26 @@ export function StatsCharts({
   );
 
   // Custom date range state — default to last 30 days as initial values
-  const todayStr = React.useMemo(() => {
-    const now = new Date();
-    return now.toISOString().split("T")[0];
-  }, []);
-  const thirtyDaysAgoStr = React.useMemo(() => {
+  const today = React.useMemo(() => new Date(), []);
+  const thirtyDaysAgo = React.useMemo(() => {
     const d = new Date();
     d.setUTCDate(d.getUTCDate() - 29);
-    return d.toISOString().split("T")[0];
+    return d;
   }, []);
-  const [customStart, setCustomStart] =
-    React.useState<string>(thirtyDaysAgoStr);
-  const [customEnd, setCustomEnd] = React.useState<string>(todayStr);
+  const [customStartDate, setCustomStartDate] =
+    React.useState<Date>(thirtyDaysAgo);
+  const [customEndDate, setCustomEndDate] = React.useState<Date>(today);
+  const [startOpen, setStartOpen] = React.useState(false);
+  const [endOpen, setEndOpen] = React.useState(false);
+
+  const customStart = React.useMemo(
+    () => customStartDate.toISOString().split("T")[0],
+    [customStartDate]
+  );
+  const customEnd = React.useMemo(
+    () => customEndDate.toISOString().split("T")[0],
+    [customEndDate]
+  );
 
   const allDataDates = React.useMemo(
     () =>
@@ -246,31 +263,68 @@ export function StatsCharts({
               </button>
             ))}
           </div>
+          {/* Custom date range pickers — inline with period selector */}
+          {period === "custom" && (
+            <>
+              <Popover open={startOpen} onOpenChange={setStartOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-7 gap-1.5 px-2 text-xs font-medium"
+                  >
+                    <CalendarIcon className="size-3" />
+                    {format(customStartDate, "MMM d, yyyy")}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="end">
+                  <Calendar
+                    mode="single"
+                    selected={customStartDate}
+                    onSelect={(date) => {
+                      if (date) {
+                        setCustomStartDate(date);
+                        setStartOpen(false);
+                      }
+                    }}
+                    disabled={{ after: customEndDate }}
+                    defaultMonth={customStartDate}
+                    captionLayout="dropdown"
+                  />
+                </PopoverContent>
+              </Popover>
+              <span className="text-xs text-muted-foreground">–</span>
+              <Popover open={endOpen} onOpenChange={setEndOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-7 gap-1.5 px-2 text-xs font-medium"
+                  >
+                    <CalendarIcon className="size-3" />
+                    {format(customEndDate, "MMM d, yyyy")}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="end">
+                  <Calendar
+                    mode="single"
+                    selected={customEndDate}
+                    onSelect={(date) => {
+                      if (date) {
+                        setCustomEndDate(date);
+                        setEndOpen(false);
+                      }
+                    }}
+                    disabled={{ before: customStartDate, after: today }}
+                    defaultMonth={customEndDate}
+                    captionLayout="dropdown"
+                  />
+                </PopoverContent>
+              </Popover>
+            </>
+          )}
         </div>
       </div>
-
-      {/* Custom date range picker */}
-      {period === "custom" && (
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-xs text-muted-foreground">From</span>
-          <input
-            type="date"
-            value={customStart}
-            max={customEnd}
-            onChange={(e) => setCustomStart(e.target.value)}
-            className="rounded-md border bg-background px-2 py-1 text-xs font-medium text-foreground transition-colors focus:outline-none focus:ring-1 focus:ring-ring"
-          />
-          <span className="text-xs text-muted-foreground">to</span>
-          <input
-            type="date"
-            value={customEnd}
-            min={customStart}
-            max={todayStr}
-            onChange={(e) => setCustomEnd(e.target.value)}
-            className="rounded-md border bg-background px-2 py-1 text-xs font-medium text-foreground transition-colors focus:outline-none focus:ring-1 focus:ring-ring"
-          />
-        </div>
-      )}
 
       {/* Area chart — always visible */}
       <ChartContainer
