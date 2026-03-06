@@ -1,6 +1,6 @@
 import { Prisma } from "@prisma/client";
 
-interface AffectedPeriods {
+export interface AffectedPeriods {
   hourly: Date[];
   daily: Date[];
   weekly: Date[];
@@ -8,20 +8,46 @@ interface AffectedPeriods {
   yearly: Date[];
 }
 
+interface ConversationKey {
+  application: string;
+  conversationHash: string;
+}
+
 type StatsRecalculationClient = Pick<
   Prisma.TransactionClient,
   "$executeRaw"
 >;
 
+function createEmptyAffectedPeriods(): AffectedPeriods {
+  return {
+    hourly: [],
+    daily: [],
+    weekly: [],
+    monthly: [],
+    yearly: [],
+  };
+}
+
+function getWeekStart(date: Date): Date {
+  const weekStart = new Date(date);
+  const day = weekStart.getUTCDay();
+  const diff = weekStart.getUTCDate() - day + (day === 0 ? -6 : 1);
+  weekStart.setUTCDate(diff);
+  weekStart.setUTCHours(0, 0, 0, 0);
+  return weekStart;
+}
+
+function addUniqueDate(target: Date[], value: Date) {
+  if (!target.some((date) => date.getTime() === value.getTime())) {
+    target.push(value);
+  }
+}
+
 export function calculateAffectedPeriods(
   startDate: Date,
   endDate: Date
 ): AffectedPeriods {
-  const hourly: Date[] = [];
-  const daily: Date[] = [];
-  const weekly: Date[] = [];
-  const monthly: Date[] = [];
-  const yearly: Date[] = [];
+  const affectedPeriods = createEmptyAffectedPeriods();
 
   const current = new Date(startDate);
   current.setUTCHours(0, 0, 0, 0);
@@ -32,41 +58,150 @@ export function calculateAffectedPeriods(
       const hourStart = new Date(current);
       hourStart.setUTCHours(hour, 0, 0, 0);
       if (hourStart <= endDate && hourStart >= startDate) {
-        hourly.push(hourStart);
+        affectedPeriods.hourly.push(hourStart);
       }
     }
 
     // Daily
-    daily.push(new Date(current));
+    affectedPeriods.daily.push(new Date(current));
 
     // Weekly (start of ISO week)
-    const weekStart = new Date(current);
-    const day = weekStart.getUTCDay();
-    const diff = weekStart.getUTCDate() - day + (day === 0 ? -6 : 1);
-    weekStart.setUTCDate(diff);
-    weekStart.setUTCHours(0, 0, 0, 0);
-    if (!weekly.some((d) => d.getTime() === weekStart.getTime())) {
-      weekly.push(weekStart);
-    }
+    addUniqueDate(affectedPeriods.weekly, getWeekStart(current));
 
     // Monthly
     const monthStart = new Date(
       Date.UTC(current.getUTCFullYear(), current.getUTCMonth(), 1)
     );
-    if (!monthly.some((d) => d.getTime() === monthStart.getTime())) {
-      monthly.push(monthStart);
-    }
+    addUniqueDate(affectedPeriods.monthly, monthStart);
 
     // Yearly
     const yearStart = new Date(Date.UTC(current.getUTCFullYear(), 0, 1));
-    if (!yearly.some((d) => d.getTime() === yearStart.getTime())) {
-      yearly.push(yearStart);
-    }
+    addUniqueDate(affectedPeriods.yearly, yearStart);
 
     current.setUTCDate(current.getUTCDate() + 1);
   }
 
-  return { hourly, daily, weekly, monthly, yearly };
+  return affectedPeriods;
+}
+
+export function calculateAffectedPeriodsForDates(
+  dates: Date[]
+): AffectedPeriods {
+  const affectedPeriods = createEmptyAffectedPeriods();
+
+  for (const date of dates) {
+    const hourStart = new Date(date);
+    hourStart.setUTCMinutes(0, 0, 0);
+    addUniqueDate(affectedPeriods.hourly, hourStart);
+
+    const dayStart = new Date(date);
+    dayStart.setUTCHours(0, 0, 0, 0);
+    addUniqueDate(affectedPeriods.daily, dayStart);
+    addUniqueDate(affectedPeriods.weekly, getWeekStart(dayStart));
+    addUniqueDate(
+      affectedPeriods.monthly,
+      new Date(Date.UTC(dayStart.getUTCFullYear(), dayStart.getUTCMonth(), 1))
+    );
+    addUniqueDate(
+      affectedPeriods.yearly,
+      new Date(Date.UTC(dayStart.getUTCFullYear(), 0, 1))
+    );
+  }
+
+  return affectedPeriods;
+}
+
+export function mergeAffectedPeriods(
+  ...periodSets: AffectedPeriods[]
+): AffectedPeriods {
+  const merged = createEmptyAffectedPeriods();
+
+  for (const periodSet of periodSets) {
+    for (const hourly of periodSet.hourly) {
+      addUniqueDate(merged.hourly, hourly);
+    }
+    for (const daily of periodSet.daily) {
+      addUniqueDate(merged.daily, daily);
+    }
+    for (const weekly of periodSet.weekly) {
+      addUniqueDate(merged.weekly, weekly);
+    }
+    for (const monthly of periodSet.monthly) {
+      addUniqueDate(merged.monthly, monthly);
+    }
+    for (const yearly of periodSet.yearly) {
+      addUniqueDate(merged.yearly, yearly);
+    }
+  }
+
+  return merged;
+}
+
+export async function getImpactedConversationKeys(
+  userId: string,
+  applications: string[],
+  startDate: Date,
+  endDate: Date,
+  tx: Prisma.TransactionClient
+): Promise<ConversationKey[]> {
+  return tx.messageStats.findMany({
+    select: {
+      application: true,
+      conversationHash: true,
+    },
+    distinct: ["application", "conversationHash"],
+    where: {
+      userId,
+      application: { in: applications },
+      date: {
+        gte: startDate,
+        lte: endDate,
+      },
+    },
+  });
+}
+
+export async function getConversationStartDatesForKeys(
+  userId: string,
+  conversationKeys: ConversationKey[],
+  tx: Prisma.TransactionClient
+): Promise<Date[]> {
+  if (conversationKeys.length === 0) {
+    return [];
+  }
+
+  const conversationHashesByApplication = new Map<string, string[]>();
+  for (const { application, conversationHash } of conversationKeys) {
+    const hashes = conversationHashesByApplication.get(application) ?? [];
+    if (!hashes.includes(conversationHash)) {
+      hashes.push(conversationHash);
+      conversationHashesByApplication.set(application, hashes);
+    }
+  }
+
+  const startDates: Date[] = [];
+
+  for (const [application, conversationHashes] of conversationHashesByApplication) {
+    const conversationStarts = await tx.messageStats.groupBy({
+      by: ["conversationHash"],
+      where: {
+        userId,
+        application,
+        conversationHash: { in: conversationHashes },
+      },
+      _min: {
+        date: true,
+      },
+    });
+
+    for (const conversationStart of conversationStarts) {
+      if (conversationStart._min.date) {
+        startDates.push(conversationStart._min.date);
+      }
+    }
+  }
+
+  return startDates;
 }
 
 export async function deleteAffectedUserStats(

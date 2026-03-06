@@ -3,7 +3,11 @@ import { auth } from "@/auth";
 import { db } from "@/lib/db";
 import {
   calculateAffectedPeriods,
+  calculateAffectedPeriodsForDates,
   deleteAffectedUserStats,
+  getConversationStartDatesForKeys,
+  getImpactedConversationKeys,
+  mergeAffectedPeriods,
   recalculateUserStats,
 } from "@/lib/stats-recalculation";
 import {
@@ -350,6 +354,14 @@ export async function DELETE(
     // Delete messages and rebuild affected aggregates in one transaction so
     // clients never observe a partially-updated stats state.
     const result = await db.$transaction(async (tx) => {
+      const impactedConversationKeys = await getImpactedConversationKeys(
+        userId,
+        applications,
+        startDateTime,
+        endDateTime,
+        tx
+      );
+
       // Delete MessageStats
       const deleteResult = await tx.messageStats.deleteMany({
         where: {
@@ -362,10 +374,32 @@ export async function DELETE(
         },
       });
 
-      // Delete affected UserStats (within transaction for atomicity)
-      await deleteAffectedUserStats(userId, applications, affectedPeriods, tx);
+      // If a deleted message was the first one in a conversation, the
+      // conversation count can move into a later period bucket.
+      const shiftedConversationStarts = await getConversationStartDatesForKeys(
+        userId,
+        impactedConversationKeys,
+        tx
+      );
+      const expandedAffectedPeriods = mergeAffectedPeriods(
+        affectedPeriods,
+        calculateAffectedPeriodsForDates(shiftedConversationStarts)
+      );
 
-      await recalculateUserStats(userId, applications, affectedPeriods, tx);
+      // Delete affected UserStats (within transaction for atomicity)
+      await deleteAffectedUserStats(
+        userId,
+        applications,
+        expandedAffectedPeriods,
+        tx
+      );
+
+      await recalculateUserStats(
+        userId,
+        applications,
+        expandedAffectedPeriods,
+        tx
+      );
 
       return {
         deletedMessages: deleteResult.count,
