@@ -77,11 +77,13 @@ export function StatsCharts({
   const [endOpen, setEndOpen] = React.useState(false);
 
   const customStart = React.useMemo(
-    () => customStartDate.toISOString().split("T")[0],
+    () =>
+      `${customStartDate.getFullYear()}-${String(customStartDate.getMonth() + 1).padStart(2, "0")}-${String(customStartDate.getDate()).padStart(2, "0")}`,
     [customStartDate]
   );
   const customEnd = React.useMemo(
-    () => customEndDate.toISOString().split("T")[0],
+    () =>
+      `${customEndDate.getFullYear()}-${String(customEndDate.getMonth() + 1).padStart(2, "0")}-${String(customEndDate.getDate()).padStart(2, "0")}`,
     [customEndDate]
   );
 
