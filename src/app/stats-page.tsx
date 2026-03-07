@@ -20,6 +20,7 @@ export default function StatsPage() {
   const { data: session, status } = useSession();
   const [selectedSource, setSelectedSource] =
     React.useState<SelectedSource>("total");
+  const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
   const { formatConvertedCurrency, formatConvertedCurrencyAdaptive } =
     useFormatConvertedCurrency(session?.user?.id);
@@ -47,10 +48,9 @@ export default function StatsPage() {
     isError: statsError,
     error: statsErrorObj,
   } = useQuery<StatsData, Error>({
-    queryKey: ["userStats", session?.user?.id],
+    queryKey: ["userStats", session?.user?.id, timezone],
     queryFn: async () => {
       if (!session?.user?.id) throw new Error("No user session");
-      const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
       const response = await fetch(
         `/api/user/${session.user.id}/stats?timezone=${encodeURIComponent(timezone)}`
       );
@@ -79,9 +79,9 @@ export default function StatsPage() {
   if (!session) {
     return (
       <div className="container mx-auto p-6 text-center animate-in fade-in-0 duration-300">
-        <h1 className="text-2xl font-bold mb-4">Profile</h1>
+        <h1 className="text-2xl font-bold mb-4">Stats Dashboard</h1>
         <p className="text-muted-foreground">
-          Please sign in to view your profile.
+          Please sign in to view your stats dashboard.
         </p>
       </div>
     );
@@ -122,9 +122,9 @@ export default function StatsPage() {
   if (!profileData) {
     return (
       <div className="container mx-auto p-6 text-center animate-in fade-in-0 duration-300">
-        <h1 className="text-2xl font-bold mb-4">Profile</h1>
+        <h1 className="text-2xl font-bold mb-4">Stats Dashboard</h1>
         <p className="text-muted-foreground">
-          No profile data found. Start using{" "}
+          No stats data found. Start using{" "}
           {Object.values(APPLICATION_LABELS).join(" / ")} with Splitrail to see
           your stats!
         </p>
