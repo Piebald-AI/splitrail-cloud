@@ -14,6 +14,7 @@ import { SourceBadges, type SelectedSource } from "@/app/_stats/source-badges";
 import { StatsCharts } from "@/app/_stats/stats-charts";
 import { TotalStatsTable } from "@/app/_stats/total-stats-table";
 import { type StatsData } from "@/app/_stats/types";
+import { useDeferredLoading } from "@/hooks/use-deferred-loading";
 
 export default function StatsPage() {
   const { data: session, status } = useSession();
@@ -67,8 +68,12 @@ export default function StatsPage() {
 
   // --- Early returns for auth / error states ---
 
+  const showSkeleton = useDeferredLoading(
+    status === "loading" || profileLoading || statsLoading
+  );
+
   if (status === "loading" || profileLoading) {
-    return <DashboardSkeleton />;
+    return showSkeleton ? <DashboardSkeleton /> : null;
   }
 
   if (!session) {
@@ -136,7 +141,7 @@ export default function StatsPage() {
   }
 
   if (statsLoading || !statsData) {
-    return <DashboardSkeleton />;
+    return showSkeleton ? <DashboardSkeleton /> : null;
   }
 
   // --- Main dashboard ---

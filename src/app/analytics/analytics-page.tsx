@@ -12,6 +12,7 @@ import { type AnalyticsPeriod, type StatsData } from "@/app/_stats/types";
 import { type ApplicationType } from "@/types";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { SetupInstructions } from "@/app/_stats/setup-instructions";
+import { useDeferredLoading } from "@/hooks/use-deferred-loading";
 
 export default function AnalyticsPage() {
   const { data: session, status } = useSession();
@@ -48,8 +49,10 @@ export default function AnalyticsPage() {
     enabled: !!session?.user?.id,
   });
 
+  const showSkeleton = useDeferredLoading(status === "loading" || statsLoading);
+
   if (status === "loading" || statsLoading) {
-    return <AnalyticsSkeleton />;
+    return showSkeleton ? <AnalyticsSkeleton /> : null;
   }
 
   if (!session) {
