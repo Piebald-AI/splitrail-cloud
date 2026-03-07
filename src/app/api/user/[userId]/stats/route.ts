@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
 import {
@@ -96,98 +97,58 @@ export async function GET(
     // periodStart values are computed using UTC boundaries during aggregation,
     // so applying AT TIME ZONE would shift the bucket key by a day for
     // negative/positive UTC offsets.
-    const dailyRows =
+    const commonColumns = Prisma.sql`
+      application,
+      cost AS total_cost,
+      "cachedTokens" AS cached_tokens,
+      "inputTokens" AS input_tokens,
+      "outputTokens" AS output_tokens,
+      "reasoningTokens" AS reasoning_tokens,
+      "cacheCreationTokens" AS cache_creation_tokens,
+      "cacheReadTokens" AS cache_read_tokens,
+      "toolCalls" AS tool_calls,
+      "terminalCommands" AS terminal_commands,
+      "fileSearches" AS file_searches,
+      "fileContentSearches" AS file_content_searches,
+      "filesRead" AS files_read,
+      "filesAdded" AS files_added,
+      "filesEdited" AS files_edited,
+      "filesDeleted" AS files_deleted,
+      "linesRead" AS lines_read,
+      "linesEdited" AS lines_edited,
+      "linesAdded" AS lines_added,
+      "linesDeleted" AS lines_deleted,
+      "bytesRead" AS bytes_read,
+      "bytesAdded" AS bytes_added,
+      "bytesEdited" AS bytes_edited,
+      "bytesDeleted" AS bytes_deleted,
+      "codeLines" AS code_lines,
+      "docsLines" AS docs_lines,
+      "dataLines" AS data_lines,
+      "mediaLines" AS media_lines,
+      "configLines" AS config_lines,
+      "otherLines" AS other_lines,
+      "todosCreated" AS todos_created,
+      "todosCompleted" AS todos_completed,
+      "todosInProgress" AS todos_in_progress,
+      "todoReads" AS todo_reads,
+      "todoWrites" AS todo_writes,
+      conversations,
+      models
+    `;
+    const dayExpression =
       period === "daily"
-        ? await db.$queryRaw<DailyStatsRow[]>`
-            SELECT
-              ("periodStart" AT TIME ZONE 'UTC' AT TIME ZONE ${timezone})::date AS day,
-              application,
-              cost AS total_cost,
-              "cachedTokens" AS cached_tokens,
-              "inputTokens" AS input_tokens,
-              "outputTokens" AS output_tokens,
-              "reasoningTokens" AS reasoning_tokens,
-              "cacheCreationTokens" AS cache_creation_tokens,
-              "cacheReadTokens" AS cache_read_tokens,
-              "toolCalls" AS tool_calls,
-              "terminalCommands" AS terminal_commands,
-              "fileSearches" AS file_searches,
-              "fileContentSearches" AS file_content_searches,
-              "filesRead" AS files_read,
-              "filesAdded" AS files_added,
-              "filesEdited" AS files_edited,
-              "filesDeleted" AS files_deleted,
-              "linesRead" AS lines_read,
-              "linesEdited" AS lines_edited,
-              "linesAdded" AS lines_added,
-              "linesDeleted" AS lines_deleted,
-              "bytesRead" AS bytes_read,
-              "bytesAdded" AS bytes_added,
-              "bytesEdited" AS bytes_edited,
-              "bytesDeleted" AS bytes_deleted,
-              "codeLines" AS code_lines,
-              "docsLines" AS docs_lines,
-              "dataLines" AS data_lines,
-              "mediaLines" AS media_lines,
-              "configLines" AS config_lines,
-              "otherLines" AS other_lines,
-              "todosCreated" AS todos_created,
-              "todosCompleted" AS todos_completed,
-              "todosInProgress" AS todos_in_progress,
-              "todoReads" AS todo_reads,
-              "todoWrites" AS todo_writes,
-              conversations,
-              models
-            FROM user_stats
-            WHERE "userId" = ${userId}
-              AND period = ${period}
-            ORDER BY application, day
-          `
-        : await db.$queryRaw<DailyStatsRow[]>`
-            SELECT
-              "periodStart"::date AS day,
-              application,
-              cost AS total_cost,
-              "cachedTokens" AS cached_tokens,
-              "inputTokens" AS input_tokens,
-              "outputTokens" AS output_tokens,
-              "reasoningTokens" AS reasoning_tokens,
-              "cacheCreationTokens" AS cache_creation_tokens,
-              "cacheReadTokens" AS cache_read_tokens,
-              "toolCalls" AS tool_calls,
-              "terminalCommands" AS terminal_commands,
-              "fileSearches" AS file_searches,
-              "fileContentSearches" AS file_content_searches,
-              "filesRead" AS files_read,
-              "filesAdded" AS files_added,
-              "filesEdited" AS files_edited,
-              "filesDeleted" AS files_deleted,
-              "linesRead" AS lines_read,
-              "linesEdited" AS lines_edited,
-              "linesAdded" AS lines_added,
-              "linesDeleted" AS lines_deleted,
-              "bytesRead" AS bytes_read,
-              "bytesAdded" AS bytes_added,
-              "bytesEdited" AS bytes_edited,
-              "bytesDeleted" AS bytes_deleted,
-              "codeLines" AS code_lines,
-              "docsLines" AS docs_lines,
-              "dataLines" AS data_lines,
-              "mediaLines" AS media_lines,
-              "configLines" AS config_lines,
-              "otherLines" AS other_lines,
-              "todosCreated" AS todos_created,
-              "todosCompleted" AS todos_completed,
-              "todosInProgress" AS todos_in_progress,
-              "todoReads" AS todo_reads,
-              "todoWrites" AS todo_writes,
-              conversations,
-              models
-            FROM user_stats
-            WHERE "userId" = ${userId}
-              AND period = ${period}
-            ORDER BY application, day
-          `;
+        ? Prisma.sql`("periodStart" AT TIME ZONE 'UTC' AT TIME ZONE ${timezone})::date AS day`
+        : Prisma.sql`"periodStart"::date AS day`;
+    const dailyRows = await db.$queryRaw<DailyStatsRow[]>(Prisma.sql`
+      SELECT
+        ${dayExpression},
+        ${commonColumns}
+      FROM user_stats
+      WHERE "userId" = ${userId}
+        AND period = ${period}
+      ORDER BY application, day
+    `);
 
     if (dailyRows.length === 0) {
       return NextResponse.json({

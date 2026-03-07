@@ -132,16 +132,16 @@ export default function StatsPage() {
     );
   }
 
-  if (statsData?.stats === null) {
+  if (statsLoading || !statsData) {
+    return showSkeleton ? <DashboardSkeleton /> : null;
+  }
+
+  if (statsData.stats === null) {
     return (
       <div className="flex flex-col gap-y-8 animate-in fade-in-0 duration-300">
         <SetupInstructions />
       </div>
     );
-  }
-
-  if (statsLoading || !statsData) {
-    return showSkeleton ? <DashboardSkeleton /> : null;
   }
 
   // --- Main dashboard ---
@@ -178,11 +178,14 @@ export default function StatsPage() {
           />
         </>
       ) : (
-        <StatsCharts
-          statsData={statsData}
-          selectedSource={selectedSource}
-          formatConvertedCurrency={formatConvertedCurrency}
-        />
+        <>
+          {/* Per-app dashboard stays chart-focused; detailed per-period tables live on analytics-page via AppStatsTable. */}
+          <StatsCharts
+            statsData={statsData}
+            selectedSource={selectedSource}
+            formatConvertedCurrency={formatConvertedCurrency}
+          />
+        </>
       )}
     </div>
   );
