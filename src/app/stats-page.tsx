@@ -42,9 +42,10 @@ export default function StatsPage() {
 
   const {
     data: statsData,
+    isLoading: statsLoading,
     isError: statsError,
     error: statsErrorObj,
-  } = useQuery({
+  } = useQuery<StatsData, Error>({
     queryKey: ["userStats", session?.user?.id],
     queryFn: async () => {
       if (!session?.user?.id) throw new Error("No user session");
@@ -53,9 +54,13 @@ export default function StatsPage() {
         `/api/user/${session.user.id}/stats?timezone=${encodeURIComponent(timezone)}`
       );
       if (!response.ok) throw new Error("Failed to fetch stats");
-      const data = await response.json();
-      if (data.success) return data.data as StatsData;
-      throw new Error("Failed to fetch stats");
+      const data = (await response.json()) as {
+        success?: boolean;
+        data?: StatsData;
+        error?: string;
+      };
+      if (data.success && data.data) return data.data;
+      throw new Error(data.error || "Failed to fetch stats");
     },
     enabled: !!session?.user?.id,
   });
@@ -122,54 +127,57 @@ export default function StatsPage() {
     );
   }
 
+  if (statsData?.stats === null) {
+    return (
+      <div className="flex flex-col gap-y-8 animate-in fade-in-0 duration-300">
+        <SetupInstructions />
+      </div>
+    );
+  }
+
+  if (statsLoading || !statsData) {
+    return <DashboardSkeleton />;
+  }
+
   // --- Main dashboard ---
 
-  const grandTotal = statsData?.stats?.grandTotal;
+  const stats = statsData.stats;
+  const grandTotal = stats.grandTotal;
 
   return (
     <div className="flex flex-col gap-y-8 animate-in fade-in-0 duration-300">
-      {statsData?.stats === null ? (
-        <SetupInstructions />
-      ) : statsData === undefined ? (
-        <DashboardSkeleton />
-      ) : (
-        <>
-          <SourceBadges
-            statsData={statsData}
-            selectedSource={selectedSource}
-            onSelectSource={setSelectedSource}
-          />
+      <SourceBadges
+        statsData={statsData}
+        selectedSource={selectedSource}
+        onSelectSource={setSelectedSource}
+      />
 
-          {selectedSource === "total" ? (
-            <>
-              {grandTotal && (
-                <StatsOverview
-                  grandTotal={grandTotal}
-                  appTotals={statsData.stats.totals}
-                  formatConvertedCurrency={formatConvertedCurrency}
-                  formatConvertedCurrencyAdaptive={
-                    formatConvertedCurrencyAdaptive
-                  }
-                />
-              )}
-              <StatsCharts
-                statsData={statsData}
-                selectedSource={selectedSource}
-                formatConvertedCurrency={formatConvertedCurrency}
-              />
-              <TotalStatsTable
-                statsData={statsData}
-                formatConvertedCurrency={formatConvertedCurrency}
-              />
-            </>
-          ) : (
-            <StatsCharts
-              statsData={statsData}
-              selectedSource={selectedSource}
+      {selectedSource === "total" ? (
+        <>
+          {grandTotal && (
+            <StatsOverview
+              grandTotal={grandTotal}
+              appTotals={stats.totals}
               formatConvertedCurrency={formatConvertedCurrency}
+              formatConvertedCurrencyAdaptive={formatConvertedCurrencyAdaptive}
             />
           )}
+          <StatsCharts
+            statsData={statsData}
+            selectedSource={selectedSource}
+            formatConvertedCurrency={formatConvertedCurrency}
+          />
+          <TotalStatsTable
+            statsData={statsData}
+            formatConvertedCurrency={formatConvertedCurrency}
+          />
         </>
+      ) : (
+        <StatsCharts
+          statsData={statsData}
+          selectedSource={selectedSource}
+          formatConvertedCurrency={formatConvertedCurrency}
+        />
       )}
     </div>
   );

@@ -11,6 +11,7 @@ import { SourceBadges, type SelectedSource } from "@/app/_stats/source-badges";
 import { type AnalyticsPeriod, type StatsData } from "@/app/_stats/types";
 import { type ApplicationType } from "@/types";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { SetupInstructions } from "@/app/_stats/setup-instructions";
 
 export default function AnalyticsPage() {
   const { data: session, status } = useSession();
@@ -27,7 +28,7 @@ export default function AnalyticsPage() {
     isLoading: statsLoading,
     isError: statsError,
     error: statsErrorObj,
-  } = useQuery({
+  } = useQuery<StatsData, Error>({
     queryKey: ["userStats", session?.user?.id, period],
     queryFn: async () => {
       if (!session?.user?.id) throw new Error("No user session");
@@ -36,9 +37,13 @@ export default function AnalyticsPage() {
         `/api/user/${session.user.id}/stats?timezone=${encodeURIComponent(timezone)}&period=${period}`
       );
       if (!response.ok) throw new Error("Failed to fetch stats");
-      const data = await response.json();
-      if (data.success) return data.data as StatsData;
-      throw new Error("Failed to fetch stats");
+      const data = (await response.json()) as {
+        success?: boolean;
+        data?: StatsData;
+        error?: string;
+      };
+      if (data.success && data.data) return data.data;
+      throw new Error(data.error || "Failed to fetch stats");
     },
     enabled: !!session?.user?.id,
   });
@@ -70,8 +75,8 @@ export default function AnalyticsPage() {
 
   if (!statsData?.stats) {
     return (
-      <div className="text-center py-12 text-muted-foreground text-sm animate-in fade-in-0 duration-300">
-        No stats data available yet.
+      <div className="animate-in fade-in-0 duration-300">
+        <SetupInstructions />
       </div>
     );
   }

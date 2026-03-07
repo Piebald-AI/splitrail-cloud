@@ -71,7 +71,7 @@ export type StatsCollection = {
 };
 
 export type StatsData = {
-  stats: StatsCollection;
+  stats: StatsCollection | null;
 };
 
 export const ZERO_COUNTER: CounterString = "0";

@@ -160,23 +160,10 @@ export async function GET(
           `;
 
     if (dailyRows.length === 0) {
-      const emptyCounters = serializeStatsCounters(createEmptyTotalsAccumulator());
       return NextResponse.json({
         success: true,
         data: {
-          stats: {
-            dateStats: {},
-            totals: {},
-            grandTotal: {
-              daysTracked: 0,
-              numApps: 0,
-              applications: [],
-              ...emptyCounters,
-              tokens: "0",
-              firstDate: new Date().toISOString(),
-              lastDate: new Date().toISOString(),
-            },
-          },
+          stats: null,
         },
       });
     }

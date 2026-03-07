@@ -38,6 +38,7 @@ import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 import { convertCurrency } from "@/lib/currency";
+import { type StatsData } from "@/app/_stats/types";
 
 export default function Leaderboard() {
   const { data: session } = useSession();
@@ -138,7 +139,10 @@ export default function Leaderboard() {
         return false;
       }
 
-      const result = await response.json();
+      const result = (await response.json()) as {
+        success?: boolean;
+        data?: StatsData;
+      };
       // Check if user has any stats data
       return result.success && result.data?.stats !== null;
     },

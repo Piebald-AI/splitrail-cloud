@@ -38,6 +38,7 @@ import {
   FormLabel,
 } from "@/components/ui/form";
 import { useForm } from "react-hook-form";
+import { type StatsData } from "@/app/_stats/types";
 
 const SUPPORTED_CURRENCIES = [
   { code: "USD", name: "US Dollar", symbol: "$" },
@@ -112,8 +113,11 @@ export default function SettingsPage() {
       );
       if (!response.ok) return false;
 
-      const data = await response.json();
-      const applications: string[] = data?.applications || [];
+      const data = (await response.json()) as {
+        success?: boolean;
+        data?: StatsData;
+      };
+      const applications = data.data?.stats?.grandTotal?.applications ?? [];
       return applications.includes("codex_cli");
     },
     enabled: !!session?.user?.id,
