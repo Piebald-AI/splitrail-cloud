@@ -125,6 +125,7 @@ export type SerializedTotals = SerializedStatsCounters & {
 
 export type GrandTotal = SerializedTotals & {
   daysTracked: number;
+  periodsTracked: number;
   numApps: number;
   applications: string[];
   tokens: string;

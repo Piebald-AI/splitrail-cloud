@@ -54,6 +54,7 @@ export type TotalsRow = StatsCounters & {
 
 export type GrandTotal = StatsCounters & {
   daysTracked: number;
+  periodsTracked: number;
   numApps: number;
   applications: string[];
   cost: number;

@@ -24,6 +24,36 @@ function parseDailyStatsDay(day: DailyStatsRow["day"]): Date {
   return day instanceof Date ? day : new Date(day);
 }
 
+function getDaysInUtcMonth(date: Date): number {
+  return new Date(
+    Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + 1, 0)
+  ).getUTCDate();
+}
+
+// When the period is weekly or monthly, we can't know exactly which days had
+// activity — only the aggregated period buckets exist. So daysTracked is an
+// estimate: 7 days per tracked week, or the actual calendar length per tracked month.
+function countTrackedDays(
+  period: "daily" | "weekly" | "monthly",
+  periodsCount: number,
+  trackedPeriods: Iterable<Date>
+): number {
+  if (period === "daily") {
+    return periodsCount;
+  }
+
+  if (period === "weekly") {
+    return periodsCount * 7;
+  }
+
+  let totalDays = 0;
+  for (const trackedPeriod of trackedPeriods) {
+    totalDays += getDaysInUtcMonth(trackedPeriod);
+  }
+
+  return totalDays;
+}
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ userId: string }> }
@@ -171,7 +201,7 @@ export async function GET(
     const stats: StatsRecord = { dateStats: {} };
     const totalsByApp: Record<string, TotalsAccumulator> = {};
     const modelSetsByApp = new Map<string, Set<string>>();
-    const dayKeys = new Set<string>();
+    const trackedPeriods = new Map<string, Date>();
     let firstDate: Date | null = null;
     let lastDate: Date | null = null;
 
@@ -188,7 +218,9 @@ export async function GET(
         ...serializeDailyStatsRow(row),
       };
 
-      dayKeys.add(dayKey);
+      if (!trackedPeriods.has(dayKey)) {
+        trackedPeriods.set(dayKey, day);
+      }
       if (!firstDate || day < firstDate) firstDate = day;
       if (!lastDate || day > lastDate) lastDate = day;
 
@@ -259,9 +291,12 @@ export async function GET(
 
     const firstTrackedDate = firstDate ?? new Date();
     const lastTrackedDate = lastDate ?? new Date();
+    const periodsTracked = trackedPeriods.size;
+    const daysTracked = countTrackedDays(period, periodsTracked, trackedPeriods.values());
 
     stats.grandTotal = {
-      daysTracked: dayKeys.size,
+      daysTracked,
+      periodsTracked,
       numApps: applications.length,
       applications,
       ...serializeStatsCounters(grandTotals),
