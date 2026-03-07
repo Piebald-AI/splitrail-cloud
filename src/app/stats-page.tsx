@@ -4,10 +4,8 @@ import * as React from "react";
 import { useSession } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 import { DashboardSkeleton } from "@/components/ui/page-loading";
-import { type User } from "@prisma/client";
 import { useQuery } from "@tanstack/react-query";
 import { useFormatConvertedCurrency } from "@/hooks/use-format-converted-currency";
-import { APPLICATION_LABELS } from "@/lib/application-config";
 import { StatsOverview } from "@/app/_stats/stats-overview";
 import { SetupInstructions } from "@/app/_stats/setup-instructions";
 import { SourceBadges, type SelectedSource } from "@/app/_stats/source-badges";
@@ -23,24 +21,9 @@ export default function StatsPage() {
   const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
   const { formatConvertedCurrency, formatConvertedCurrencyAdaptive } =
-    useFormatConvertedCurrency(session?.user?.id);
-
-  const {
-    data: profileData,
-    isLoading: profileLoading,
-    error: profileError,
-  } = useQuery({
-    queryKey: ["profile", session?.user?.id],
-    queryFn: async () => {
-      if (!session?.user?.id) throw new Error("No user session");
-      const response = await fetch(`/api/user/${session.user.id}`);
-      if (!response.ok) throw new Error("Failed to fetch profile data");
-      const data = await response.json();
-      if (data.success) return data.data as User;
-      throw new Error(data.error || "Failed to fetch profile data");
-    },
-    enabled: !!session?.user?.id,
-  });
+    useFormatConvertedCurrency(session?.user?.id, {
+      enabled: !!session?.user?.id,
+    });
 
   const {
     data: statsData,
@@ -68,11 +51,9 @@ export default function StatsPage() {
 
   // --- Early returns for auth / error states ---
 
-  const showSkeleton = useDeferredLoading(
-    status === "loading" || profileLoading || statsLoading
-  );
+  const showSkeleton = useDeferredLoading(status === "loading" || statsLoading);
 
-  if (status === "loading" || profileLoading) {
+  if (status === "loading") {
     return showSkeleton ? <DashboardSkeleton /> : null;
   }
 
@@ -83,22 +64,6 @@ export default function StatsPage() {
         <p className="text-muted-foreground">
           Please sign in to view your stats dashboard.
         </p>
-      </div>
-    );
-  }
-
-  if (profileError) {
-    return (
-      <div className="container mx-auto p-6 text-center animate-in fade-in-0 duration-300">
-        <p className="text-destructive">
-          Error:{" "}
-          {profileError instanceof Error
-            ? profileError.message
-            : "An error occurred"}
-        </p>
-        <Button onClick={() => window.location.reload()} className="mt-2">
-          Try Again
-        </Button>
       </div>
     );
   }
@@ -115,19 +80,6 @@ export default function StatsPage() {
         <Button onClick={() => window.location.reload()} className="mt-2">
           Try Again
         </Button>
-      </div>
-    );
-  }
-
-  if (!profileData) {
-    return (
-      <div className="container mx-auto p-6 text-center animate-in fade-in-0 duration-300">
-        <h1 className="text-2xl font-bold mb-4">Stats Dashboard</h1>
-        <p className="text-muted-foreground">
-          No stats data found. Start using{" "}
-          {Object.values(APPLICATION_LABELS).join(" / ")} with Splitrail to see
-          your stats!
-        </p>
       </div>
     );
   }

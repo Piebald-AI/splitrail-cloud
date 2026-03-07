@@ -12,7 +12,16 @@ type ExchangeRatesResponse = {
   eurToUsd: number;
 };
 
-export function useFormatConvertedCurrency(userId?: string) {
+type UseFormatConvertedCurrencyOptions = {
+  enabled?: boolean;
+};
+
+export function useFormatConvertedCurrency(
+  userId?: string,
+  options?: UseFormatConvertedCurrencyOptions
+) {
+  const enabled = options?.enabled ?? Boolean(userId);
+
   const { data: preferences } = useQuery<UserPreferences>({
     queryKey: ["preferences", userId],
     queryFn: async () => {
@@ -23,7 +32,7 @@ export function useFormatConvertedCurrency(userId?: string) {
       if (data.success) return data.data as UserPreferences;
       throw new Error("Failed to fetch preferences");
     },
-    enabled: Boolean(userId),
+    enabled,
   });
 
   const { data: exchangeRates } = useQuery<ExchangeRatesResponse>({
@@ -37,6 +46,7 @@ export function useFormatConvertedCurrency(userId?: string) {
       if (data.success) return data as ExchangeRatesResponse;
       throw new Error("Failed to fetch exchange rates");
     },
+    enabled,
     staleTime: 5 * 60 * 1000,
     gcTime: 10 * 60 * 1000,
   });
