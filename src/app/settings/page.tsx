@@ -38,7 +38,14 @@ import {
   FormLabel,
 } from "@/components/ui/form";
 import { useForm } from "react-hook-form";
-import { type StatsData } from "@/app/_stats/types";
+
+const formatAffectedDate = (date: string) =>
+  new Intl.DateTimeFormat(undefined, {
+    timeZone: "UTC",
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  }).format(new Date(`${date}T00:00:00.000Z`));
 
 const SUPPORTED_CURRENCIES = [
   { code: "USD", name: "US Dollar", symbol: "$" },
@@ -102,26 +109,33 @@ export default function SettingsPage() {
     enabled: !!session?.user?.id,
   });
 
-  // Check if user has Codex CLI data (for showing gpt-5.2-codex warning)
-  const { data: hasCodexData } = useQuery({
-    queryKey: ["hasCodexData", session?.user?.id],
+  // Show the Codex pricing warning only while affected rows still exist.
+  const { data: codexPricingNotice } = useQuery({
+    queryKey: ["codexPricingNotice", session?.user?.id],
     queryFn: async () => {
-      if (!session?.user?.id) return false;
+      if (!session?.user?.id) return null;
 
       const response = await fetch(
-        `/api/user/${session.user.id}/stats?timezone=UTC`
+        `/api/user/${session.user.id}/codex-pricing-check`
       );
-      if (!response.ok) return false;
+      if (!response.ok) return null;
 
       const data = (await response.json()) as {
         success?: boolean;
-        data?: StatsData;
+        data?: {
+          hasAffectedData: boolean;
+          affectedDates: string[];
+          timezone: string;
+        };
       };
-      const applications = data.data?.stats?.grandTotal?.applications ?? [];
-      return applications.includes("codex_cli");
+      return data.data ?? null;
     },
     enabled: !!session?.user?.id,
   });
+
+  const showCodexPricingNotice = codexPricingNotice?.hasAffectedData ?? false;
+  const affectedCodexPricingDates = codexPricingNotice?.affectedDates ?? [];
+  const affectedCodexPricingTimezone = codexPricingNotice?.timezone ?? "UTC";
 
   // Initialize RHF defaults from DB once the query succeeds
   useEffect(() => {
@@ -254,8 +268,8 @@ export default function SettingsPage() {
     <div className="container mx-auto animate-in fade-in-0 duration-300">
       <h1 className="text-3xl font-bold mb-6">Settings</h1>
 
-      {/* GPT-5.2-Codex Pricing Notice - only show for Codex CLI users */}
-      {hasCodexData && (
+      {/* GPT-5.2-Codex Pricing Notice - only show when affected data exists */}
+      {showCodexPricingNotice && (
         <Alert className="mb-8 border-blue-300 dark:border-blue-700 bg-blue-50 dark:bg-blue-950">
           <InfoIcon className="h-4 w-4 text-blue-600 dark:text-blue-400" />
           <AlertTitle className="text-blue-800 dark:text-blue-200">
@@ -265,6 +279,12 @@ export default function SettingsPage() {
             GPT-5.2-Codex pricing was added recently. Any data uploaded with
             this model will show costs as $0. To fix: delete your Codex CLI data
             using <strong>Delete Data by Date</strong> below, then re-upload.
+            {affectedCodexPricingDates.length > 0 && (
+              <>
+                {" "}Affected dates ({affectedCodexPricingTimezone}):{" "}
+                {affectedCodexPricingDates.map(formatAffectedDate).join(", ")}.
+              </>
+            )}
           </AlertDescription>
         </Alert>
       )}
