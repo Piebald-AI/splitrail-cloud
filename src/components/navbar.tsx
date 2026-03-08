@@ -22,7 +22,7 @@ function Navbar() {
     // We need an element here, even if it's empty, to ensure the grid layout works correctly.
     <header className="border-b border-border/60">
       {!session && pathname === "/" ? null : (
-        <div className="container mx-auto py-2.5 flex items-center justify-between">
+        <div className="container mx-auto px-6 py-2.5 flex items-center justify-between">
           <div className="flex items-center gap-7">
             <Link
               href={session ? "/" : "/leaderboard"}
