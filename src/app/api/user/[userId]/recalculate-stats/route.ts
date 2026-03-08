@@ -3,8 +3,8 @@ import { auth } from "@/auth";
 import { db } from "@/lib/db";
 import { DbStatKeys, Periods } from "@/types";
 import {
+  getPeriodEndForDateInTimezone,
   getPeriodStartForDateInTimezone,
-  getPeriodEndForDate,
 } from "@/lib/dateUtils";
 import { Prisma } from "@prisma/client";
 
@@ -72,7 +72,11 @@ export async function POST(
           messageDate,
           timezone
         );
-        const periodEnd = getPeriodEndForDate(period, periodStart);
+        const periodEnd = getPeriodEndForDateInTimezone(
+          period,
+          periodStart,
+          timezone
+        );
         const key = `${period}|${application}|${periodStart.toISOString()}`;
 
         // Initialize accumulator if needed

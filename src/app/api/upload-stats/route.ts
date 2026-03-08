@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { type ConversationMessage, Periods } from "@/types";
 import {
-  getPeriodEndForDate,
+  getPeriodEndForDateInTimezone,
+  getPeriodQueryEndForDateInTimezone,
   getPeriodStartForDateInTimezone,
 } from "@/lib/dateUtils";
 import { unsupportedMethod } from "@/lib/routeUtils";
@@ -233,9 +234,16 @@ export async function POST(request: NextRequest) {
       const period = bucketKey.slice(0, firstPipe);
       const application = bucketKey.slice(firstPipe + 1, lastPipe);
       const periodStart = new Date(bucketKey.slice(lastPipe + 1));
-      const periodEnd = getPeriodEndForDate(
-        period as (typeof Periods)[number],
-        periodStart
+      const typedPeriod = period as (typeof Periods)[number];
+      const periodEnd = getPeriodEndForDateInTimezone(
+        typedPeriod,
+        periodStart,
+        timezone
+      );
+      const periodQueryEnd = getPeriodQueryEndForDateInTimezone(
+        typedPeriod,
+        periodStart,
+        timezone
       );
 
       // Aggregate all messages in this bucket
@@ -245,7 +253,7 @@ export async function POST(request: NextRequest) {
           application,
           date: {
             gte: periodStart,
-            lt: periodEnd,
+            lt: periodQueryEnd,
           },
         },
         _sum: {
@@ -294,7 +302,7 @@ export async function POST(request: NextRequest) {
           application,
           date: {
             gte: periodStart,
-            lt: periodEnd,
+            lt: periodQueryEnd,
           },
         },
         _count: true,
@@ -325,7 +333,7 @@ export async function POST(request: NextRequest) {
         WHERE m."userId" = ${user.id}
           AND m.application = ${application}
           AND m.date >= ${periodStart}
-          AND m.date < ${periodEnd}
+          AND m.date < ${periodQueryEnd}
       `;
 
       // Build the stats record from aggregation
