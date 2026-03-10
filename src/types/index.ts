@@ -119,12 +119,15 @@ export interface Stats {
   cachedTokens: bigint;
   reasoningTokens: bigint;
   tokens: bigint;
-  conversations: bigint;
   assistantMessages: bigint;
   userMessages: bigint;
-  models: string[];
   // Float field
   cost: number;
+}
+
+export interface UserAggregateStats extends Stats {
+  conversations: bigint;
+  models: string[];
 }
 
 // Stats as numbers (for API responses after n() conversion)
@@ -166,13 +169,20 @@ export interface StatsAsNumbers {
   conversations: number;
   assistantMessages: number;
   userMessages: number;
-  models: string[];
   cost: number;
 }
 
+export interface StatsMetadata {
+  models: string[];
+}
+
+export interface UserAggregateStatsAsNumbers
+  extends StatsAsNumbers,
+    StatsMetadata {}
+
 // ===== User Types =====
 
-export interface UserWithStats extends User, StatsAsNumbers {
+export interface UserWithStats extends User, UserAggregateStatsAsNumbers {
   rank: number;
 }
 

@@ -149,6 +149,7 @@ export async function getImpactedConversationKeys(
     where: {
       userId,
       application: { in: applications },
+      conversationHash: { not: "" },
       date: {
         gte: startDate,
         lte: endDate,

@@ -23,6 +23,7 @@ export default function AnalyticsPage() {
   const [selectedSource, setSelectedSource] =
     React.useState<SelectedSource>("total");
   const [period, setPeriod] = React.useState<AnalyticsPeriod>("daily");
+  const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
   const { formatConvertedCurrency } = useFormatConvertedCurrency(
     session?.user?.id
@@ -34,10 +35,9 @@ export default function AnalyticsPage() {
     isError: statsError,
     error: statsErrorObj,
   } = useQuery<StatsData, Error>({
-    queryKey: ["userStats", session?.user?.id, period],
+    queryKey: ["userStats", session?.user?.id, period, timezone],
     queryFn: async () => {
       if (!session?.user?.id) throw new Error("No user session");
-      const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
       const response = await fetch(
         `/api/user/${session.user.id}/stats?timezone=${encodeURIComponent(timezone)}&period=${period}`
       );

@@ -421,6 +421,7 @@ export function TotalDailyStatsTable({
   );
 
   const grandTotal = statsData.stats?.grandTotal;
+  const trackedPeriodCount = grandTotal?.periodsTracked ?? rows.length;
 
   const maxStats = React.useMemo(
     () =>
@@ -485,7 +486,7 @@ export function TotalDailyStatsTable({
             <TableFooter>
               <TableRow>
                 <TableCell className="font-medium">
-                  Total ({getPeriodCountLabel(rows.length, period)})
+                  Total ({getPeriodCountLabel(trackedPeriodCount, period)})
                 </TableCell>
                 <TableCell className="font-mono text-amber-600 dark:text-amber-400">
                   {formatConvertedCurrency(grandTotal.cost ?? 0)}

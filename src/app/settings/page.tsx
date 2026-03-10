@@ -129,10 +129,41 @@ export default function SettingsPage() {
         };
       }
 
-      const response = await fetch(
-        `/api/user/${session.user.id}/codex-pricing-check`
-      );
-      if (!response.ok) {
+      try {
+        const response = await fetch(
+          `/api/user/${session.user.id}/codex-pricing-check`
+        );
+        if (!response.ok) {
+          return {
+            hasAffectedData: false,
+            affectedDates: [],
+            timezone: "UTC",
+            fetchFailed: true,
+          };
+        }
+
+        const data = (await response.json()) as {
+          success?: boolean;
+          data?: {
+            hasAffectedData: boolean;
+            affectedDates: string[];
+            timezone: string;
+          };
+        };
+        if (!data.success || !data.data) {
+          return {
+            hasAffectedData: false,
+            affectedDates: [],
+            timezone: "UTC",
+            fetchFailed: true,
+          };
+        }
+
+        return {
+          ...data.data,
+          fetchFailed: false,
+        };
+      } catch {
         return {
           hasAffectedData: false,
           affectedDates: [],
@@ -140,28 +171,6 @@ export default function SettingsPage() {
           fetchFailed: true,
         };
       }
-
-      const data = (await response.json()) as {
-        success?: boolean;
-        data?: {
-          hasAffectedData: boolean;
-          affectedDates: string[];
-          timezone: string;
-        };
-      };
-      if (!data.success || !data.data) {
-        return {
-          hasAffectedData: false,
-          affectedDates: [],
-          timezone: "UTC",
-          fetchFailed: true,
-        };
-      }
-
-      return {
-        ...data.data,
-        fetchFailed: false,
-      };
     },
     enabled: !!session?.user?.id,
   });
@@ -300,7 +309,7 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="container mx-auto animate-in fade-in-0 duration-300">
+    <div className="container mx-auto px-6 animate-in fade-in-0 duration-300">
       <h1 className="text-3xl font-bold mb-6">Settings</h1>
 
       {showCodexPricingCheckWarning && (
