@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useDeferredLoading } from "@/hooks/use-deferred-loading";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -23,30 +24,15 @@ export function PageLoading({
   delay?: number;
   className?: string;
 }) {
-  const [showSkeleton, setShowSkeleton] = React.useState(false);
-
-  React.useEffect(() => {
-    if (!isLoading) {
-      setShowSkeleton(false);
-      return;
-    }
-
-    const timer = setTimeout(() => {
-      setShowSkeleton(true);
-    }, delay);
-
-    return () => clearTimeout(timer);
-  }, [isLoading, delay]);
+  const showSkeleton = useDeferredLoading(isLoading, delay);
 
   if (isLoading) {
+    if (!showSkeleton) {
+      return null;
+    }
+
     return (
-      <div
-        className={cn(
-          "transition-opacity duration-300",
-          showSkeleton ? "opacity-100 animate-in fade-in-0 duration-300" : "opacity-0",
-          className
-        )}
-      >
+      <div className={cn("animate-in fade-in-0 duration-300", className)}>
         {skeleton}
       </div>
     );

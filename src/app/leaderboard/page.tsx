@@ -35,14 +35,14 @@ import { useSession } from "next-auth/react";
 import { useQuery } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 import { convertCurrency } from "@/lib/currency";
-import {
-  hasStatsCollectionData,
-  type StatsData,
-} from "@/app/_stats/types";
+import { hasStatsCollectionData, type StatsData } from "@/app/_stats/types";
 import { SetupInstructions } from "@/app/_stats/setup-instructions";
+import { LeaderboardSkeleton } from "@/components/ui/page-loading";
+import { useDeferredLoading } from "@/hooks/use-deferred-loading";
 
 export default function Leaderboard() {
   const { data: session } = useSession();
+  const hasResolvedInitialLoad = React.useRef(false);
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
     []
@@ -127,6 +127,12 @@ export default function Leaderboard() {
       }
     },
   });
+
+  React.useEffect(() => {
+    if (data || error) {
+      hasResolvedInitialLoad.current = true;
+    }
+  }, [data, error]);
 
   // Separate query to check if the logged-in user has any data
   const { data: userHasData } = useQuery({
@@ -219,6 +225,14 @@ export default function Leaderboard() {
       pagination,
     },
   });
+
+  const showSkeleton = useDeferredLoading(
+    isLoading && !hasResolvedInitialLoad.current
+  );
+
+  if (isLoading && !hasResolvedInitialLoad.current) {
+    return showSkeleton ? <LeaderboardSkeleton /> : null;
+  }
 
   return (
     <div className="flex flex-col gap-y-8 animate-in fade-in-0 duration-300">

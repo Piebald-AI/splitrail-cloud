@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 
 /**
  * Delays showing a loading state to avoid skeleton flashes on fast loads.

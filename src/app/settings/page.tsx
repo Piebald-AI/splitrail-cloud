@@ -38,6 +38,7 @@ import {
   FormLabel,
 } from "@/components/ui/form";
 import { useForm } from "react-hook-form";
+import { useDeferredLoading } from "@/hooks/use-deferred-loading";
 
 const formatAffectedDate = (date: string) =>
   new Intl.DateTimeFormat(undefined, {
@@ -176,10 +177,10 @@ export default function SettingsPage() {
   });
 
   const showCodexPricingNotice = codexPricingNotice?.hasAffectedData ?? false;
-  const showCodexPricingCheckWarning =
-    codexPricingNotice?.fetchFailed ?? false;
+  const showCodexPricingCheckWarning = codexPricingNotice?.fetchFailed ?? false;
   const affectedCodexPricingDates = codexPricingNotice?.affectedDates ?? [];
   const affectedCodexPricingTimezone = codexPricingNotice?.timezone ?? "UTC";
+  const showSkeleton = useDeferredLoading(status === "loading" || isLoading);
 
   // Initialize RHF defaults from DB once the query succeeds
   useEffect(() => {
@@ -288,7 +289,7 @@ export default function SettingsPage() {
   });
 
   if (status === "loading" || isLoading) {
-    return <SettingsSkeleton />;
+    return showSkeleton ? <SettingsSkeleton /> : null;
   }
 
   if (!session) {
@@ -339,7 +340,8 @@ export default function SettingsPage() {
             using <strong>Delete Data by Date</strong> below, then re-upload.
             {affectedCodexPricingDates.length > 0 && (
               <>
-                {" "}Affected dates ({affectedCodexPricingTimezone}):{" "}
+                {" "}
+                Affected dates ({affectedCodexPricingTimezone}):{" "}
                 {affectedCodexPricingDates.map(formatAffectedDate).join(", ")}.
               </>
             )}
