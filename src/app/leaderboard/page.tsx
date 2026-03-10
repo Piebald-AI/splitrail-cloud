@@ -19,7 +19,7 @@ import {
   getFilteredRowModel,
   flexRender,
 } from "@tanstack/react-table";
-import { ChevronDown, ChevronUp, EyeOff, Rocket, Search } from "lucide-react";
+import { ChevronDown, ChevronUp, EyeOff, Search } from "lucide-react";
 import React from "react";
 import { createColumns } from "./TableColumns";
 import {
@@ -32,13 +32,14 @@ import { ColumnsDropdown } from "./ColumnsDropdown";
 import { ApplicationDropdown } from "./ApplicationDropdown";
 import { TablePagination } from "./TablePagination";
 import { useSession } from "next-auth/react";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Code } from "@/components/ui/code";
-import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 import { convertCurrency } from "@/lib/currency";
-import { type StatsData } from "@/app/_stats/types";
+import {
+  hasStatsCollectionData,
+  type StatsData,
+} from "@/app/_stats/types";
+import { SetupInstructions } from "@/app/_stats/setup-instructions";
 
 export default function Leaderboard() {
   const { data: session } = useSession();
@@ -136,15 +137,22 @@ export default function Leaderboard() {
       const response = await fetch(`/api/user/${session.user.id}/stats`);
 
       if (!response.ok) {
-        return false;
+        return null;
       }
 
       const result = (await response.json()) as {
         success?: boolean;
         data?: StatsData;
       };
-      // Check if user has any stats data
-      return result.success && result.data?.stats !== null;
+      if (!result.success) {
+        return null;
+      }
+
+      if (result.data?.stats == null) {
+        return false;
+      }
+
+      return hasStatsCollectionData(result.data.stats);
     },
     enabled: !!session?.user?.id,
     staleTime: 5 * 60 * 1000, // 5 minutes - reduce refetching
@@ -218,58 +226,26 @@ export default function Leaderboard() {
 
       {/* No Data Banner */}
       {session && userHasData === false && (
-        <Alert>
-          <Rocket />
-          <AlertTitle>Get Started with Splitrail</AlertTitle>
-          <AlertDescription>
-            <p className="mb-3">
-              You&apos;re signed in but haven&apos;t uploaded any data yet.
-            </p>
-            <div className="space-y-2 text-sm">
-              <p>To get started:</p>
-              <ol className="list-decimal list-inside space-y-1 ml-2">
-                <li>
-                  Install Splitrail CLI from{" "}
-                  <a
-                    href="https://github.com/Piebald-AI/splitrail/releases"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-primary hover:underline"
-                  >
-                    GitHub
-                  </a>
-                  .
-                </li>
-                <li>
-                  Go to{" "}
-                  <Link
-                    href="/settings"
-                    className="text-primary hover:underline"
-                  >
-                    Settings
-                  </Link>{" "}
-                  to create an API token.
-                </li>
-                <li>
-                  Set your API token by running{" "}
-                  <Code variant="inline">
-                    splitrail config set api-token &lt;your-token&gt;
-                  </Code>
-                  .
-                </li>
-                <li>
-                  If you want to use auto-uploading, run{" "}
-                  <Code variant="inline">
-                    splitrail config set auto-upload true
-                  </Code>{" "}
-                  and then run <Code variant="inline">splitrail</Code> normally.
-                  Otherwise just run{" "}
-                  <Code variant="inline">splitrail upload</Code>.
-                </li>
-              </ol>
-            </div>
-          </AlertDescription>
-        </Alert>
+        <SetupInstructions
+          description="You're signed in but haven't uploaded any data yet."
+          uploadInstructions={
+            <>
+              If you want to use auto-uploading, run{" "}
+              <code className="bg-muted rounded px-1.5 py-0.5 font-mono text-[0.85em]">
+                splitrail config set auto-upload true
+              </code>{" "}
+              and then run{" "}
+              <code className="bg-muted rounded px-1.5 py-0.5 font-mono text-[0.85em]">
+                splitrail
+              </code>{" "}
+              normally. Otherwise just run{" "}
+              <code className="bg-muted rounded px-1.5 py-0.5 font-mono text-[0.85em]">
+                splitrail upload
+              </code>
+              .
+            </>
+          }
+        />
       )}
 
       <div className="w-full max-w-full flex flex-col gap-y-4">

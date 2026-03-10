@@ -11,7 +11,7 @@ import { SetupInstructions } from "@/app/_stats/setup-instructions";
 import { SourceBadges, type SelectedSource } from "@/app/_stats/source-badges";
 import { StatsCharts } from "@/app/_stats/stats-charts";
 import { TotalStatsTable } from "@/app/_stats/total-stats-table";
-import { type StatsData } from "@/app/_stats/types";
+import { hasStatsCollectionData, type StatsData } from "@/app/_stats/types";
 import { useDeferredLoading } from "@/hooks/use-deferred-loading";
 
 export default function StatsPage() {
@@ -71,6 +71,7 @@ export default function StatsPage() {
   if (statsError) {
     return (
       <div className="container mx-auto p-6 text-center animate-in fade-in-0 duration-300">
+        <h1 className="text-2xl font-bold mb-4">Stats Dashboard</h1>
         <p className="text-destructive">
           Error loading stats:{" "}
           {statsErrorObj instanceof Error
@@ -88,7 +89,7 @@ export default function StatsPage() {
     return showSkeleton ? <DashboardSkeleton /> : null;
   }
 
-  if (statsData.stats === null) {
+  if (!hasStatsCollectionData(statsData.stats)) {
     return (
       <div className="flex flex-col gap-y-8 animate-in fade-in-0 duration-300">
         <SetupInstructions />

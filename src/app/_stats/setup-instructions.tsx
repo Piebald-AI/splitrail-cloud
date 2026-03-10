@@ -2,17 +2,25 @@ import { Code } from "@/components/ui/code";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Rocket } from "lucide-react";
 import Link from "next/link";
+import type { ReactNode } from "react";
 
-export function SetupInstructions() {
+type SetupInstructionsProps = {
+  title?: ReactNode;
+  description?: ReactNode;
+  uploadInstructions?: ReactNode;
+};
+
+export function SetupInstructions({
+  title = "Get Started with Splitrail",
+  description = "You haven't uploaded any data yet. To start tracking your agentic development tool usage:",
+  uploadInstructions,
+}: SetupInstructionsProps) {
   return (
     <Alert>
       <Rocket />
-      <AlertTitle>Get Started with Splitrail</AlertTitle>
+      <AlertTitle>{title}</AlertTitle>
       <AlertDescription>
-        <p className="mb-3">
-          You haven&rsquo;t uploaded any data yet. To start tracking your
-          agentic development tool usage:
-        </p>
+        <p className="mb-3">{description}</p>
         <ol className="list-decimal list-inside space-y-1 ml-2">
           <li>
             Install Splitrail CLI from{" "}
@@ -41,12 +49,16 @@ export function SetupInstructions() {
             .
           </li>
           <li>
-            Enable auto-uploading with{" "}
-            <Code variant="inline">
-              splitrail config set auto-upload true
-            </Code>
-            , or manually run{" "}
-            <Code variant="inline">splitrail upload</Code>.
+            {uploadInstructions ?? (
+              <>
+                Enable auto-uploading with{" "}
+                <Code variant="inline">
+                  splitrail config set auto-upload true
+                </Code>
+                , or manually run{" "}
+                <Code variant="inline">splitrail upload</Code>.
+              </>
+            )}
           </li>
         </ol>
       </AlertDescription>

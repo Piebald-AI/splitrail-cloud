@@ -22,8 +22,8 @@ function Navbar() {
     // We need an element here, even if it's empty, to ensure the grid layout works correctly.
     <header className="border-b border-border/60">
       {!session && pathname === "/" ? null : (
-        <div className="container mx-auto px-6 py-2.5 flex items-center justify-between">
-          <div className="flex items-center gap-7">
+        <div className="container mx-auto flex flex-wrap items-center justify-between gap-3 px-6 py-2.5">
+          <div className="flex min-w-0 flex-wrap items-center gap-4 sm:gap-7">
             <Link
               href={session ? "/" : "/leaderboard"}
               className="flex items-center shrink-0"
@@ -31,7 +31,7 @@ function Navbar() {
               <LogoCloud width={210} className="text-logo" />
             </Link>
             {session && (
-              <nav className="hidden sm:flex items-center gap-0.5">
+              <nav className="flex flex-wrap items-center gap-0.5">
                 {NAV_LINKS.map(({ href, label }) => (
                   <Link
                     key={href}

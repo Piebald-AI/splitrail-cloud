@@ -1,7 +1,7 @@
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import { Metadata } from "next";
-import AnalyticsPage from "./analytics-page";
+import AnalyticsPage from "@/app/analytics/analytics-page";
 
 export const metadata: Metadata = {
   title: "Analytics — Splitrail Cloud",

@@ -49,7 +49,7 @@ export function TotalStatsTable({
             <TableHead>Terminal</TableHead>
             <TableHead>Searches</TableHead>
             <TableHead>Files R/A/E/D</TableHead>
-            <TableHead>Lines +/~</TableHead>
+            <TableHead>Lines R/+/~</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -99,6 +99,7 @@ export function TotalStatsTable({
                   {formatLargeNumber(row?.filesDeleted ?? 0)}
                 </TableCell>
                 <TableCell>
+                  {formatLargeNumber(row?.linesRead ?? 0)}/
                   {formatLargeNumber(row?.linesAdded ?? 0)}/
                   {formatLargeNumber(row?.linesEdited ?? 0)}
                 </TableCell>
@@ -137,6 +138,7 @@ export function TotalStatsTable({
                 {formatLargeNumber(grandTotal.filesDeleted)}
               </TableCell>
               <TableCell>
+                {formatLargeNumber(grandTotal.linesRead)}/
                 {formatLargeNumber(grandTotal.linesAdded)}/
                 {formatLargeNumber(grandTotal.linesEdited)}
               </TableCell>

@@ -15,6 +15,7 @@ import {
   Plus,
   Terminal,
   ExternalLink,
+  LoaderCircle,
 } from "lucide-react";
 import { toast } from "sonner";
 import { formatDate } from "@/lib/utils";
@@ -41,6 +42,7 @@ export function CLITokenDisplay() {
   const [visibleTokens, setVisibleTokens] = useState<Set<string>>(new Set());
   const [copiedTokens, setCopiedTokens] = useState<Set<string>>(new Set());
   const [newTokenName, setNewTokenName] = useState("");
+  const [pendingTokenId, setPendingTokenId] = useState<string | null>(null);
   const {
     data: tokens = [],
     isLoading,
@@ -116,6 +118,9 @@ export function CLITokenDisplay() {
         error instanceof Error ? error.message : "Failed to delete token";
       toast.error(message);
     },
+    onSettled: () => {
+      setPendingTokenId(null);
+    },
   });
 
   const createNewToken = () => {
@@ -125,6 +130,7 @@ export function CLITokenDisplay() {
 
   const deleteToken = (tokenId: string) => {
     if (!session) return;
+    setPendingTokenId(tokenId);
     deleteTokenMutation.mutate(tokenId);
   };
 
@@ -350,6 +356,8 @@ export function CLITokenDisplay() {
           {tokens.map((token) => {
             const isVisible = visibleTokens.has(token.id);
             const isCopied = copiedTokens.has(token.id);
+            const isDeleting =
+              pendingTokenId === token.id && deleteTokenMutation.isPending;
 
             return (
               <Card key={token.id} className="p-4">
@@ -391,10 +399,15 @@ export function CLITokenDisplay() {
                         variant="outline"
                         size="sm"
                         onClick={() => deleteToken(token.id)}
-                        disabled={deleteTokenMutation.isPending}
+                        disabled={isDeleting}
+                        aria-label={`Delete token ${token.name}`}
                         className="text-destructive hover:text-destructive"
                       >
-                        <Trash2 className="h-4 w-4" />
+                        {isDeleting ? (
+                          <LoaderCircle className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Trash2 className="h-4 w-4" />
+                        )}
                       </Button>
                     </div>
 

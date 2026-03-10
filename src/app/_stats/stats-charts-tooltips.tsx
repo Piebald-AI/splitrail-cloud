@@ -1,8 +1,8 @@
 "use client";
 
 import { formatLargeNumber } from "@/lib/utils";
-import { AREA_SERIES } from "./stats-charts-config";
-import type { AreaChartPoint } from "./stats-charts-config";
+import { AREA_SERIES } from "@/app/_stats/stats-charts-config";
+import type { AreaChartPoint } from "@/app/_stats/stats-charts-config";
 
 export function AreaTooltip({
   active,

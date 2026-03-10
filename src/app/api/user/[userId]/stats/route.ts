@@ -20,6 +20,7 @@ import {
   type StatsRecord,
   type TotalsAccumulator,
 } from "@/app/api/user/[userId]/stats/types";
+import { type StatsCollection } from "@/app/_stats/types";
 
 function parseDailyStatsDay(day: DailyStatsRow["day"]): Date {
   return day instanceof Date ? day : new Date(day);
@@ -29,6 +30,37 @@ function getDaysInUtcMonth(date: Date): number {
   return new Date(
     Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + 1, 0)
   ).getUTCDate();
+}
+
+function createEmptyStatsCollection(): StatsCollection {
+  const zeroTotals = serializeStatsCounters(
+    createEmptyTotalsAccumulator()
+  ) as Omit<
+    StatsCollection["grandTotal"],
+    | "daysTracked"
+    | "periodsTracked"
+    | "numApps"
+    | "applications"
+    | "tokens"
+    | "firstDate"
+    | "lastDate"
+    | "cost"
+  > & { cost: number };
+
+  return {
+    dateStats: {},
+    totals: {},
+    grandTotal: {
+      daysTracked: 0,
+      periodsTracked: 0,
+      numApps: 0,
+      applications: [],
+      ...zeroTotals,
+      tokens: "0",
+      firstDate: "",
+      lastDate: "",
+    },
+  };
 }
 
 // When the period is weekly or monthly, we can't know exactly which days had
@@ -154,7 +186,7 @@ export async function GET(
       return NextResponse.json({
         success: true,
         data: {
-          stats: null,
+          stats: createEmptyStatsCollection(),
         },
       });
     }

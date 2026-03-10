@@ -30,8 +30,8 @@ import {
   getDateHoverText,
   getPeriodCountLabel,
   getPeriodLabel,
-  getPeriodStart,
 } from "@/app/_stats/date-helpers";
+import { getPeriodStartForDate } from "@/lib/dateUtils";
 
 type DayTotal = {
   date: string;
@@ -67,8 +67,8 @@ function getAllDailyTotals(
 
   if (datKeys.length === 0) return [];
 
-  const startDate = getPeriodStart(new Date(datKeys.sort()[0]), period);
-  const today = getPeriodStart(new Date(), period);
+  const startDate = getPeriodStartForDate(period, new Date(datKeys.sort()[0]));
+  const today = getPeriodStartForDate(period, new Date());
 
   const dateRange: string[] = [];
   const cursor = new Date(startDate);

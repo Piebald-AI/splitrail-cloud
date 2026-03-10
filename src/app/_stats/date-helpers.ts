@@ -1,6 +1,6 @@
 import { addDays, format, getISOWeek } from "date-fns";
 import { TZDateMini } from "@date-fns/tz";
-import { type AnalyticsPeriod } from "./types";
+import { type AnalyticsPeriod } from "@/app/_stats/types";
 
 export const utc = (date: string) => new TZDateMini(date, "UTC");
 

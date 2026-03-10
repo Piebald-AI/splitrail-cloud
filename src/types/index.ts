@@ -70,6 +70,7 @@ export const BigIntStatKeys = [
   "cachedTokens",
   "reasoningTokens",
   "tokens", // Calculated field (not stored in DB)
+  "conversations",
   // Message counts
   "assistantMessages",
   "userMessages",
@@ -118,8 +119,10 @@ export interface Stats {
   cachedTokens: bigint;
   reasoningTokens: bigint;
   tokens: bigint;
+  conversations: bigint;
   assistantMessages: bigint;
   userMessages: bigint;
+  models: string[];
   // Float field
   cost: number;
 }
@@ -160,8 +163,10 @@ export interface StatsAsNumbers {
   cachedTokens: number;
   reasoningTokens: number;
   tokens: number;
+  conversations: number;
   assistantMessages: number;
   userMessages: number;
+  models: string[];
   cost: number;
 }
 

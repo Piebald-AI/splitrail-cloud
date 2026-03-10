@@ -1,4 +1,5 @@
 import { Prisma } from "@prisma/client";
+import { getPeriodStartForDate } from "@/lib/dateUtils";
 
 export interface AffectedPeriods {
   hourly: Date[];
@@ -29,12 +30,7 @@ function createEmptyAffectedPeriods(): AffectedPeriods {
 }
 
 function getWeekStart(date: Date): Date {
-  const weekStart = new Date(date);
-  const day = weekStart.getUTCDay();
-  const diff = weekStart.getUTCDate() - day + (day === 0 ? -6 : 1);
-  weekStart.setUTCDate(diff);
-  weekStart.setUTCHours(0, 0, 0, 0);
-  return weekStart;
+  return getPeriodStartForDate("weekly", date);
 }
 
 function addUniqueDate(target: Date[], value: Date) {

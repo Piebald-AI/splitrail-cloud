@@ -78,6 +78,13 @@ const SUPPORTED_CURRENCIES = [
   { code: "ILS", name: "Israeli Shekel", symbol: "₪" },
 ];
 
+type CodexPricingNotice = {
+  hasAffectedData: boolean;
+  affectedDates: string[];
+  timezone: string;
+  fetchFailed: boolean;
+};
+
 export default function SettingsPage() {
   const { data: session, status } = useSession();
   const queryClient = useQueryClient();
@@ -110,15 +117,29 @@ export default function SettingsPage() {
   });
 
   // Show the Codex pricing warning only while affected rows still exist.
-  const { data: codexPricingNotice } = useQuery({
+  const { data: codexPricingNotice } = useQuery<CodexPricingNotice>({
     queryKey: ["codexPricingNotice", session?.user?.id],
     queryFn: async () => {
-      if (!session?.user?.id) return null;
+      if (!session?.user?.id) {
+        return {
+          hasAffectedData: false,
+          affectedDates: [],
+          timezone: "UTC",
+          fetchFailed: false,
+        };
+      }
 
       const response = await fetch(
         `/api/user/${session.user.id}/codex-pricing-check`
       );
-      if (!response.ok) return null;
+      if (!response.ok) {
+        return {
+          hasAffectedData: false,
+          affectedDates: [],
+          timezone: "UTC",
+          fetchFailed: true,
+        };
+      }
 
       const data = (await response.json()) as {
         success?: boolean;
@@ -128,12 +149,26 @@ export default function SettingsPage() {
           timezone: string;
         };
       };
-      return data.data ?? null;
+      if (!data.success || !data.data) {
+        return {
+          hasAffectedData: false,
+          affectedDates: [],
+          timezone: "UTC",
+          fetchFailed: true,
+        };
+      }
+
+      return {
+        ...data.data,
+        fetchFailed: false,
+      };
     },
     enabled: !!session?.user?.id,
   });
 
   const showCodexPricingNotice = codexPricingNotice?.hasAffectedData ?? false;
+  const showCodexPricingCheckWarning =
+    codexPricingNotice?.fetchFailed ?? false;
   const affectedCodexPricingDates = codexPricingNotice?.affectedDates ?? [];
   const affectedCodexPricingTimezone = codexPricingNotice?.timezone ?? "UTC";
 
@@ -267,6 +302,20 @@ export default function SettingsPage() {
   return (
     <div className="container mx-auto animate-in fade-in-0 duration-300">
       <h1 className="text-3xl font-bold mb-6">Settings</h1>
+
+      {showCodexPricingCheckWarning && (
+        <Alert className="mb-8 border-yellow-300 bg-yellow-50 dark:border-yellow-700 dark:bg-yellow-950">
+          <InfoIcon className="h-4 w-4 text-yellow-700 dark:text-yellow-400" />
+          <AlertTitle className="text-yellow-800 dark:text-yellow-200">
+            Codex pricing check unavailable
+          </AlertTitle>
+          <AlertDescription className="text-yellow-700 dark:text-yellow-300">
+            We could not verify whether your GPT-5.2-Codex uploads need to be
+            re-uploaded yet. Refresh the page or try again later so the warning
+            state does not stay hidden.
+          </AlertDescription>
+        </Alert>
+      )}
 
       {/* GPT-5.2-Codex Pricing Notice - only show when affected data exists */}
       {showCodexPricingNotice && (

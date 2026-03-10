@@ -77,6 +77,12 @@ export type StatsData = {
 
 export const ZERO_COUNTER: CounterString = "0";
 
+export function hasStatsCollectionData(
+  stats: StatsCollection | null | undefined
+): stats is StatsCollection {
+  return Object.keys(stats?.dateStats ?? {}).length > 0;
+}
+
 export function counterToBigInt(value: CounterInput): bigint {
   if (typeof value === "bigint") {
     return value;

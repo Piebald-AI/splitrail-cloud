@@ -46,36 +46,50 @@ export function StatsTableShell<TRow>({
   });
 
   return (
-    <div className="overflow-hidden rounded-md border">
+    <div className="overflow-x-auto rounded-md border">
       <Table>
         <TableHeader>
           {table.getHeaderGroups().map((headerGroup) => (
             <TableRow key={headerGroup.id}>
-              {headerGroup.headers.map((header) => (
-                <TableHead key={header.id}>
-                  {header.isPlaceholder ? null : (
-                    <div
-                      className={
-                        header.column.getCanSort()
-                          ? "cursor-pointer flex items-center gap-x-1"
-                          : ""
-                      }
-                      onClick={header.column.getToggleSortingHandler()}
-                    >
-                      {flexRender(
+              {headerGroup.headers.map((header) => {
+                const canSort = header.column.getCanSort();
+                const sortState = header.column.getIsSorted();
+
+                return (
+                  <TableHead
+                    key={header.id}
+                    aria-sort={
+                      sortState === "asc"
+                        ? "ascending"
+                        : sortState === "desc"
+                          ? "descending"
+                          : "none"
+                    }
+                  >
+                    {header.isPlaceholder ? null : canSort ? (
+                      <button
+                        type="button"
+                        className="cursor-pointer flex items-center gap-x-1"
+                        onClick={header.column.getToggleSortingHandler()}
+                      >
+                        {flexRender(
+                          header.column.columnDef.header,
+                          header.getContext()
+                        )}
+                        {sortState === "asc" && <ChevronUp className="size-4" />}
+                        {sortState === "desc" && (
+                          <ChevronDown className="size-4" />
+                        )}
+                      </button>
+                    ) : (
+                      flexRender(
                         header.column.columnDef.header,
                         header.getContext()
-                      )}
-                      {header.column.getIsSorted() === "asc" && (
-                        <ChevronUp className="size-4" />
-                      )}
-                      {header.column.getIsSorted() === "desc" && (
-                        <ChevronDown className="size-4" />
-                      )}
-                    </div>
-                  )}
-                </TableHead>
-              ))}
+                      )
+                    )}
+                  </TableHead>
+                );
+              })}
             </TableRow>
           ))}
         </TableHeader>

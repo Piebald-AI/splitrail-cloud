@@ -8,7 +8,11 @@ import { useFormatConvertedCurrency } from "@/hooks/use-format-converted-currenc
 import { AppStatsTable } from "@/app/_stats/app-stats-table";
 import { TotalDailyStatsTable } from "@/app/_stats/total-daily-stats-table";
 import { SourceBadges, type SelectedSource } from "@/app/_stats/source-badges";
-import { type AnalyticsPeriod, type StatsData } from "@/app/_stats/types";
+import {
+  hasStatsCollectionData,
+  type AnalyticsPeriod,
+  type StatsData,
+} from "@/app/_stats/types";
 import { type ApplicationType } from "@/types";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { SetupInstructions } from "@/app/_stats/setup-instructions";
@@ -76,7 +80,7 @@ export default function AnalyticsPage() {
     );
   }
 
-  if (!statsData?.stats) {
+  if (!hasStatsCollectionData(statsData?.stats)) {
     return (
       <div className="animate-in fade-in-0 duration-300">
         <SetupInstructions />
