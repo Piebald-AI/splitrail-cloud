@@ -134,6 +134,8 @@ model UserStats {
   todosInProgress       BigInt   @default(0)
   todoWrites            BigInt   @default(0)
   todoReads             BigInt   @default(0)
+  conversations         BigInt   @default(0)
+  models                String[] @default([])
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
   user                  User     @relation(fields: [userId], references: [id], onDelete: Cascade)

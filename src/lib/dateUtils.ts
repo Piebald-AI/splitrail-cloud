@@ -1,4 +1,12 @@
+import { TZDate } from "@date-fns/tz";
 import { PeriodType } from "@/types";
+
+// ---------------------------------------------------------------------------
+// Legacy local-time helpers
+// ---------------------------------------------------------------------------
+// These use the server's local timezone and are still used by some UI/chart
+// code. Backend aggregation code should prefer the `...InTimezone()` wrappers
+// further down, which avoid depending on the server timezone.
 
 export function getHourStart(date: Date): Date {
   return new Date(
@@ -132,45 +140,164 @@ export const getPeriodEndForDate = (period: PeriodType, date: Date): Date => {
 };
 
 /**
+ * Extract calendar parts for a date rendered in a target timezone.
+ */
+function getTimezoneDateParts(
+  date: Date,
+  timezone: string
+): { year: number; monthIndex: number; day: number } {
+  const formatter = new Intl.DateTimeFormat("en-US", {
+    timeZone: timezone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+  const parts = formatter.formatToParts(date);
+  const getPart = (type: "year" | "month" | "day") => {
+    const value = parts.find((part) => part.type === type)?.value;
+    if (!value) {
+      throw new Error(`Missing ${type} part for timezone ${timezone}`);
+    }
+    return parseInt(value, 10);
+  };
+
+  return {
+    year: getPart("year"),
+    monthIndex: getPart("month") - 1,
+    day: getPart("day"),
+  };
+}
+
+// ---------------------------------------------------------------------------
+// UTC helpers for backend aggregation
+// ---------------------------------------------------------------------------
+
+function getUtcDayStart(date: Date): Date {
+  return new Date(
+    Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate())
+  );
+}
+
+function getUtcHourStart(date: Date): Date {
+  return new Date(
+    Date.UTC(
+      date.getUTCFullYear(),
+      date.getUTCMonth(),
+      date.getUTCDate(),
+      date.getUTCHours()
+    )
+  );
+}
+
+function getUtcNextDayStart(date: Date): Date {
+  return new Date(
+    Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate() + 1)
+  );
+}
+
+function getUtcWeekStart(date: Date): Date {
+  const weekStart = getUtcDayStart(date);
+  const day = weekStart.getUTCDay();
+  const diff = weekStart.getUTCDate() - day + (day === 0 ? -6 : 1);
+  weekStart.setUTCDate(diff);
+  return weekStart;
+}
+
+function getUtcMonthStart(date: Date): Date {
+  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), 1));
+}
+
+function getUtcYearStart(date: Date): Date {
+  return new Date(Date.UTC(date.getUTCFullYear(), 0, 1));
+}
+
+function getUtcPeriodStart(period: PeriodType, date: Date): Date {
+  return {
+    hourly: getUtcHourStart(date),
+    daily: getUtcDayStart(date),
+    weekly: getUtcWeekStart(date),
+    monthly: getUtcMonthStart(date),
+    yearly: getUtcYearStart(date),
+  }[period];
+}
+
+function getUtcExclusivePeriodEnd(period: PeriodType, date: Date): Date {
+  const periodStart = getUtcPeriodStart(period, date);
+
+  switch (period) {
+    case "hourly":
+      return new Date(periodStart.getTime() + 60 * 60 * 1000);
+    case "daily":
+      return getUtcNextDayStart(periodStart);
+    case "weekly":
+      return new Date(periodStart.getTime() + 7 * 24 * 60 * 60 * 1000);
+    case "monthly":
+      return new Date(
+        Date.UTC(
+          periodStart.getUTCFullYear(),
+          periodStart.getUTCMonth() + 1,
+          1
+        )
+      );
+    case "yearly":
+      return new Date(Date.UTC(periodStart.getUTCFullYear() + 1, 0, 1));
+  }
+}
+
+function toInclusiveEnd(exclusiveEnd: Date): Date {
+  return new Date(exclusiveEnd.getTime() - 1);
+}
+
+function getUtcInclusivePeriodEnd(period: PeriodType, date: Date): Date {
+  return toInclusiveEnd(getUtcExclusivePeriodEnd(period, date));
+}
+
+// ---------------------------------------------------------------------------
+// Timezone-aware daily helpers
+// ---------------------------------------------------------------------------
+
+function getDayStartFromTimezoneParts(
+  year: number,
+  monthIndex: number,
+  day: number,
+  timezone: string
+): Date {
+  return new Date(new TZDate(year, monthIndex, day, timezone).getTime());
+}
+
+/**
  * Get the start of day for a date in a specific timezone.
  * Falls back to UTC if timezone is invalid.
  */
 export function getDayStartInTimezone(date: Date, timezone: string): Date {
   try {
-    // Format date in the target timezone to get local date components
-    const formatter = new Intl.DateTimeFormat("en-US", {
-      timeZone: timezone,
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-    });
-    const parts = formatter.formatToParts(date);
-    const year = parseInt(parts.find((p) => p.type === "year")!.value);
-    const month = parseInt(parts.find((p) => p.type === "month")!.value) - 1;
-    const day = parseInt(parts.find((p) => p.type === "day")!.value);
-
-    // Create date at midnight in that timezone
-    // We need to find the UTC time that corresponds to midnight in the target timezone
-    const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}T00:00:00`;
-
-    // Get the offset for this timezone at this date
-    const testDate = new Date(dateStr + "Z");
-    const utcHour = testDate.getUTCHours();
-    const localHour = parseInt(
-      new Intl.DateTimeFormat("en-US", {
-        timeZone: timezone,
-        hour: "numeric",
-        hour12: false,
-      }).format(testDate)
-    );
-
-    // Calculate offset and adjust
-    const offsetHours = localHour - utcHour;
-    return new Date(Date.UTC(year, month, day, -offsetHours, 0, 0, 0));
+    const { year, monthIndex, day } = getTimezoneDateParts(date, timezone);
+    return getDayStartFromTimezoneParts(year, monthIndex, day, timezone);
   } catch {
     // Fallback to UTC
-    return getDayStart(date);
+    return getUtcDayStart(date);
   }
+}
+
+/**
+ * Get the start of the next local day for a date in a specific timezone.
+ * Falls back to the next UTC day if timezone is invalid.
+ */
+export function getNextDayStartInTimezone(date: Date, timezone: string): Date {
+  try {
+    const { year, monthIndex, day } = getTimezoneDateParts(date, timezone);
+    return getDayStartFromTimezoneParts(year, monthIndex, day + 1, timezone);
+  } catch {
+    return getUtcNextDayStart(date);
+  }
+}
+
+/**
+ * Get the end of day for a date in a specific timezone.
+ * Falls back to UTC if timezone is invalid.
+ */
+export function getDayEndInTimezone(date: Date, timezone: string): Date {
+  return new Date(getNextDayStartInTimezone(date, timezone).getTime() - 1);
 }
 
 /**
@@ -181,16 +308,43 @@ export function getPeriodStartForDateInTimezone(
   date: Date,
   timezone: string | null
 ): Date {
-  if (!timezone) {
-    return getPeriodStartForDate(period, date);
-  }
-
-  // For daily, use timezone-aware calculation
-  if (period === "daily") {
+  if (timezone && period === "daily") {
     return getDayStartInTimezone(date, timezone);
   }
 
-  // For other periods, use existing UTC-based logic
-  // (weekly/monthly/yearly boundaries are less sensitive to timezone)
-  return getPeriodStartForDate(period, date);
+  // Aggregation buckets are UTC for non-daily periods and when the user has no
+  // timezone preference, so they don't depend on the server's local timezone.
+  return getUtcPeriodStart(period, date);
+}
+
+/**
+ * Get the inclusive stored period end for a date in a specific timezone.
+ */
+export function getPeriodEndForDateInTimezone(
+  period: PeriodType,
+  date: Date,
+  timezone: string | null
+): Date {
+  if (timezone && period === "daily") {
+    return getDayEndInTimezone(date, timezone);
+  }
+
+  return getUtcInclusivePeriodEnd(period, date);
+}
+
+/**
+ * Get the exclusive query boundary for a period in a specific timezone.
+ * This is the instant immediately after the period ends, so it is safe to use
+ * with `<` comparisons in database queries.
+ */
+export function getPeriodQueryEndForDateInTimezone(
+  period: PeriodType,
+  date: Date,
+  timezone: string | null
+): Date {
+  if (timezone && period === "daily") {
+    return getNextDayStartInTimezone(date, timezone);
+  }
+
+  return getUtcExclusivePeriodEnd(period, date);
 }

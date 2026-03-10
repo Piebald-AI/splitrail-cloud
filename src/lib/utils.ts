@@ -30,15 +30,15 @@ export function formatCurrency(
 
 // Format large numbers (e.g., 1000 -> 1k, 1000000 -> 1M)
 export function formatLargeNumber(
-  num: number | string,
+  num: number | string | bigint,
   locale: string = "en-US"
 ): string {
-  let value: number;
+  let value: number | bigint;
 
-  if (typeof num === "number") {
+  if (typeof num === "number" || typeof num === "bigint") {
     value = num;
   } else if (typeof num === "string") {
-    value = Number(num);
+    value = /^-?\d+$/.test(num) ? BigInt(num) : Number(num);
   } else {
     throw new Error("Invalid number format");
   }

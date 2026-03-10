@@ -124,6 +124,11 @@ export interface Stats {
   cost: number;
 }
 
+export interface UserAggregateStats extends Stats {
+  conversations: bigint;
+  models: string[];
+}
+
 // Stats as numbers (for API responses after n() conversion)
 export interface StatsAsNumbers {
   filesRead: number;
@@ -165,11 +170,42 @@ export interface StatsAsNumbers {
   cost: number;
 }
 
+export interface UserAggregateStatsAsNumbers {
+  conversations: number;
+  models: string[];
+}
+
+export type LeaderboardSortKey =
+  | keyof StatsAsNumbers
+  | keyof Pick<UserAggregateStatsAsNumbers, "conversations">;
+
 // ===== User Types =====
 
-export interface UserWithStats extends User, StatsAsNumbers {
+export interface UserWithStats
+  extends User,
+    StatsAsNumbers,
+    UserAggregateStatsAsNumbers {
   rank: number;
 }
+
+export type LeaderboardUser = Pick<
+  User,
+  "id" | "githubId" | "username" | "displayName" | "avatarUrl" | "createdAt"
+> &
+  Pick<
+    StatsAsNumbers,
+    | "cost"
+    | "tokens"
+    | "linesAdded"
+    | "linesDeleted"
+    | "linesEdited"
+    | "codeLines"
+    | "docsLines"
+    | "dataLines"
+    | "todosCompleted"
+  > & {
+    rank: number;
+  };
 
 export interface UserPreferences {
   currency: string;
@@ -200,15 +236,17 @@ export interface LeaderboardRequest {
   applications?: ApplicationType[];
   page?: number;
   pageSize?: number;
-  sortBy?: keyof StatsAsNumbers;
+  sortBy?: LeaderboardSortKey;
   sortOrder?: "asc" | "desc";
 }
 
 export interface LeaderboardData {
-  users: UserWithStats[];
+  users: LeaderboardUser[];
   total: number;
+  privateUsersCount?: number;
   currentPage: number;
   pageSize: number;
+  application?: ApplicationType | "all";
 }
 
 export interface ApiError {

@@ -1,14 +1,32 @@
 "use client";
 
 import { useSession } from "next-auth/react";
-import { useState, useEffect, useCallback } from "react";
+import { useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Trash2, Eye, EyeOff, Copy, Plus } from "lucide-react";
+import {
+  Trash2,
+  Eye,
+  EyeOff,
+  Copy,
+  Plus,
+  Terminal,
+  ExternalLink,
+  LoaderCircle,
+} from "lucide-react";
 import { toast } from "sonner";
 import { formatDate } from "@/lib/utils";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 
 interface ApiToken {
   id: string;
@@ -20,107 +38,119 @@ interface ApiToken {
 
 export function CLITokenDisplay() {
   const { data: session } = useSession();
-  const [tokens, setTokens] = useState<ApiToken[]>([]);
-  const [loading, setLoading] = useState(false);
+  const queryClient = useQueryClient();
   const [visibleTokens, setVisibleTokens] = useState<Set<string>>(new Set());
   const [copiedTokens, setCopiedTokens] = useState<Set<string>>(new Set());
   const [newTokenName, setNewTokenName] = useState("");
-  const [creatingToken, setCreatingToken] = useState(false);
-  // Removed local alert message state in favor of Sonner toasts
-
-  const fetchTokens = useCallback(async () => {
-    if (!session) return;
-
-    setLoading(true);
-    try {
+  const [pendingTokenId, setPendingTokenId] = useState<string | null>(null);
+  const {
+    data: tokens = [],
+    isLoading,
+    isError,
+    error,
+  } = useQuery<ApiToken[]>({
+    queryKey: ["apiTokens", session?.user?.id],
+    queryFn: async () => {
       const response = await fetch("/api/user/token");
       const data = await response.json();
-
-      if (data.success) {
-        setTokens(data.data.tokens);
-      } else {
-        toast.error(data.error || "Failed to fetch tokens");
+      if (!response.ok || !data.success) {
+        throw new Error(data.error || "Failed to fetch tokens");
       }
-    } catch (error) {
-      console.error("Error fetching tokens:", error);
-      toast.error("Failed to fetch tokens");
-    } finally {
-      setLoading(false);
-    }
-  }, [session]);
+      return data.data.tokens as ApiToken[];
+    },
+    enabled: !!session,
+  });
 
-  const createNewToken = async () => {
-    if (!session) return;
-
-    setCreatingToken(true);
-    try {
+  const createTokenMutation = useMutation({
+    mutationFn: async (name: string) => {
       const response = await fetch("/api/user/token", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ name: newTokenName || undefined }),
+        body: JSON.stringify({ name: name || undefined }),
       });
       const data = await response.json();
-
-      if (data.success) {
-        setTokens((prev) => [data.data.token, ...prev]);
-        setVisibleTokens((prev) => new Set([...prev, data.data.token.id]));
-        setNewTokenName("");
-        toast.success("Token created successfully!");
-      } else {
-        toast.error(data.error || "Failed to create token");
+      if (!response.ok || !data.success) {
+        throw new Error(data.error || "Failed to create token");
       }
-    } catch (error) {
-      console.error("Error creating token:", error);
-      toast.error("Failed to create token");
-    } finally {
-      setCreatingToken(false);
-    }
-  };
+      return data.data.token as ApiToken;
+    },
+    onSuccess: async (token) => {
+      await queryClient.invalidateQueries({
+        queryKey: ["apiTokens", session?.user?.id],
+      });
+      setVisibleTokens((prev) => new Set([...prev, token.id]));
+      setNewTokenName("");
+      toast.success("Token created successfully!");
+    },
+    onError: (error: unknown) => {
+      const message =
+        error instanceof Error ? error.message : "Failed to create token";
+      toast.error(message);
+    },
+  });
 
-  const deleteToken = async (tokenId: string) => {
-    if (!session) return;
-
-    try {
+  const deleteTokenMutation = useMutation({
+    mutationFn: async (tokenId: string) => {
       const response = await fetch(`/api/user/token?tokenId=${tokenId}`, {
         method: "DELETE",
       });
       const data = await response.json();
-
-      if (data.success) {
-        setTokens((prev) => prev.filter((t) => t.id !== tokenId));
-        setVisibleTokens((prev) => {
-          const newSet = new Set(prev);
-          newSet.delete(tokenId);
-          return newSet;
-        });
-        toast.success("Token deleted successfully!");
-      } else {
-        toast.error(data.error || "Failed to delete token");
+      if (!response.ok || !data.success) {
+        throw new Error(data.error || "Failed to delete token");
       }
-    } catch (error) {
-      console.error("Error deleting token:", error);
-      toast.error("Failed to delete token");
-    }
+      return tokenId;
+    },
+    onSuccess: async (tokenId) => {
+      await queryClient.invalidateQueries({
+        queryKey: ["apiTokens", session?.user?.id],
+      });
+      setVisibleTokens((prev) => {
+        const next = new Set(prev);
+        next.delete(tokenId);
+        return next;
+      });
+      toast.success("Token deleted successfully!");
+    },
+    onError: (error: unknown) => {
+      const message =
+        error instanceof Error ? error.message : "Failed to delete token";
+      toast.error(message);
+    },
+    onSettled: () => {
+      setPendingTokenId(null);
+    },
+  });
+
+  const createNewToken = () => {
+    if (!session) return;
+    createTokenMutation.mutate(newTokenName);
+  };
+
+  const deleteToken = (tokenId: string) => {
+    if (!session) return;
+    setPendingTokenId(tokenId);
+    deleteTokenMutation.mutate(tokenId);
   };
 
   const copyToken = async (token: string, tokenId: string) => {
     try {
-      if (navigator.clipboard && navigator.clipboard.writeText) {
+      if (navigator.clipboard && window.isSecureContext) {
         await navigator.clipboard.writeText(token);
       } else {
-        const textArea = document.createElement("textarea");
-        textArea.value = token;
-        textArea.style.position = "fixed";
-        textArea.style.opacity = "0";
-        document.body.appendChild(textArea);
-        textArea.focus();
-        textArea.select();
+        // Fallback for non-secure contexts
+        const textarea = document.createElement("textarea");
+        textarea.value = token;
+        textarea.style.position = "fixed";
+        textarea.style.left = "-9999px";
+        document.body.appendChild(textarea);
+        textarea.select();
         document.execCommand("copy");
-        document.body.removeChild(textArea);
+        document.body.removeChild(textarea);
       }
       setCopiedTokens((prev) => new Set([...prev, tokenId]));
+      toast.success("Copied to clipboard");
       setTimeout(() => {
         setCopiedTokens((prev) => {
           const newSet = new Set(prev);
@@ -130,6 +160,7 @@ export function CLITokenDisplay() {
       }, 2000);
     } catch (error) {
       console.error("Failed to copy token:", error);
+      toast.error("Failed to copy token");
     }
   };
 
@@ -150,15 +181,14 @@ export function CLITokenDisplay() {
     return "•".repeat(token.length - 4) + token.slice(-4);
   };
 
-  useEffect(() => {
-    if (session) {
-      fetchTokens();
-    } else {
-      setLoading(false);
-    }
-  }, [session, fetchTokens]);
-
-  // Removed message effect as Sonner toasts handle their own lifecycle
+  const latestToken = [...tokens].sort(
+    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+  )[0]?.token;
+  const setApiTokenCommand = latestToken
+    ? `splitrail config set api-token ${latestToken}`
+    : "splitrail config set api-token <your-token>";
+  const enableAutoUploadCommand = "splitrail config set auto-upload true";
+  const uploadCommand = "splitrail upload";
 
   if (!session) {
     return (
@@ -172,6 +202,109 @@ export function CLITokenDisplay() {
 
   return (
     <div className="space-y-6">
+      <div className="rounded-lg border bg-muted/30 p-3 sm:p-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="space-y-1">
+            <p className="text-sm font-medium">
+              Configure Splitrail CLI anytime
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Keep your CLI linked, then reuse this guide whenever you create
+              and switch to a new token.
+            </p>
+          </div>
+          <Dialog>
+            <DialogTrigger asChild>
+              <Button variant="outline" size="sm">
+                <Terminal className="h-4 w-4" />
+                Configure CLI
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-xl">
+              <DialogHeader>
+                <DialogTitle>Splitrail CLI setup</DialogTitle>
+                <DialogDescription>
+                  Use this quick setup anytime. When you create a new token
+                  here, reopen this and copy the set-token command again.
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="min-w-0 space-y-4 text-sm">
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <p>
+                      1. Install the CLI from{" "}
+                      <a
+                        href="https://github.com/Piebald-AI/splitrail/releases"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 text-primary hover:underline"
+                      >
+                        GitHub
+                        <ExternalLink className="h-3.5 w-3.5" />
+                      </a>
+                      .
+                    </p>
+                  </div>
+                  <div className="space-y-2">
+                    <p>2. Set your API token:</p>
+                    <div className="flex items-center gap-2 rounded-md border bg-muted/40 p-2">
+                      <code className="min-w-0 flex-1 overflow-x-auto whitespace-nowrap font-mono text-xs">
+                        {setApiTokenCommand}
+                      </code>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="shrink-0"
+                        onClick={() =>
+                          copyToken(setApiTokenCommand, "cmd-set-api-token")
+                        }
+                      >
+                        <Copy className="h-4 w-4 mr-1" />
+                        {copiedTokens.has("cmd-set-api-token")
+                          ? "Copied!"
+                          : "Copy"}
+                      </Button>
+                    </div>
+                    {!latestToken && (
+                      <p className="text-xs text-muted-foreground">
+                        Create a token first, then copy this command with your
+                        real token value.
+                      </p>
+                    )}
+                  </div>
+                  <div className="space-y-2">
+                    <p>3. Optional: enable auto-upload:</p>
+                    <div className="flex items-center gap-2 rounded-md border bg-muted/40 p-2">
+                      <code className="min-w-0 flex-1 overflow-x-auto whitespace-nowrap font-mono text-xs">
+                        {enableAutoUploadCommand}
+                      </code>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="shrink-0"
+                        onClick={() =>
+                          copyToken(enableAutoUploadCommand, "cmd-auto-upload")
+                        }
+                      >
+                        <Copy className="h-4 w-4 mr-1" />
+                        {copiedTokens.has("cmd-auto-upload")
+                          ? "Copied!"
+                          : "Copy"}
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+                <div className="rounded-md border bg-muted/40 p-3 text-xs text-muted-foreground">
+                  Manual upload command:{" "}
+                  <code className="font-mono">{uploadCommand}</code>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
+        </div>
+      </div>
+
       {/* Create New Token */}
       <div className="space-y-4">
         <div className="flex items-center gap-4">
@@ -180,15 +313,15 @@ export function CLITokenDisplay() {
               placeholder="Token name (optional)"
               value={newTokenName}
               onChange={(e) => setNewTokenName(e.target.value)}
-              disabled={creatingToken}
+              disabled={createTokenMutation.isPending}
             />
           </div>
           <Button
             onClick={createNewToken}
-            disabled={creatingToken || tokens.length >= 50}
+            disabled={createTokenMutation.isPending || tokens.length >= 50}
           >
             <Plus className="h-4 w-4 mr-2" />
-            {creatingToken ? "Creating..." : "Create Token"}
+            {createTokenMutation.isPending ? "Creating..." : "Create Token"}
           </Button>
         </div>
 
@@ -204,9 +337,13 @@ export function CLITokenDisplay() {
       </div>
 
       {/* Token List */}
-      {loading ? (
+      {isLoading ? (
         <div className="text-center py-8">
           <div className="text-muted-foreground">Loading tokens...</div>
+        </div>
+      ) : isError ? (
+        <div className="text-center py-8 text-destructive">
+          {(error as Error)?.message || "Failed to load tokens."}
         </div>
       ) : tokens.length === 0 ? (
         <div className="text-center py-8 text-muted-foreground">
@@ -219,6 +356,8 @@ export function CLITokenDisplay() {
           {tokens.map((token) => {
             const isVisible = visibleTokens.has(token.id);
             const isCopied = copiedTokens.has(token.id);
+            const isDeleting =
+              pendingTokenId === token.id && deleteTokenMutation.isPending;
 
             return (
               <Card key={token.id} className="p-4">
@@ -260,9 +399,15 @@ export function CLITokenDisplay() {
                         variant="outline"
                         size="sm"
                         onClick={() => deleteToken(token.id)}
+                        disabled={isDeleting}
+                        aria-label={`Delete token ${token.name}`}
                         className="text-destructive hover:text-destructive"
                       >
-                        <Trash2 className="h-4 w-4" />
+                        {isDeleting ? (
+                          <LoaderCircle className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Trash2 className="h-4 w-4" />
+                        )}
                       </Button>
                     </div>
 

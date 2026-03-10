@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { type ConversationMessage, Periods } from "@/types";
 import {
-  getPeriodEndForDate,
+  getPeriodEndForDateInTimezone,
+  getPeriodQueryEndForDateInTimezone,
   getPeriodStartForDateInTimezone,
 } from "@/lib/dateUtils";
 import { unsupportedMethod } from "@/lib/routeUtils";
@@ -257,9 +258,16 @@ export async function POST(request: NextRequest) {
       const period = bucketKey.slice(0, firstPipe);
       const application = bucketKey.slice(firstPipe + 1, lastPipe);
       const periodStart = new Date(bucketKey.slice(lastPipe + 1));
-      const periodEnd = getPeriodEndForDate(
-        period as (typeof Periods)[number],
-        periodStart
+      const typedPeriod = period as (typeof Periods)[number];
+      const periodEnd = getPeriodEndForDateInTimezone(
+        typedPeriod,
+        periodStart,
+        timezone
+      );
+      const periodQueryEnd = getPeriodQueryEndForDateInTimezone(
+        typedPeriod,
+        periodStart,
+        timezone
       );
 
       // Aggregate all messages in this bucket
@@ -269,7 +277,7 @@ export async function POST(request: NextRequest) {
           application,
           date: {
             gte: periodStart,
-            lt: periodEnd,
+            lt: periodQueryEnd,
           },
         },
         _sum: {
@@ -318,7 +326,7 @@ export async function POST(request: NextRequest) {
           application,
           date: {
             gte: periodStart,
-            lt: periodEnd,
+            lt: periodQueryEnd,
           },
         },
         _count: true,
@@ -328,6 +336,29 @@ export async function POST(request: NextRequest) {
         messageCounts.find((m) => m.role === "assistant")?._count ?? 0;
       const userCount =
         messageCounts.find((m) => m.role === "user")?._count ?? 0;
+
+      // Conversation starts + model list for this bucket (used by dashboard cache reads)
+      const [conversationAndModelData] = await db.$queryRaw<
+        Array<{ conversations: bigint; models: string[] | null }>
+      >`
+        SELECT
+          COUNT(DISTINCT m."conversationHash") FILTER (
+            WHERE NOT EXISTS (
+              SELECT 1
+              FROM message_stats prev
+              WHERE prev."userId" = ${user.id}
+                AND prev.application = ${application}
+                AND prev."conversationHash" = m."conversationHash"
+                AND prev.date < ${periodStart}
+            )
+          )::bigint AS conversations,
+          ARRAY_AGG(DISTINCT m.model) FILTER (WHERE m.model IS NOT NULL) AS models
+        FROM message_stats m
+        WHERE m."userId" = ${user.id}
+          AND m.application = ${application}
+          AND m.date >= ${periodStart}
+          AND m.date < ${periodQueryEnd}
+      `;
 
       // Build the stats record from aggregation
       const statsData: Prisma.UserStatsUncheckedCreateInput = {
@@ -372,6 +403,8 @@ export async function POST(request: NextRequest) {
         todosInProgress: aggregation._sum.todosInProgress ?? BigInt(0),
         todoWrites: aggregation._sum.todoWrites ?? BigInt(0),
         todoReads: aggregation._sum.todoReads ?? BigInt(0),
+        conversations: conversationAndModelData?.conversations ?? BigInt(0),
+        models: conversationAndModelData?.models ?? [],
         createdAt: now,
         updatedAt: now,
       };
