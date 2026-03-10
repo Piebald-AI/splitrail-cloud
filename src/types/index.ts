@@ -70,7 +70,6 @@ export const BigIntStatKeys = [
   "cachedTokens",
   "reasoningTokens",
   "tokens", // Calculated field (not stored in DB)
-  "conversations",
   // Message counts
   "assistantMessages",
   "userMessages",
@@ -166,23 +165,26 @@ export interface StatsAsNumbers {
   cachedTokens: number;
   reasoningTokens: number;
   tokens: number;
-  conversations: number;
   assistantMessages: number;
   userMessages: number;
   cost: number;
 }
 
-export interface StatsMetadata {
+export interface UserAggregateStatsAsNumbers {
+  conversations: number;
   models: string[];
 }
 
-export interface UserAggregateStatsAsNumbers
-  extends StatsAsNumbers,
-    StatsMetadata {}
+export type LeaderboardSortKey =
+  | keyof StatsAsNumbers
+  | keyof Pick<UserAggregateStatsAsNumbers, "conversations">;
 
 // ===== User Types =====
 
-export interface UserWithStats extends User, UserAggregateStatsAsNumbers {
+export interface UserWithStats
+  extends User,
+    StatsAsNumbers,
+    UserAggregateStatsAsNumbers {
   rank: number;
 }
 
@@ -215,7 +217,7 @@ export interface LeaderboardRequest {
   applications?: ApplicationType[];
   page?: number;
   pageSize?: number;
-  sortBy?: keyof StatsAsNumbers;
+  sortBy?: LeaderboardSortKey;
   sortOrder?: "asc" | "desc";
 }
 
