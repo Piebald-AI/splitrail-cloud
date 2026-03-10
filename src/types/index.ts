@@ -188,6 +188,25 @@ export interface UserWithStats
   rank: number;
 }
 
+export type LeaderboardUser = Pick<
+  User,
+  "id" | "githubId" | "username" | "displayName" | "avatarUrl" | "createdAt"
+> &
+  Pick<
+    StatsAsNumbers,
+    | "cost"
+    | "tokens"
+    | "linesAdded"
+    | "linesDeleted"
+    | "linesEdited"
+    | "codeLines"
+    | "docsLines"
+    | "dataLines"
+    | "todosCompleted"
+  > & {
+    rank: number;
+  };
+
 export interface UserPreferences {
   currency: string;
   timezone: string | null;
@@ -222,10 +241,12 @@ export interface LeaderboardRequest {
 }
 
 export interface LeaderboardData {
-  users: UserWithStats[];
+  users: LeaderboardUser[];
   total: number;
+  privateUsersCount?: number;
   currentPage: number;
   pageSize: number;
+  application?: ApplicationType | "all";
 }
 
 export interface ApiError {

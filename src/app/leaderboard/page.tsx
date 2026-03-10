@@ -24,8 +24,9 @@ import React from "react";
 import { createColumns } from "./TableColumns";
 import {
   type ApplicationType,
+  type LeaderboardData,
+  type LeaderboardUser,
   type UserPreferences,
-  type UserWithStats,
 } from "@/types";
 import { ALL_APPLICATIONS } from "@/lib/application-config";
 import { ColumnsDropdown } from "./ColumnsDropdown";
@@ -90,7 +91,7 @@ export default function Leaderboard() {
     gcTime: 10 * 60 * 1000, // 10 minutes
   });
 
-  const { data, isLoading, error } = useQuery({
+  const { data, isLoading, error } = useQuery<LeaderboardData>({
     queryKey: [
       "leaderboard",
       apps,
@@ -121,7 +122,14 @@ export default function Leaderboard() {
       const result = await response.json();
 
       if (result.success) {
-        return result.data || { users: [], total: 0 };
+        return (
+          result.data || {
+            users: [],
+            total: 0,
+            currentPage: 1,
+            pageSize: pagination.pageSize,
+          }
+        );
       } else {
         throw new Error(result.error || "Failed to fetch leaderboard data");
       }
@@ -180,7 +188,7 @@ export default function Leaderboard() {
     }
 
     // Convert costs to user's preferred currency
-    return data.users.map((user: UserWithStats) => ({
+    return data.users.map((user: LeaderboardUser) => ({
       ...user,
       cost: convertCurrency(
         user.cost,
@@ -383,7 +391,7 @@ export default function Leaderboard() {
             </TableBody>
           </Table>
         </div>
-        {data?.privateUsersCount > 0 && !usernameFilter && (
+        {data && data.privateUsersCount && data.privateUsersCount > 0 && !usernameFilter && (
           <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
             <EyeOff className="size-4" />
             <span>

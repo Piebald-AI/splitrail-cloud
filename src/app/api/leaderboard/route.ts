@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { Applications, type ApplicationType } from "@/types";
+import {
+  Applications,
+  type ApplicationType,
+  type LeaderboardUser,
+} from "@/types";
 import { unsupportedMethod } from "@/lib/routeUtils";
 import { Prisma } from "@prisma/client";
 import { n } from "@/lib/utils";
@@ -115,7 +119,7 @@ export async function GET(request: NextRequest) {
     `;
 
     // Convert BigInt values to the expected format
-    const usersWithMetrics = rawResults.map((row) => ({
+    const usersWithMetrics: LeaderboardUser[] = rawResults.map((row) => ({
       // User fields
       id: row.userId,
       githubId: row.githubId,
