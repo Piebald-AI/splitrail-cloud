@@ -236,6 +236,39 @@ export async function POST(request: NextRequest) {
 
     mark("duplicateCheck");
 
+    const newMessageCount = messagesForDb.length - duplicateCount;
+
+    // If this upload is entirely duplicates, there is nothing to upsert or recalculate.
+    // Returning early avoids re-running expensive bucket aggregations for no-op uploads.
+    if (newMessageCount === 0) {
+      if (timingEnabled()) {
+        const endMs = nowMs();
+        const totalMs = Math.round(endMs - startMs);
+        const preparedMs = marks.prepared
+          ? Math.round(marks.prepared - startMs)
+          : null;
+        const duplicateCheckMs = marks.duplicateCheck
+          ? Math.round(marks.duplicateCheck - (marks.prepared ?? startMs))
+          : null;
+
+        console.info("upload-stats timings", {
+          messages: dedupedBody.length,
+          duplicates: duplicateCount,
+          affectedBuckets: 0,
+          preparedMs,
+          duplicateCheckMs,
+          upsertedMs: 0,
+          recalculatedMs: 0,
+          totalMs,
+          skippedReason: "all-duplicates",
+        });
+      }
+
+      return NextResponse.json({
+        success: true,
+      });
+    }
+
     // Bulk upsert via Postgres INSERT .. ON CONFLICT to avoid per-row Prisma upserts.
     // Neon/Postgres handles this efficiently; we chunk to avoid oversized SQL.
     const BULK_UPSERT_BATCH_SIZE = 500;
