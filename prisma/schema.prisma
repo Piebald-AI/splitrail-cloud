@@ -87,6 +87,9 @@ model MessageStats {
   @@index([userId, date])
   @@index([date])
   @@index([application, date])
+  // Covers the conversation-counting query in stats recalculation which filters
+  // by (userId, application) and groups by conversationHash with a MIN(date).
+  @@index([userId, application, conversationHash, date])
   @@map("message_stats")
 }
 

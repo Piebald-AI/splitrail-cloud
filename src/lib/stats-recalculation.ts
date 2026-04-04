@@ -33,7 +33,7 @@ function getWeekStart(date: Date): Date {
   return getPeriodStartForDate("weekly", date);
 }
 
-function addUniqueDate(target: Date[], value: Date) {
+export function addUniqueDate(target: Date[], value: Date) {
   if (!target.some((date) => date.getTime() === value.getTime())) {
     target.push(value);
   }
@@ -265,11 +265,32 @@ function getPeriodEndExpression(period: keyof AffectedPeriods): Prisma.Sql {
   }
 }
 
+/**
+ * Build the SQL expression for truncating a timestamp column to a period boundary.
+ *
+ * For daily periods when a timezone is provided, uses Postgres timezone-aware
+ * truncation so that day boundaries align with the user's local midnight rather
+ * than UTC midnight.  All other period types use plain UTC date_trunc.
+ */
+function periodTruncSql(
+  column: Prisma.Sql,
+  truncUnit: string,
+  period: string,
+  timezone: string | null
+): Prisma.Sql {
+  if (period === "daily" && timezone) {
+    // date AT TIME ZONE tz → local timestamp; truncate to day; AT TIME ZONE tz → back to timestamptz
+    return Prisma.sql`(date_trunc('day', ${column} AT TIME ZONE ${timezone})) AT TIME ZONE ${timezone}`;
+  }
+  return Prisma.sql`date_trunc(${truncUnit}, ${column})`;
+}
+
 export async function recalculateUserStats(
   userId: string,
   applications: string[],
   affectedPeriods: AffectedPeriods,
-  client?: StatsRecalculationClient
+  client?: StatsRecalculationClient,
+  timezone?: string | null
 ) {
   const prisma: StatsRecalculationClient =
     client ?? (await import("@/lib/db")).db;
@@ -307,8 +328,26 @@ export async function recalculateUserStats(
     },
   ];
 
+  const tz = timezone ?? null;
+
   for (const config of periodConfigs) {
     if (config.periodStarts.length === 0) continue;
+
+    // Build timezone-aware date truncation expressions for this period type.
+    // For daily periods with a timezone, day boundaries align with the user's
+    // local midnight instead of UTC midnight.
+    const truncDate = periodTruncSql(
+      Prisma.raw("date"),
+      config.truncUnit,
+      config.period,
+      tz
+    );
+    const truncFirstMsg = periodTruncSql(
+      Prisma.raw("first_message_at"),
+      config.truncUnit,
+      config.period,
+      tz
+    );
 
     // Aggregate and upsert in a single statement so the caller's transaction
     // stays atomic without paying one round-trip per period/application row.
@@ -360,7 +399,7 @@ export async function recalculateUserStats(
       ),
       aggregated_stats AS (
         SELECT
-          date_trunc(${config.truncUnit}, date) AS period_start,
+          ${truncDate} AS period_start,
           application,
           COALESCE(SUM("toolCalls"), 0)::bigint AS tool_calls,
           COALESCE(SUM(CASE WHEN role = 'assistant' THEN 1 ELSE 0 END), 0)::bigint AS assistant_messages,
@@ -400,7 +439,7 @@ export async function recalculateUserStats(
           COALESCE(SUM("todoReads"), 0)::bigint AS todo_reads,
           ARRAY_AGG(DISTINCT model) FILTER (WHERE model IS NOT NULL) AS models
         FROM base
-        WHERE date_trunc(${config.truncUnit}, date) = ANY(${config.periodStarts})
+        WHERE ${truncDate} = ANY(${config.periodStarts})
         GROUP BY period_start, application
         HAVING COUNT(*) > 0
       ),
@@ -415,11 +454,11 @@ export async function recalculateUserStats(
       ),
       conversation_counts AS (
         SELECT
-          date_trunc(${config.truncUnit}, first_message_at) AS period_start,
+          ${truncFirstMsg} AS period_start,
           application,
           COUNT(*)::bigint AS conversations
         FROM conversation_starts
-        WHERE date_trunc(${config.truncUnit}, first_message_at) = ANY(${config.periodStarts})
+        WHERE ${truncFirstMsg} = ANY(${config.periodStarts})
         GROUP BY period_start, application
       )
       INSERT INTO user_stats (
