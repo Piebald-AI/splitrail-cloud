@@ -296,27 +296,39 @@ export async function POST(request: NextRequest) {
     // Perform bulk upsert and recalculation in a single atomic transaction to ensure
     // that affectedPeriods matches the exact rows being committed.
     // We chunk the upsert to avoid oversized SQL while keeping everything in one transaction.
-    await db.$transaction(async (tx) => {
-      const BULK_UPSERT_BATCH_SIZE = 500;
-      for (let i = 0; i < newMessagesForDb.length; i += BULK_UPSERT_BATCH_SIZE) {
-        const batch = newMessagesForDb.slice(i, i + BULK_UPSERT_BATCH_SIZE);
-        await tx.$executeRaw(bulkUpsertMessageStatsSql(batch));
+    await db.$transaction(
+      async (tx) => {
+        const BULK_UPSERT_BATCH_SIZE = 500;
+        for (
+          let i = 0;
+          i < newMessagesForDb.length;
+          i += BULK_UPSERT_BATCH_SIZE
+        ) {
+          const batch = newMessagesForDb.slice(i, i + BULK_UPSERT_BATCH_SIZE);
+          await tx.$executeRaw(bulkUpsertMessageStatsSql(batch));
+        }
+
+        mark("upserted");
+
+        // Recalculate aggregate stats for every affected period bucket using a
+        // single efficient SQL statement per period type (5 total) instead of the
+        // old approach of 4 separate queries × N buckets.  This reduces thousands
+        // of sequential DB round-trips to at most 5, eliminating the timeout.
+        await recalculateUserStats(
+          user.id,
+          Array.from(affectedApplications),
+          affectedPeriods,
+          tx, // use transaction client
+          timezone
+        );
+      },
+      {
+        // Prisma's default interactive transaction timeout is 5s — far too short
+        // for large uploads.  Allow up to 2 minutes for the combined bulk upsert
+        // + stats recalculation.
+        timeout: 120_000,
       }
-
-      mark("upserted");
-
-      // Recalculate aggregate stats for every affected period bucket using a
-      // single efficient SQL statement per period type (5 total) instead of the
-      // old approach of 4 separate queries × N buckets.  This reduces thousands
-      // of sequential DB round-trips to at most 5, eliminating the timeout.
-      await recalculateUserStats(
-        user.id,
-        Array.from(affectedApplications),
-        affectedPeriods,
-        tx, // use transaction client
-        timezone
-      );
-    });
+    );
 
     // Emit timing breakdown once per request
     mark("recalculated");
