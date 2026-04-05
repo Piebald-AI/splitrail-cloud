@@ -162,6 +162,16 @@ function generateStats(baseMultiplier: number, periodMultiplier: number, applica
       cost = (inputTokensNum / 1000) * avgInputCost +
              (outputTokensNum / 1000) * avgOutputCost +
              (Number(cachedTokens) / 1000) * avgCachedCost;
+    } else if (application === "kilo_cli") {
+      // Kilo CLI — mix of free and paid models via OpenRouter; weighted average
+      // ~40% glm-5 (paid), ~30% aurora-alpha (free), ~30% trinity (free)
+      const avgInputCost = (0.4 * 0.6) / 1000;
+      const avgOutputCost = (0.4 * 0.6) / 1000;
+      const avgCachedCost = (0.4 * 0.06) / 1000;
+      
+      cost = (inputTokensNum / 1000) * avgInputCost +
+             (outputTokensNum / 1000) * avgOutputCost +
+             (Number(cachedTokens) / 1000) * avgCachedCost;
     }
   } else {
     // Fallback cost calculation
@@ -256,7 +266,8 @@ async function clearDatabase() {
 }
 
 // Helpers to generate realistic message_stats rows for the stats API
-const APPLICATIONS = ["claude_code", "gemini_cli", "codex_cli", "copilot"] as const;
+const APPLICATIONS = ["claude_code", "gemini_cli", "codex_cli", "copilot", "kilo_cli"] as const;
+const PERIOD_STATS_APPS = ["claude_code", "gemini_cli", "codex_cli", "kilo_cli"] as const;
 const MODELS_BY_APP: Record<(typeof APPLICATIONS)[number], string[]> = {
   claude_code: [
     "claude-3.7-sonnet",
@@ -267,6 +278,7 @@ const MODELS_BY_APP: Record<(typeof APPLICATIONS)[number], string[]> = {
   gemini_cli: ["gemini-1.5-pro", "gemini-1.5-flash", "gemini-2.0-flash"],
   codex_cli: ["gpt-4o-mini", "gpt-4o", "o3-mini"],
   copilot: ["gpt-4o", "gpt-4o-mini"],
+  kilo_cli: ["claude-3.5-sonnet", "gpt-4o-mini", "gemini-2.0-flash"],
 };
 
 function randInt(min: number, max: number) {
@@ -308,10 +320,11 @@ async function createMessageStats(users: Array<{ id: string; multiplier: number 
 
   // Per-application usage distribution (sum to 1.0)
   const appWeights: Record<(typeof APPLICATIONS)[number], number> = {
-    claude_code: 0.5,
-    gemini_cli: 0.25,
+    claude_code: 0.45,
+    gemini_cli: 0.22,
     codex_cli: 0.1,
-    copilot: 0.15,
+    copilot: 0.13,
+    kilo_cli: 0.1,
   };
 
   // Simulate up to this many days of history
@@ -484,6 +497,23 @@ async function createMessageStats(users: Array<{ id: string; multiplier: number 
                 outputCostPerK = 10 / 1000;
                 cachedCostPerK = 1.25 / 1000;
               }
+            } else if (app === "kilo_cli") {
+              // Kilo CLI models (free-tier OpenRouter models via Kilo gateway)
+              if (model === "z-ai/glm-5:free") {
+                inputCostPerK = 0.6 / 1000;
+                outputCostPerK = 0.6 / 1000;
+                cachedCostPerK = 0.06 / 1000;
+              } else if (model === "openrouter/aurora-alpha") {
+                // Free model — zero cost
+                inputCostPerK = 0;
+                outputCostPerK = 0;
+                cachedCostPerK = 0;
+              } else if (model === "arcee-ai/trinity-large-preview:free") {
+                // Free model — zero cost
+                inputCostPerK = 0;
+                outputCostPerK = 0;
+                cachedCostPerK = 0;
+              }
             }
 
             // Calculate total cost
@@ -599,7 +629,7 @@ async function createPeriodStats(users: Array<{ id: string; multiplier: number }
   console.log("📊 Creating period statistics...");
   
   const periods = getPeriodDates();
-  const applications = ["claude_code", "gemini_cli", "codex_cli"] as const;
+  const applications = PERIOD_STATS_APPS;
   
   // Period multipliers (how much activity in each period)
   const periodMultipliers = {
@@ -612,9 +642,10 @@ async function createPeriodStats(users: Array<{ id: string; multiplier: number }
   
   // Application usage distribution for each user
   const applicationWeights = {
-    claude_code: 0.6,   // 60% usage
-    gemini_cli: 0.3,    // 30% usage
+    claude_code: 0.55,  // 55% usage
+    gemini_cli: 0.25,   // 25% usage
     codex_cli: 0.1,     // 10% usage
+    kilo_cli: 0.1,      // 10% usage
   };
   
   let processedUsers = 0;
@@ -662,7 +693,7 @@ async function createPeriodStats(users: Array<{ id: string; multiplier: number }
     }
   }
   
-  const totalStats = users.length * 5 * applications.length; // 5 periods, 3 applications
+  const totalStats = users.length * 5 * applications.length;
   console.log(`✅ Created ${totalStats.toLocaleString()} period statistics for ${users.length} users`);
 }
 
@@ -702,9 +733,9 @@ async function main() {
   console.log("");
   console.log("📊 Summary:");
   console.log(`  • ${users.length} users created`);
-  console.log(`  • ${(users.length * 5 * 3).toLocaleString()} total UserStats records`);
+  console.log(`  • ${(users.length * 5 * PERIOD_STATS_APPS.length).toLocaleString()} total UserStats records (5 periods × ${PERIOD_STATS_APPS.length} apps)`);
   console.log(`  • ${users.length} API tokens created`);
-  console.log("  • MessageStats generated for up to 120 days, 3 applications, multiple conversations/day");
+  console.log(`  • MessageStats generated for up to 120 days, ${APPLICATIONS.length} applications, multiple conversations/day`);
   console.log("");
   console.log("📈 Generated data for all time periods:");
   console.log("  • Hourly (current hour)");
@@ -714,9 +745,10 @@ async function main() {
   console.log("  • Yearly (current year)");
   console.log("");
   console.log("🚀 Generated data for all applications:");
-  console.log("  • Claude Code (60% usage)");
-  console.log("  • Gemini CLI (30% usage)");
+  console.log("  • Claude Code (55% usage)");
+  console.log("  • Gemini CLI (25% usage)");
   console.log("  • Codex CLI (10% usage)");
+  console.log("  • Kilo CLI (10% usage)");
   console.log("");
   console.log("📈 User distribution:");
   console.log("  • Most users have multipliers around 1.0 (normal distribution)");

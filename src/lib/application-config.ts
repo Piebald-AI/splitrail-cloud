@@ -40,6 +40,10 @@ export const APPLICATION_CONFIG: Record<
     id: "kilo_code",
     label: "Kilo Code",
   },
+  kilo_cli: {
+    id: "kilo_cli",
+    label: "Kilo CLI",
+  },
   copilot: {
     id: "copilot",
     label: "Copilot",

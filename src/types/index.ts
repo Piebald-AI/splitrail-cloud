@@ -10,6 +10,7 @@ export const Applications = [
   "cline",
   "roo_code",
   "kilo_code",
+  "kilo_cli",
   "copilot",
   "open_code",
   "pi_agent",
