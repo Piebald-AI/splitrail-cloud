@@ -11,7 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Spinner } from "@/components/ui/spinner";
+import { SettingsSkeleton } from "@/components/ui/page-loading";
 import { Checkbox } from "@/components/ui/checkbox";
 import { CLITokenDisplay } from "@/components/cli-token-display";
 import { DeleteDataByDate } from "@/components/delete-data-by-date";
@@ -38,6 +38,15 @@ import {
   FormLabel,
 } from "@/components/ui/form";
 import { useForm } from "react-hook-form";
+import { useDeferredLoading } from "@/hooks/use-deferred-loading";
+
+const formatAffectedDate = (date: string) =>
+  new Intl.DateTimeFormat(undefined, {
+    timeZone: "UTC",
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  }).format(new Date(`${date}T00:00:00.000Z`));
 
 const SUPPORTED_CURRENCIES = [
   { code: "USD", name: "US Dollar", symbol: "$" },
@@ -70,6 +79,13 @@ const SUPPORTED_CURRENCIES = [
   { code: "ILS", name: "Israeli Shekel", symbol: "₪" },
 ];
 
+type CodexPricingNotice = {
+  hasAffectedData: boolean;
+  affectedDates: string[];
+  timezone: string;
+  fetchFailed: boolean;
+};
+
 export default function SettingsPage() {
   const { data: session, status } = useSession();
   const queryClient = useQueryClient();
@@ -101,23 +117,70 @@ export default function SettingsPage() {
     enabled: !!session?.user?.id,
   });
 
-  // Check if user has Codex CLI data (for showing gpt-5.2-codex warning)
-  const { data: hasCodexData } = useQuery({
-    queryKey: ["hasCodexData", session?.user?.id],
+  // Show the Codex pricing warning only while affected rows still exist.
+  const { data: codexPricingNotice } = useQuery<CodexPricingNotice>({
+    queryKey: ["codexPricingNotice", session?.user?.id],
     queryFn: async () => {
-      if (!session?.user?.id) return false;
+      if (!session?.user?.id) {
+        return {
+          hasAffectedData: false,
+          affectedDates: [],
+          timezone: "UTC",
+          fetchFailed: false,
+        };
+      }
 
-      const response = await fetch(
-        `/api/user/${session.user.id}/stats?timezone=UTC`
-      );
-      if (!response.ok) return false;
+      try {
+        const response = await fetch(
+          `/api/user/${session.user.id}/codex-pricing-check`
+        );
+        if (!response.ok) {
+          return {
+            hasAffectedData: false,
+            affectedDates: [],
+            timezone: "UTC",
+            fetchFailed: true,
+          };
+        }
 
-      const data = await response.json();
-      const applications: string[] = data?.applications || [];
-      return applications.includes("codex_cli");
+        const data = (await response.json()) as {
+          success?: boolean;
+          data?: {
+            hasAffectedData: boolean;
+            affectedDates: string[];
+            timezone: string;
+          };
+        };
+        if (!data.success || !data.data) {
+          return {
+            hasAffectedData: false,
+            affectedDates: [],
+            timezone: "UTC",
+            fetchFailed: true,
+          };
+        }
+
+        return {
+          ...data.data,
+          fetchFailed: false,
+        };
+      } catch {
+        return {
+          hasAffectedData: false,
+          affectedDates: [],
+          timezone: "UTC",
+          fetchFailed: true,
+        };
+      }
     },
     enabled: !!session?.user?.id,
   });
+
+  const showCodexPricingNotice = codexPricingNotice?.hasAffectedData ?? false;
+  const showCodexPricingCheckWarning = codexPricingNotice?.fetchFailed ?? false;
+  const affectedCodexPricingDates = codexPricingNotice?.affectedDates ?? [];
+  const affectedCodexPricingTimezone = codexPricingNotice?.timezone ?? "UTC";
+  const showSkeleton = useDeferredLoading(status === "loading" || isLoading);
 
   // Initialize RHF defaults from DB once the query succeeds
   useEffect(() => {
@@ -226,18 +289,12 @@ export default function SettingsPage() {
   });
 
   if (status === "loading" || isLoading) {
-    return (
-      <div className="container mx-auto p-6">
-        <div className="text-center">
-          <Spinner size="lg" className="mx-auto" />
-        </div>
-      </div>
-    );
+    return showSkeleton ? <SettingsSkeleton /> : null;
   }
 
   if (!session) {
     return (
-      <div className="container mx-auto p-6">
+      <div className="container mx-auto p-6 animate-in fade-in-0 duration-300">
         <div className="text-center">
           <h1 className="text-2xl font-bold mb-4">Settings</h1>
           <p className="text-muted-foreground">
@@ -253,11 +310,25 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="container mx-auto">
+    <div className="container mx-auto px-6 animate-in fade-in-0 duration-300">
       <h1 className="text-3xl font-bold mb-6">Settings</h1>
 
-      {/* GPT-5.2-Codex Pricing Notice - only show for Codex CLI users */}
-      {hasCodexData && (
+      {showCodexPricingCheckWarning && (
+        <Alert className="mb-8 border-yellow-300 bg-yellow-50 dark:border-yellow-700 dark:bg-yellow-950">
+          <InfoIcon className="h-4 w-4 text-yellow-700 dark:text-yellow-400" />
+          <AlertTitle className="text-yellow-800 dark:text-yellow-200">
+            Codex pricing check unavailable
+          </AlertTitle>
+          <AlertDescription className="text-yellow-700 dark:text-yellow-300">
+            We could not verify whether your GPT-5.2-Codex uploads need to be
+            re-uploaded yet. Refresh the page or try again later so the warning
+            state does not stay hidden.
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {/* GPT-5.2-Codex Pricing Notice - only show when affected data exists */}
+      {showCodexPricingNotice && (
         <Alert className="mb-8 border-blue-300 dark:border-blue-700 bg-blue-50 dark:bg-blue-950">
           <InfoIcon className="h-4 w-4 text-blue-600 dark:text-blue-400" />
           <AlertTitle className="text-blue-800 dark:text-blue-200">
@@ -267,6 +338,13 @@ export default function SettingsPage() {
             GPT-5.2-Codex pricing was added recently. Any data uploaded with
             this model will show costs as $0. To fix: delete your Codex CLI data
             using <strong>Delete Data by Date</strong> below, then re-upload.
+            {affectedCodexPricingDates.length > 0 && (
+              <>
+                {" "}
+                Affected dates ({affectedCodexPricingTimezone}):{" "}
+                {affectedCodexPricingDates.map(formatAffectedDate).join(", ")}.
+              </>
+            )}
           </AlertDescription>
         </Alert>
       )}

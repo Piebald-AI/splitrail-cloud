@@ -4,7 +4,7 @@ import { signIn, signOut, useSession } from "next-auth/react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Spinner } from "@/components/ui/spinner";
+import { Skeleton } from "@/components/ui/skeleton";
 import { getDisplayName } from "@/lib/utils";
 import {
   DropdownMenu,
@@ -31,7 +31,14 @@ export function SignInButton() {
   };
 
   if (status === "loading") {
-    return <Spinner size="default" className="m-2.5" />;
+    return (
+      <div className="p-1">
+        <Skeleton
+          className="size-8 rounded-full"
+          aria-label="Loading user profile"
+        />
+      </div>
+    );
   }
 
   if (session?.user) {

@@ -19,28 +19,31 @@ import {
   getFilteredRowModel,
   flexRender,
 } from "@tanstack/react-table";
-import { ChevronDown, ChevronUp, EyeOff, Rocket, Search } from "lucide-react";
+import { ChevronDown, ChevronUp, EyeOff, Search } from "lucide-react";
 import React from "react";
 import { createColumns } from "./TableColumns";
 import {
   type ApplicationType,
+  type LeaderboardData,
+  type LeaderboardUser,
   type UserPreferences,
-  type UserWithStats,
 } from "@/types";
 import { ALL_APPLICATIONS } from "@/lib/application-config";
 import { ColumnsDropdown } from "./ColumnsDropdown";
 import { ApplicationDropdown } from "./ApplicationDropdown";
 import { TablePagination } from "./TablePagination";
 import { useSession } from "next-auth/react";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Code } from "@/components/ui/code";
-import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 import { convertCurrency } from "@/lib/currency";
+import { hasStatsCollectionData, type StatsData } from "@/app/_stats/types";
+import { SetupInstructions } from "@/app/_stats/setup-instructions";
+import { LeaderboardSkeleton } from "@/components/ui/page-loading";
+import { useDeferredLoading } from "@/hooks/use-deferred-loading";
 
 export default function Leaderboard() {
   const { data: session } = useSession();
+  const hasResolvedInitialLoad = React.useRef(false);
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
     []
@@ -88,7 +91,7 @@ export default function Leaderboard() {
     gcTime: 10 * 60 * 1000, // 10 minutes
   });
 
-  const { data, isLoading, error } = useQuery({
+  const { data, isLoading, error } = useQuery<LeaderboardData>({
     queryKey: [
       "leaderboard",
       apps,
@@ -119,12 +122,25 @@ export default function Leaderboard() {
       const result = await response.json();
 
       if (result.success) {
-        return result.data || { users: [], total: 0 };
+        return (
+          result.data || {
+            users: [],
+            total: 0,
+            currentPage: 1,
+            pageSize: pagination.pageSize,
+          }
+        );
       } else {
         throw new Error(result.error || "Failed to fetch leaderboard data");
       }
     },
   });
+
+  React.useEffect(() => {
+    if (data || error) {
+      hasResolvedInitialLoad.current = true;
+    }
+  }, [data, error]);
 
   // Separate query to check if the logged-in user has any data
   const { data: userHasData } = useQuery({
@@ -135,12 +151,22 @@ export default function Leaderboard() {
       const response = await fetch(`/api/user/${session.user.id}/stats`);
 
       if (!response.ok) {
+        return null;
+      }
+
+      const result = (await response.json()) as {
+        success?: boolean;
+        data?: StatsData;
+      };
+      if (!result.success) {
+        return null;
+      }
+
+      if (result.data?.stats == null) {
         return false;
       }
 
-      const result = await response.json();
-      // Check if user has any stats data
-      return result.success && result.data?.stats !== null;
+      return hasStatsCollectionData(result.data.stats);
     },
     enabled: !!session?.user?.id,
     staleTime: 5 * 60 * 1000, // 5 minutes - reduce refetching
@@ -162,7 +188,7 @@ export default function Leaderboard() {
     }
 
     // Convert costs to user's preferred currency
-    return data.users.map((user: UserWithStats) => ({
+    return data.users.map((user: LeaderboardUser) => ({
       ...user,
       cost: convertCurrency(
         user.cost,
@@ -208,64 +234,40 @@ export default function Leaderboard() {
     },
   });
 
+  const showSkeleton = useDeferredLoading(
+    isLoading && !hasResolvedInitialLoad.current
+  );
+
+  if (isLoading && !hasResolvedInitialLoad.current) {
+    return showSkeleton ? <LeaderboardSkeleton /> : null;
+  }
+
   return (
-    <div className="flex flex-col gap-y-8">
+    <div className="flex flex-col gap-y-8 animate-in fade-in-0 duration-300">
       <h1 className="font-bold text-3xl">Leaderboard</h1>
 
       {/* No Data Banner */}
       {session && userHasData === false && (
-        <Alert>
-          <Rocket />
-          <AlertTitle>Get Started with Splitrail</AlertTitle>
-          <AlertDescription>
-            <p className="mb-3">
-              You&apos;re signed in but haven&apos;t uploaded any data yet.
-            </p>
-            <div className="space-y-2 text-sm">
-              <p>To get started:</p>
-              <ol className="list-decimal list-inside space-y-1 ml-2">
-                <li>
-                  Install Splitrail CLI from{" "}
-                  <a
-                    href="https://github.com/Piebald-AI/splitrail/releases"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-primary hover:underline"
-                  >
-                    GitHub
-                  </a>
-                  .
-                </li>
-                <li>
-                  Go to{" "}
-                  <Link
-                    href="/settings"
-                    className="text-primary hover:underline"
-                  >
-                    Settings
-                  </Link>{" "}
-                  to create an API token.
-                </li>
-                <li>
-                  Set your API token by running{" "}
-                  <Code variant="inline">
-                    splitrail config set api-token &lt;your-token&gt;
-                  </Code>
-                  .
-                </li>
-                <li>
-                  If you want to use auto-uploading, run{" "}
-                  <Code variant="inline">
-                    splitrail config set auto-upload true
-                  </Code>{" "}
-                  and then run <Code variant="inline">splitrail</Code> normally.
-                  Otherwise just run{" "}
-                  <Code variant="inline">splitrail upload</Code>.
-                </li>
-              </ol>
-            </div>
-          </AlertDescription>
-        </Alert>
+        <SetupInstructions
+          description="You're signed in but haven't uploaded any data yet."
+          uploadInstructions={
+            <>
+              If you want to use auto-uploading, run{" "}
+              <code className="bg-muted rounded px-1.5 py-0.5 font-mono text-[0.85em]">
+                splitrail config set auto-upload true
+              </code>{" "}
+              and then run{" "}
+              <code className="bg-muted rounded px-1.5 py-0.5 font-mono text-[0.85em]">
+                splitrail
+              </code>{" "}
+              normally. Otherwise just run{" "}
+              <code className="bg-muted rounded px-1.5 py-0.5 font-mono text-[0.85em]">
+                splitrail upload
+              </code>
+              .
+            </>
+          }
+        />
       )}
 
       <div className="w-full max-w-full flex flex-col gap-y-4">
@@ -389,7 +391,7 @@ export default function Leaderboard() {
             </TableBody>
           </Table>
         </div>
-        {data?.privateUsersCount > 0 && !usernameFilter && (
+        {data && data.privateUsersCount && data.privateUsersCount > 0 && !usernameFilter && (
           <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
             <EyeOff className="size-4" />
             <span>

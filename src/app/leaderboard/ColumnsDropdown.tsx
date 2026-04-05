@@ -9,10 +9,10 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { ChevronDown } from "lucide-react";
 import { Table } from "@tanstack/react-table";
-import { UserWithStats } from "@/types";
+import { type LeaderboardUser } from "@/types";
 
 interface ColumnsDropdownProps {
-  table: Table<UserWithStats>;
+  table: Table<LeaderboardUser>;
 }
 
 export function ColumnsDropdown({ table }: ColumnsDropdownProps) {

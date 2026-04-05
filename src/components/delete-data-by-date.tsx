@@ -83,6 +83,9 @@ export function DeleteDataByDate() {
       // Refresh queries
       queryClient.invalidateQueries({ queryKey: ["userStats"] });
       queryClient.invalidateQueries({ queryKey: ["leaderboard"] });
+      queryClient.invalidateQueries({
+        queryKey: ["codexPricingNotice", session?.user?.id],
+      });
     },
     onError: (error) => {
       toast.error(

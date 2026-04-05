@@ -3,8 +3,8 @@ import { auth } from "@/auth";
 import { db } from "@/lib/db";
 import { DbStatKeys, Periods } from "@/types";
 import {
+  getPeriodEndForDateInTimezone,
   getPeriodStartForDateInTimezone,
-  getPeriodEndForDate,
 } from "@/lib/dateUtils";
 import { Prisma } from "@prisma/client";
 
@@ -49,6 +49,11 @@ export async function POST(
       string,
       { assistant: number; user: number }
     >();
+    const modelSets = new Map<string, Set<string>>();
+    const conversationFirstOccurrence = new Map<
+      string,
+      { bucketKey: string; timestamp: number }
+    >();
     const periodBoundaries = new Map<
       string,
       { periodStart: Date; periodEnd: Date }
@@ -67,18 +72,24 @@ export async function POST(
           messageDate,
           timezone
         );
-        const periodEnd = getPeriodEndForDate(period, messageDate);
+        const periodEnd = getPeriodEndForDateInTimezone(
+          period,
+          periodStart,
+          timezone
+        );
         const key = `${period}|${application}|${periodStart.toISOString()}`;
 
         // Initialize accumulator if needed
         if (!statAccumulators.has(key)) {
           statAccumulators.set(key, {});
           messageCounters.set(key, { assistant: 0, user: 0 });
+          modelSets.set(key, new Set<string>());
           periodBoundaries.set(key, { periodStart, periodEnd });
         }
 
         const accumulator = statAccumulators.get(key)!;
         const counter = messageCounters.get(key)!;
+        const models = modelSets.get(key)!;
 
         // Accumulate stats from the message
         for (const statKey of DbStatKeys) {
@@ -98,7 +109,36 @@ export async function POST(
         } else {
           counter.user++;
         }
+
+        if (message.model) {
+          models.add(message.model);
+        }
+
+        const conversationHash = message.conversationHash?.trim();
+        if (conversationHash) {
+          const conversationKey = `${period}|${application}|${conversationHash}`;
+          const existingConversation =
+            conversationFirstOccurrence.get(conversationKey);
+          const timestamp = messageDate.getTime();
+          if (
+            !existingConversation ||
+            timestamp < existingConversation.timestamp
+          ) {
+            conversationFirstOccurrence.set(conversationKey, {
+              bucketKey: key,
+              timestamp,
+            });
+          }
+        }
       }
+    }
+
+    const conversationStartsByBucket = new Map<string, number>();
+    for (const { bucketKey } of conversationFirstOccurrence.values()) {
+      conversationStartsByBucket.set(
+        bucketKey,
+        (conversationStartsByBucket.get(bucketKey) ?? 0) + 1
+      );
     }
 
     // Build and insert UserStats records
@@ -121,6 +161,8 @@ export async function POST(
         periodEnd,
         assistantMessages: BigInt(counter.assistant),
         userMessages: BigInt(counter.user),
+        conversations: BigInt(conversationStartsByBucket.get(key) ?? 0),
+        models: Array.from(modelSets.get(key) ?? []).sort(),
         createdAt: now,
         updatedAt: now,
       };

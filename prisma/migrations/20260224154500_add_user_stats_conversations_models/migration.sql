@@ -1,0 +1,3 @@
+ALTER TABLE "user_stats"
+  ADD COLUMN "conversations" BIGINT NOT NULL DEFAULT 0,
+  ADD COLUMN "models" TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[];

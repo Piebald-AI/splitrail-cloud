@@ -1,7 +1,7 @@
 "use client";
 
 import { ColumnDef } from "@tanstack/react-table";
-import { UserWithStats } from "@/types";
+import { type LeaderboardUser } from "@/types";
 import {
   formatCurrency,
   formatLargeNumber,
@@ -12,7 +12,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Award, Code, FileText, Database } from "lucide-react";
 
 // User avatar component
-function UserAvatarCell({ user }: { user: UserWithStats }) {
+function UserAvatarCell({ user }: { user: LeaderboardUser }) {
   const displayName = getDisplayName(user);
 
   return (
@@ -38,7 +38,7 @@ function UserAvatarCell({ user }: { user: UserWithStats }) {
 export const createColumns = (
   currency: string = "USD",
   locale: string = "en"
-): ColumnDef<UserWithStats>[] => [
+): ColumnDef<LeaderboardUser>[] => [
   {
     accessorKey: "rank",
     header: "Rank",

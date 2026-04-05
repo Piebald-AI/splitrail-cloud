@@ -10,6 +10,7 @@ if (
     ui_host: "https://us.posthog.com",
     defaults: "2025-05-24",
     capture_exceptions: false, // This enables capturing exceptions using Error Tracking, set to false if you don't want this
+    disable_session_recording: true,
     debug: process.env.NODE_ENV === "development",
   });
 

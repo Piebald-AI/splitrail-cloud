@@ -1,10 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { type ConversationMessage, Periods } from "@/types";
-import {
-  getPeriodEndForDate,
-  getPeriodStartForDateInTimezone,
-} from "@/lib/dateUtils";
+import { getPeriodStartForDateInTimezone } from "@/lib/dateUtils";
 import { unsupportedMethod } from "@/lib/routeUtils";
 import { Prisma } from "@prisma/client";
 import { nowMs, timingEnabled } from "@/lib/timing";
@@ -12,6 +9,14 @@ import {
   bulkUpsertMessageStatsSql,
   type MessageStatsUpsertRow,
 } from "@/lib/message-stats-bulk-upsert";
+import {
+  type AffectedPeriods,
+  addUniqueDate,
+  recalculateUserStats,
+} from "@/lib/stats-recalculation";
+
+// Allow up to 5 minutes for large uploads with many affected period buckets.
+export const maxDuration = 300;
 
 /**
  * Handles uploading conversation messages, upserting per-message stats, and recalculating per-period user aggregates.
@@ -113,17 +118,13 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Track affected period buckets for recalculation
-    // Key format: ${period}|${application}|${periodStart.toISOString()}
-    const affectedBuckets = new Set<string>();
-
     // Build all upsert inputs synchronously (no DB I/O yet)
     const messagesForDb: MessageStatsUpsertRow[] = dedupedBody.map(
       (message) => {
         const { stats, date, ...rest } = message;
         const messageDate = new Date(date);
 
-        const dbMessage: MessageStatsUpsertRow = {
+        return {
           globalHash: message.globalHash,
           userId: user.id,
           application: message.application,
@@ -194,183 +195,140 @@ export async function POST(request: NextRequest) {
               ? (rest.fileTypes as Prisma.InputJsonValue)
               : null) ?? null,
         };
-
-        for (const period of Periods) {
-          const periodStart = getPeriodStartForDateInTimezone(
-            period,
-            messageDate,
-            timezone
-          );
-          const key = `${period}|${message.application}|${periodStart.toISOString()}`;
-          affectedBuckets.add(key);
-        }
-
-        return dbMessage;
       }
     );
 
     mark("prepared");
 
-    // Bulk upsert via Postgres INSERT .. ON CONFLICT to avoid per-row Prisma upserts.
-    // Neon/Postgres handles this efficiently; we chunk to avoid oversized SQL.
-    const BULK_UPSERT_BATCH_SIZE = 500;
-    for (let i = 0; i < messagesForDb.length; i += BULK_UPSERT_BATCH_SIZE) {
-      const batch = messagesForDb.slice(i, i + BULK_UPSERT_BATCH_SIZE);
-      await db.$executeRaw(bulkUpsertMessageStatsSql(batch));
+    // Check how many of these messages already exist in the database.
+    // This lets us detect users repeatedly uploading the same data.
+    const incomingHashes = messagesForDb.map((m) => m.globalHash as string);
+    const existingMessages = await db.messageStats.findMany({
+      where: { globalHash: { in: incomingHashes } },
+      select: { globalHash: true },
+    });
+    const duplicateCount = existingMessages.length;
+    const existingHashSet = new Set(
+      existingMessages.map((message) => message.globalHash)
+    );
+    const newMessagesForDb = messagesForDb.filter(
+      (message) => !existingHashSet.has(message.globalHash as string)
+    );
+
+    // Compute affected period buckets for recalculation based only on genuinely
+    // new messages.  We build an AffectedPeriods structure (unique periodStart
+    // dates per period type) plus a set of affected applications so that the
+    // efficient single-SQL-per-period recalculation function can be used.
+    const affectedPeriods: AffectedPeriods = {
+      hourly: [],
+      daily: [],
+      weekly: [],
+      monthly: [],
+      yearly: [],
+    };
+    const affectedApplications = new Set<string>();
+    for (const message of newMessagesForDb) {
+      affectedApplications.add(message.application as string);
+      for (const period of Periods) {
+        const periodStart = getPeriodStartForDateInTimezone(
+          period,
+          message.date as Date,
+          timezone
+        );
+        addUniqueDate(affectedPeriods[period], periodStart);
+      }
     }
+    const affectedBucketCount =
+      affectedPeriods.hourly.length +
+      affectedPeriods.daily.length +
+      affectedPeriods.weekly.length +
+      affectedPeriods.monthly.length +
+      affectedPeriods.yearly.length;
 
-    mark("upserted");
-
-    // Recalculate stats for each affected bucket by summing all messages
-    const now = new Date();
-
-    for (const bucketKey of affectedBuckets) {
-      // Parse bucket key safely - application name could theoretically contain "|"
-      // Key format: ${period}|${application}|${periodStart.toISOString()}
-      // Period is always first, ISO date is always last, application is in between
-      const firstPipe = bucketKey.indexOf("|");
-      const lastPipe = bucketKey.lastIndexOf("|");
-      const period = bucketKey.slice(0, firstPipe);
-      const application = bucketKey.slice(firstPipe + 1, lastPipe);
-      const periodStart = new Date(bucketKey.slice(lastPipe + 1));
-      const periodEnd = getPeriodEndForDate(
-        period as (typeof Periods)[number],
-        periodStart
-      );
-
-      // Aggregate all messages in this bucket
-      const aggregation = await db.messageStats.aggregate({
-        where: {
-          userId: user.id,
-          application,
-          date: {
-            gte: periodStart,
-            lt: periodEnd,
-          },
-        },
-        _sum: {
-          inputTokens: true,
-          outputTokens: true,
-          cacheCreationTokens: true,
-          cacheReadTokens: true,
-          cachedTokens: true,
-          reasoningTokens: true,
-          cost: true,
-          toolCalls: true,
-          filesRead: true,
-          filesAdded: true,
-          filesEdited: true,
-          filesDeleted: true,
-          linesRead: true,
-          linesAdded: true,
-          linesEdited: true,
-          linesDeleted: true,
-          bytesRead: true,
-          bytesAdded: true,
-          bytesEdited: true,
-          bytesDeleted: true,
-          codeLines: true,
-          docsLines: true,
-          dataLines: true,
-          mediaLines: true,
-          configLines: true,
-          otherLines: true,
-          terminalCommands: true,
-          fileSearches: true,
-          fileContentSearches: true,
-          todosCreated: true,
-          todosCompleted: true,
-          todosInProgress: true,
-          todoWrites: true,
-          todoReads: true,
-        },
-      });
-
-      // Count messages by role
-      const messageCounts = await db.messageStats.groupBy({
-        by: ["role"],
-        where: {
-          userId: user.id,
-          application,
-          date: {
-            gte: periodStart,
-            lt: periodEnd,
-          },
-        },
-        _count: true,
-      });
-
-      const assistantCount =
-        messageCounts.find((m) => m.role === "assistant")?._count ?? 0;
-      const userCount =
-        messageCounts.find((m) => m.role === "user")?._count ?? 0;
-
-      // Build the stats record from aggregation
-      const statsData: Prisma.UserStatsUncheckedCreateInput = {
+    if (duplicateCount > 0) {
+      console.warn("upload-stats: duplicate messages detected", {
         userId: user.id,
-        application,
-        period,
-        periodStart,
-        periodEnd,
-        assistantMessages: BigInt(assistantCount),
-        userMessages: BigInt(userCount),
-        inputTokens: aggregation._sum.inputTokens ?? BigInt(0),
-        outputTokens: aggregation._sum.outputTokens ?? BigInt(0),
-        cacheCreationTokens: aggregation._sum.cacheCreationTokens ?? BigInt(0),
-        cacheReadTokens: aggregation._sum.cacheReadTokens ?? BigInt(0),
-        cachedTokens: aggregation._sum.cachedTokens ?? BigInt(0),
-        reasoningTokens: aggregation._sum.reasoningTokens ?? BigInt(0),
-        cost: aggregation._sum.cost ?? 0,
-        toolCalls: aggregation._sum.toolCalls ?? BigInt(0),
-        filesRead: aggregation._sum.filesRead ?? BigInt(0),
-        filesAdded: aggregation._sum.filesAdded ?? BigInt(0),
-        filesEdited: aggregation._sum.filesEdited ?? BigInt(0),
-        filesDeleted: aggregation._sum.filesDeleted ?? BigInt(0),
-        linesRead: aggregation._sum.linesRead ?? BigInt(0),
-        linesAdded: aggregation._sum.linesAdded ?? BigInt(0),
-        linesEdited: aggregation._sum.linesEdited ?? BigInt(0),
-        linesDeleted: aggregation._sum.linesDeleted ?? BigInt(0),
-        bytesRead: aggregation._sum.bytesRead ?? BigInt(0),
-        bytesAdded: aggregation._sum.bytesAdded ?? BigInt(0),
-        bytesEdited: aggregation._sum.bytesEdited ?? BigInt(0),
-        bytesDeleted: aggregation._sum.bytesDeleted ?? BigInt(0),
-        codeLines: aggregation._sum.codeLines ?? BigInt(0),
-        docsLines: aggregation._sum.docsLines ?? BigInt(0),
-        dataLines: aggregation._sum.dataLines ?? BigInt(0),
-        mediaLines: aggregation._sum.mediaLines ?? BigInt(0),
-        configLines: aggregation._sum.configLines ?? BigInt(0),
-        otherLines: aggregation._sum.otherLines ?? BigInt(0),
-        terminalCommands: aggregation._sum.terminalCommands ?? BigInt(0),
-        fileSearches: aggregation._sum.fileSearches ?? BigInt(0),
-        fileContentSearches: aggregation._sum.fileContentSearches ?? BigInt(0),
-        todosCreated: aggregation._sum.todosCreated ?? BigInt(0),
-        todosCompleted: aggregation._sum.todosCompleted ?? BigInt(0),
-        todosInProgress: aggregation._sum.todosInProgress ?? BigInt(0),
-        todoWrites: aggregation._sum.todoWrites ?? BigInt(0),
-        todoReads: aggregation._sum.todoReads ?? BigInt(0),
-        createdAt: now,
-        updatedAt: now,
-      };
-
-      // Upsert the stats record (replace with recalculated values)
-      await db.userStats.upsert({
-        where: {
-          userId_period_application_periodStart: {
-            userId: user.id,
-            period,
-            application,
-            periodStart,
-          },
-        },
-        create: statsData,
-        update: {
-          ...statsData,
-          // Preserve original createdAt on update (undefined is omitted by Prisma 5.x)
-          // Note: Upgrade to Prisma.skip when migrating to Prisma 6+
-          createdAt: undefined,
-        },
+        userName: user.displayName ?? user.username ?? user.email ?? "unknown",
+        totalInRequest: messagesForDb.length,
+        duplicates: duplicateCount,
+        newMessages: messagesForDb.length - duplicateCount,
+        duplicatePercent: Math.round(
+          (duplicateCount / messagesForDb.length) * 100
+        ),
       });
     }
+
+    mark("duplicateCheck");
+
+    const newMessageCount = newMessagesForDb.length;
+
+    // If this upload is entirely duplicates, there is nothing to upsert or recalculate.
+    // Returning early avoids re-running expensive bucket aggregations for no-op uploads.
+    if (newMessageCount === 0) {
+      if (timingEnabled()) {
+        const endMs = nowMs();
+        const totalMs = Math.round(endMs - startMs);
+        const preparedMs = marks.prepared
+          ? Math.round(marks.prepared - startMs)
+          : null;
+        const duplicateCheckMs = marks.duplicateCheck
+          ? Math.round(marks.duplicateCheck - (marks.prepared ?? startMs))
+          : null;
+
+        console.info("upload-stats timings", {
+          messages: dedupedBody.length,
+          duplicates: duplicateCount,
+          affectedBuckets: 0,
+          preparedMs,
+          duplicateCheckMs,
+          upsertedMs: 0,
+          recalculatedMs: 0,
+          totalMs,
+          skippedReason: "all-duplicates",
+        });
+      }
+
+      return NextResponse.json({
+        success: true,
+      });
+    }
+
+    // Perform bulk upsert and recalculation in a single atomic transaction to ensure
+    // that affectedPeriods matches the exact rows being committed.
+    // We chunk the upsert to avoid oversized SQL while keeping everything in one transaction.
+    await db.$transaction(
+      async (tx) => {
+        const BULK_UPSERT_BATCH_SIZE = 500;
+        for (
+          let i = 0;
+          i < newMessagesForDb.length;
+          i += BULK_UPSERT_BATCH_SIZE
+        ) {
+          const batch = newMessagesForDb.slice(i, i + BULK_UPSERT_BATCH_SIZE);
+          await tx.$executeRaw(bulkUpsertMessageStatsSql(batch));
+        }
+
+        mark("upserted");
+
+        // Recalculate aggregate stats for every affected period bucket using a
+        // single efficient SQL statement per period type (5 total) instead of the
+        // old approach of 4 separate queries × N buckets.  This reduces thousands
+        // of sequential DB round-trips to at most 5, eliminating the timeout.
+        await recalculateUserStats(
+          user.id,
+          Array.from(affectedApplications),
+          affectedPeriods,
+          tx, // use transaction client
+          timezone
+        );
+      },
+      {
+        // Prisma's default interactive transaction timeout is 5s — far too short
+        // for large uploads.  Allow up to 2 minutes for the combined bulk upsert
+        // + stats recalculation.
+        timeout: 120_000,
+      }
+    );
 
     // Emit timing breakdown once per request
     mark("recalculated");
@@ -381,8 +339,11 @@ export async function POST(request: NextRequest) {
       const preparedMs = marks.prepared
         ? Math.round(marks.prepared - startMs)
         : null;
+      const duplicateCheckMs = marks.duplicateCheck
+        ? Math.round(marks.duplicateCheck - (marks.prepared ?? startMs))
+        : null;
       const upsertedMs = marks.upserted
-        ? Math.round(marks.upserted - (marks.prepared ?? startMs))
+        ? Math.round(marks.upserted - (marks.duplicateCheck ?? marks.prepared ?? startMs))
         : null;
       const recalculatedMs = marks.recalculated
         ? Math.round(endMs - (marks.upserted ?? startMs))
@@ -390,8 +351,10 @@ export async function POST(request: NextRequest) {
 
       console.info("upload-stats timings", {
         messages: dedupedBody.length,
-        affectedBuckets: affectedBuckets.size,
+        duplicates: duplicateCount,
+        affectedBuckets: affectedBucketCount,
         preparedMs,
+        duplicateCheckMs,
         upsertedMs,
         recalculatedMs,
         totalMs,
