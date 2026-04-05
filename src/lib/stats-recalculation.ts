@@ -250,11 +250,19 @@ export async function deleteAffectedUserStats(
   });
 }
 
-function getPeriodEndExpression(period: keyof AffectedPeriods): Prisma.Sql {
+function getPeriodEndExpression(
+  period: keyof AffectedPeriods,
+  timezone: string | null
+): Prisma.Sql {
   switch (period) {
     case "hourly":
       return Prisma.sql`a.period_start + INTERVAL '59 minutes 59.999 seconds'`;
     case "daily":
+      if (timezone) {
+        // Timezone-aware daily period end: truncate period_start to day in timezone,
+        // add one day minus one millisecond, then convert back to timezone
+        return Prisma.sql`((date_trunc('day', a.period_start AT TIME ZONE ${timezone}) + INTERVAL '1 day' - INTERVAL '1 millisecond') AT TIME ZONE ${timezone})`;
+      }
       return Prisma.sql`a.period_start + INTERVAL '23 hours 59 minutes 59.999 seconds'`;
     case "weekly":
       return Prisma.sql`a.period_start + INTERVAL '6 days 23 hours 59 minutes 59.999 seconds'`;
@@ -270,7 +278,8 @@ function getPeriodEndExpression(period: keyof AffectedPeriods): Prisma.Sql {
  *
  * For daily periods when a timezone is provided, uses Postgres timezone-aware
  * truncation so that day boundaries align with the user's local midnight rather
- * than UTC midnight.  All other period types use plain UTC date_trunc.
+ * than UTC midnight.  All other period types use UTC date_trunc pinned to UTC
+ * to ensure deterministic truncation regardless of session timezone.
  */
 function periodTruncSql(
   column: Prisma.Sql,
@@ -282,7 +291,8 @@ function periodTruncSql(
     // date AT TIME ZONE tz → local timestamp; truncate to day; AT TIME ZONE tz → back to timestamptz
     return Prisma.sql`(date_trunc('day', ${column} AT TIME ZONE ${timezone})) AT TIME ZONE ${timezone}`;
   }
-  return Prisma.sql`date_trunc(${truncUnit}, ${column})`;
+  // Pin non-daily truncation to UTC by applying the same AT TIME ZONE round-trip
+  return Prisma.sql`(date_trunc(${truncUnit}, ${column} AT TIME ZONE 'UTC')) AT TIME ZONE 'UTC'`;
 }
 
 export async function recalculateUserStats(
@@ -514,7 +524,7 @@ export async function recalculateUserStats(
         a.application,
         ${config.period},
         a.period_start,
-        ${getPeriodEndExpression(config.period)},
+        ${getPeriodEndExpression(config.period, tz)},
         a.tool_calls,
         a.assistant_messages,
         a.user_messages,

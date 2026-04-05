@@ -293,27 +293,30 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Bulk upsert via Postgres INSERT .. ON CONFLICT to avoid per-row Prisma upserts.
-    // Neon/Postgres handles this efficiently; we chunk to avoid oversized SQL.
-    const BULK_UPSERT_BATCH_SIZE = 500;
-    for (let i = 0; i < newMessagesForDb.length; i += BULK_UPSERT_BATCH_SIZE) {
-      const batch = newMessagesForDb.slice(i, i + BULK_UPSERT_BATCH_SIZE);
-      await db.$executeRaw(bulkUpsertMessageStatsSql(batch));
-    }
+    // Perform bulk upsert and recalculation in a single atomic transaction to ensure
+    // that affectedPeriods matches the exact rows being committed.
+    // We chunk the upsert to avoid oversized SQL while keeping everything in one transaction.
+    await db.$transaction(async (tx) => {
+      const BULK_UPSERT_BATCH_SIZE = 500;
+      for (let i = 0; i < newMessagesForDb.length; i += BULK_UPSERT_BATCH_SIZE) {
+        const batch = newMessagesForDb.slice(i, i + BULK_UPSERT_BATCH_SIZE);
+        await tx.$executeRaw(bulkUpsertMessageStatsSql(batch));
+      }
 
-    mark("upserted");
+      mark("upserted");
 
-    // Recalculate aggregate stats for every affected period bucket using a
-    // single efficient SQL statement per period type (5 total) instead of the
-    // old approach of 4 separate queries × N buckets.  This reduces thousands
-    // of sequential DB round-trips to at most 5, eliminating the timeout.
-    await recalculateUserStats(
-      user.id,
-      Array.from(affectedApplications),
-      affectedPeriods,
-      undefined, // use default db client
-      timezone
-    );
+      // Recalculate aggregate stats for every affected period bucket using a
+      // single efficient SQL statement per period type (5 total) instead of the
+      // old approach of 4 separate queries × N buckets.  This reduces thousands
+      // of sequential DB round-trips to at most 5, eliminating the timeout.
+      await recalculateUserStats(
+        user.id,
+        Array.from(affectedApplications),
+        affectedPeriods,
+        tx, // use transaction client
+        timezone
+      );
+    });
 
     // Emit timing breakdown once per request
     mark("recalculated");
