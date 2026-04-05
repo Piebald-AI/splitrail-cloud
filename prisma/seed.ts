@@ -267,6 +267,7 @@ async function clearDatabase() {
 
 // Helpers to generate realistic message_stats rows for the stats API
 const APPLICATIONS = ["claude_code", "gemini_cli", "codex_cli", "copilot", "kilo_cli"] as const;
+const PERIOD_STATS_APPS = ["claude_code", "gemini_cli", "codex_cli", "kilo_cli"] as const;
 const MODELS_BY_APP: Record<(typeof APPLICATIONS)[number], string[]> = {
   claude_code: [
     "claude-3.7-sonnet",
@@ -628,7 +629,7 @@ async function createPeriodStats(users: Array<{ id: string; multiplier: number }
   console.log("📊 Creating period statistics...");
   
   const periods = getPeriodDates();
-  const applications = ["claude_code", "gemini_cli", "codex_cli", "kilo_cli"] as const;
+  const applications = PERIOD_STATS_APPS;
   
   // Period multipliers (how much activity in each period)
   const periodMultipliers = {
@@ -692,7 +693,7 @@ async function createPeriodStats(users: Array<{ id: string; multiplier: number }
     }
   }
   
-  const totalStats = users.length * 5 * applications.length; // 5 periods × ${applications.length} applications
+  const totalStats = users.length * 5 * applications.length;
   console.log(`✅ Created ${totalStats.toLocaleString()} period statistics for ${users.length} users`);
 }
 
@@ -732,9 +733,9 @@ async function main() {
   console.log("");
   console.log("📊 Summary:");
   console.log(`  • ${users.length} users created`);
-  console.log(`  • ${(users.length * 5 * 4).toLocaleString()} total UserStats records (5 periods × 4 apps)`);
+  console.log(`  • ${(users.length * 5 * PERIOD_STATS_APPS.length).toLocaleString()} total UserStats records (5 periods × ${PERIOD_STATS_APPS.length} apps)`);
   console.log(`  • ${users.length} API tokens created`);
-  console.log("  • MessageStats generated for up to 120 days, 5 applications, multiple conversations/day");
+  console.log(`  • MessageStats generated for up to 120 days, ${APPLICATIONS.length} applications, multiple conversations/day`);
   console.log("");
   console.log("📈 Generated data for all time periods:");
   console.log("  • Hourly (current hour)");
