@@ -288,8 +288,13 @@ function periodTruncSql(
   timezone: string | null
 ): Prisma.Sql {
   if (period === "daily" && timezone) {
-    // date AT TIME ZONE tz → local timestamp; truncate to day; AT TIME ZONE tz → back to timestamptz
-    return Prisma.sql`(date_trunc('day', ${column} AT TIME ZONE ${timezone})) AT TIME ZONE ${timezone}`;
+    // The column is `timestamp without time zone` storing UTC values.  The first
+    // `AT TIME ZONE 'UTC'` interprets the bare timestamp as UTC (producing
+    // timestamptz).  The second `AT TIME ZONE tz` converts to local time
+    // (producing timestamp).  After truncating to day we reverse the conversion
+    // back to timestamptz so the result is comparable with the JS-computed
+    // period-start Date values.
+    return Prisma.sql`(date_trunc('day', ${column} AT TIME ZONE 'UTC' AT TIME ZONE ${timezone})) AT TIME ZONE ${timezone}`;
   }
   // Pin non-daily truncation to UTC by applying the same AT TIME ZONE round-trip
   return Prisma.sql`(date_trunc(${truncUnit}, ${column} AT TIME ZONE 'UTC')) AT TIME ZONE 'UTC'`;
