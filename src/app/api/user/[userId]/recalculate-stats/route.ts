@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
-import { addUniqueDate, recalculateUserStats } from "@/lib/stats-recalculation";
-import { getPeriodStartForDateInTimezone } from "@/lib/dateUtils";
-import { Periods } from "@/types";
+import { rebuildAllUserStats } from "@/lib/stats-recalculation";
 
 export async function POST(
   request: NextRequest,
@@ -39,61 +37,20 @@ export async function POST(
       });
     }
 
-    const buckets = await db.messageStats.findMany({
-      where: { userId },
-      select: {
-        application: true,
-        date: true,
-      },
-      distinct: ["application", "date"],
-    });
-
-    const affectedPeriods = {
-      hourly: [] as Date[],
-      daily: [] as Date[],
-      weekly: [] as Date[],
-      monthly: [] as Date[],
-      yearly: [] as Date[],
-    };
-    const applications = new Set<string>();
-
-    for (const bucket of buckets) {
-      applications.add(bucket.application);
-      for (const period of Periods) {
-        const periodStart = getPeriodStartForDateInTimezone(
-          period,
-          bucket.date,
-          timezone
-        );
-        addUniqueDate(affectedPeriods[period], periodStart);
-      }
-    }
-
     await db.$transaction(
       async (tx) => {
         await tx.userStats.deleteMany({
           where: { userId },
         });
 
-        await recalculateUserStats(
-          userId,
-          Array.from(applications),
-          affectedPeriods,
-          tx,
-          timezone
-        );
+        await rebuildAllUserStats(userId, tx, timezone);
       },
       { timeout: 120_000 }
     );
 
-    const aggregateRecordCount = Object.values(affectedPeriods).reduce(
-      (sum, periodStarts) => sum + periodStarts.length * applications.size,
-      0
-    );
-
     return NextResponse.json({
       success: true,
-      message: `Recalculated stats from ${messageSummary._count._all} messages across ${aggregateRecordCount} aggregate buckets`,
+      message: `Recalculated stats from ${messageSummary._count._all} messages`,
     });
   } catch (error) {
     console.error("Recalculate stats error:", error);
