@@ -14,10 +14,7 @@ interface ConversationKey {
   conversationHash: string;
 }
 
-type StatsRecalculationClient = Pick<
-  Prisma.TransactionClient,
-  "$executeRaw"
->;
+type StatsRecalculationClient = Pick<Prisma.TransactionClient, "$executeRaw">;
 
 function createEmptyAffectedPeriods(): AffectedPeriods {
   return {
@@ -178,7 +175,10 @@ export async function getConversationStartDatesForKeys(
 
   const startDates: Date[] = [];
 
-  for (const [application, conversationHashes] of conversationHashesByApplication) {
+  for (const [
+    application,
+    conversationHashes,
+  ] of conversationHashesByApplication) {
     const conversationStarts = await tx.messageStats.groupBy({
       by: ["conversationHash"],
       where: {
@@ -474,6 +474,290 @@ export async function recalculateUserStats(
           COUNT(*)::bigint AS conversations
         FROM conversation_starts
         WHERE ${truncFirstMsg} = ANY(${config.periodStarts})
+        GROUP BY period_start, application
+      )
+      INSERT INTO user_stats (
+        "id",
+        "userId",
+        "application",
+        "period",
+        "periodStart",
+        "periodEnd",
+        "toolCalls",
+        "assistantMessages",
+        "userMessages",
+        "inputTokens",
+        "outputTokens",
+        "cacheCreationTokens",
+        "cacheReadTokens",
+        "cachedTokens",
+        "reasoningTokens",
+        "cost",
+        "filesRead",
+        "filesAdded",
+        "filesEdited",
+        "filesDeleted",
+        "linesRead",
+        "linesAdded",
+        "linesEdited",
+        "linesDeleted",
+        "bytesRead",
+        "bytesAdded",
+        "bytesEdited",
+        "bytesDeleted",
+        "codeLines",
+        "docsLines",
+        "dataLines",
+        "mediaLines",
+        "configLines",
+        "otherLines",
+        "terminalCommands",
+        "fileSearches",
+        "fileContentSearches",
+        "todosCreated",
+        "todosCompleted",
+        "todosInProgress",
+        "todoWrites",
+        "todoReads",
+        "conversations",
+        "models",
+        "updatedAt"
+      )
+      SELECT
+        gen_random_uuid()::text,
+        ${userId},
+        a.application,
+        ${config.period},
+        a.period_start,
+        ${getPeriodEndExpression(config.period, tz)},
+        a.tool_calls,
+        a.assistant_messages,
+        a.user_messages,
+        a.input_tokens,
+        a.output_tokens,
+        a.cache_creation_tokens,
+        a.cache_read_tokens,
+        a.cached_tokens,
+        a.reasoning_tokens,
+        a.cost,
+        a.files_read,
+        a.files_added,
+        a.files_edited,
+        a.files_deleted,
+        a.lines_read,
+        a.lines_added,
+        a.lines_edited,
+        a.lines_deleted,
+        a.bytes_read,
+        a.bytes_added,
+        a.bytes_edited,
+        a.bytes_deleted,
+        a.code_lines,
+        a.docs_lines,
+        a.data_lines,
+        a.media_lines,
+        a.config_lines,
+        a.other_lines,
+        a.terminal_commands,
+        a.file_searches,
+        a.file_content_searches,
+        a.todos_created,
+        a.todos_completed,
+        a.todos_in_progress,
+        a.todo_writes,
+        a.todo_reads,
+        COALESCE(c.conversations, 0)::bigint,
+        COALESCE(a.models, ARRAY[]::text[]),
+        NOW()
+      FROM aggregated_stats a
+      LEFT JOIN conversation_counts c
+        ON a.period_start = c.period_start
+       AND a.application = c.application
+      ON CONFLICT ("userId", "period", "application", "periodStart")
+      DO UPDATE SET
+        "periodEnd" = EXCLUDED."periodEnd",
+        "toolCalls" = EXCLUDED."toolCalls",
+        "assistantMessages" = EXCLUDED."assistantMessages",
+        "userMessages" = EXCLUDED."userMessages",
+        "inputTokens" = EXCLUDED."inputTokens",
+        "outputTokens" = EXCLUDED."outputTokens",
+        "cacheCreationTokens" = EXCLUDED."cacheCreationTokens",
+        "cacheReadTokens" = EXCLUDED."cacheReadTokens",
+        "cachedTokens" = EXCLUDED."cachedTokens",
+        "reasoningTokens" = EXCLUDED."reasoningTokens",
+        "cost" = EXCLUDED."cost",
+        "filesRead" = EXCLUDED."filesRead",
+        "filesAdded" = EXCLUDED."filesAdded",
+        "filesEdited" = EXCLUDED."filesEdited",
+        "filesDeleted" = EXCLUDED."filesDeleted",
+        "linesRead" = EXCLUDED."linesRead",
+        "linesAdded" = EXCLUDED."linesAdded",
+        "linesEdited" = EXCLUDED."linesEdited",
+        "linesDeleted" = EXCLUDED."linesDeleted",
+        "bytesRead" = EXCLUDED."bytesRead",
+        "bytesAdded" = EXCLUDED."bytesAdded",
+        "bytesEdited" = EXCLUDED."bytesEdited",
+        "bytesDeleted" = EXCLUDED."bytesDeleted",
+        "codeLines" = EXCLUDED."codeLines",
+        "docsLines" = EXCLUDED."docsLines",
+        "dataLines" = EXCLUDED."dataLines",
+        "mediaLines" = EXCLUDED."mediaLines",
+        "configLines" = EXCLUDED."configLines",
+        "otherLines" = EXCLUDED."otherLines",
+        "terminalCommands" = EXCLUDED."terminalCommands",
+        "fileSearches" = EXCLUDED."fileSearches",
+        "fileContentSearches" = EXCLUDED."fileContentSearches",
+        "todosCreated" = EXCLUDED."todosCreated",
+        "todosCompleted" = EXCLUDED."todosCompleted",
+        "todosInProgress" = EXCLUDED."todosInProgress",
+        "todoWrites" = EXCLUDED."todoWrites",
+        "todoReads" = EXCLUDED."todoReads",
+        "conversations" = EXCLUDED."conversations",
+        "models" = EXCLUDED."models",
+        "updatedAt" = NOW()
+    `;
+  }
+}
+
+export async function rebuildAllUserStats(
+  userId: string,
+  client?: StatsRecalculationClient,
+  timezone?: string | null
+) {
+  const prisma: StatsRecalculationClient =
+    client ?? (await import("@/lib/db")).db;
+  const tz = timezone ?? null;
+
+  const periodConfigs: Array<{
+    period: keyof AffectedPeriods;
+    truncUnit: "hour" | "day" | "week" | "month" | "year";
+  }> = [
+    { period: "hourly", truncUnit: "hour" },
+    { period: "daily", truncUnit: "day" },
+    { period: "weekly", truncUnit: "week" },
+    { period: "monthly", truncUnit: "month" },
+    { period: "yearly", truncUnit: "year" },
+  ];
+
+  for (const config of periodConfigs) {
+    const truncDate = periodTruncSql(
+      Prisma.raw("date"),
+      config.truncUnit,
+      config.period,
+      tz
+    );
+    const truncFirstMsg = periodTruncSql(
+      Prisma.raw("first_message_at"),
+      config.truncUnit,
+      config.period,
+      tz
+    );
+
+    await prisma.$executeRaw`
+      WITH base AS (
+        SELECT
+          date,
+          application,
+          role,
+          "inputTokens",
+          "outputTokens",
+          "cacheCreationTokens",
+          "cacheReadTokens",
+          "cachedTokens",
+          "reasoningTokens",
+          cost,
+          "toolCalls",
+          "filesRead",
+          "filesAdded",
+          "filesEdited",
+          "filesDeleted",
+          "linesRead",
+          "linesAdded",
+          "linesEdited",
+          "linesDeleted",
+          "bytesRead",
+          "bytesAdded",
+          "bytesEdited",
+          "bytesDeleted",
+          "codeLines",
+          "docsLines",
+          "dataLines",
+          "mediaLines",
+          "configLines",
+          "otherLines",
+          "terminalCommands",
+          "fileSearches",
+          "fileContentSearches",
+          "todosCreated",
+          "todosCompleted",
+          "todosInProgress",
+          "todoWrites",
+          "todoReads",
+          "conversationHash",
+          model
+        FROM message_stats
+        WHERE "userId" = ${userId}
+      ),
+      aggregated_stats AS (
+        SELECT
+          ${truncDate} AS period_start,
+          application,
+          COALESCE(SUM("toolCalls"), 0)::bigint AS tool_calls,
+          COALESCE(SUM(CASE WHEN role = 'assistant' THEN 1 ELSE 0 END), 0)::bigint AS assistant_messages,
+          COALESCE(SUM(CASE WHEN role = 'user' THEN 1 ELSE 0 END), 0)::bigint AS user_messages,
+          COALESCE(SUM("inputTokens"), 0)::bigint AS input_tokens,
+          COALESCE(SUM("outputTokens"), 0)::bigint AS output_tokens,
+          COALESCE(SUM("cacheCreationTokens"), 0)::bigint AS cache_creation_tokens,
+          COALESCE(SUM("cacheReadTokens"), 0)::bigint AS cache_read_tokens,
+          COALESCE(SUM("cachedTokens"), 0)::bigint AS cached_tokens,
+          COALESCE(SUM("reasoningTokens"), 0)::bigint AS reasoning_tokens,
+          COALESCE(SUM(cost), 0)::float AS cost,
+          COALESCE(SUM("filesRead"), 0)::bigint AS files_read,
+          COALESCE(SUM("filesAdded"), 0)::bigint AS files_added,
+          COALESCE(SUM("filesEdited"), 0)::bigint AS files_edited,
+          COALESCE(SUM("filesDeleted"), 0)::bigint AS files_deleted,
+          COALESCE(SUM("linesRead"), 0)::bigint AS lines_read,
+          COALESCE(SUM("linesAdded"), 0)::bigint AS lines_added,
+          COALESCE(SUM("linesEdited"), 0)::bigint AS lines_edited,
+          COALESCE(SUM("linesDeleted"), 0)::bigint AS lines_deleted,
+          COALESCE(SUM("bytesRead"), 0)::bigint AS bytes_read,
+          COALESCE(SUM("bytesAdded"), 0)::bigint AS bytes_added,
+          COALESCE(SUM("bytesEdited"), 0)::bigint AS bytes_edited,
+          COALESCE(SUM("bytesDeleted"), 0)::bigint AS bytes_deleted,
+          COALESCE(SUM("codeLines"), 0)::bigint AS code_lines,
+          COALESCE(SUM("docsLines"), 0)::bigint AS docs_lines,
+          COALESCE(SUM("dataLines"), 0)::bigint AS data_lines,
+          COALESCE(SUM("mediaLines"), 0)::bigint AS media_lines,
+          COALESCE(SUM("configLines"), 0)::bigint AS config_lines,
+          COALESCE(SUM("otherLines"), 0)::bigint AS other_lines,
+          COALESCE(SUM("terminalCommands"), 0)::bigint AS terminal_commands,
+          COALESCE(SUM("fileSearches"), 0)::bigint AS file_searches,
+          COALESCE(SUM("fileContentSearches"), 0)::bigint AS file_content_searches,
+          COALESCE(SUM("todosCreated"), 0)::bigint AS todos_created,
+          COALESCE(SUM("todosCompleted"), 0)::bigint AS todos_completed,
+          COALESCE(SUM("todosInProgress"), 0)::bigint AS todos_in_progress,
+          COALESCE(SUM("todoWrites"), 0)::bigint AS todo_writes,
+          COALESCE(SUM("todoReads"), 0)::bigint AS todo_reads,
+          ARRAY_AGG(DISTINCT model) FILTER (WHERE model IS NOT NULL) AS models
+        FROM base
+        GROUP BY period_start, application
+        HAVING COUNT(*) > 0
+      ),
+      conversation_starts AS (
+        SELECT
+          application,
+          "conversationHash",
+          MIN(date) AS first_message_at
+        FROM base
+        WHERE "conversationHash" IS NOT NULL
+        GROUP BY application, "conversationHash"
+      ),
+      conversation_counts AS (
+        SELECT
+          ${truncFirstMsg} AS period_start,
+          application,
+          COUNT(*)::bigint AS conversations
+        FROM conversation_starts
         GROUP BY period_start, application
       )
       INSERT INTO user_stats (
