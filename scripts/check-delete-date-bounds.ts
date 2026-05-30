@@ -1,4 +1,4 @@
-import { getDeleteDateBounds } from "../src/app/api/user/[userId]/stats/route";
+import { getDeleteDateBounds } from "../src/app/api/user/[userId]/stats/delete-date-bounds";
 
 function assertEqual(actual: string, expected: string, label: string) {
   if (actual !== expected) {
