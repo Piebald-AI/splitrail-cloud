@@ -1,3 +1,4 @@
+import { TZDate } from "@date-fns/tz";
 import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { auth } from "@/auth";
@@ -11,6 +12,7 @@ import {
   mergeAffectedPeriods,
   recalculateUserStats,
 } from "@/lib/stats-recalculation";
+
 import {
   createEmptyTotalsAccumulator,
   type DailyStatsRow,
@@ -24,6 +26,57 @@ import { type StatsCollection } from "@/app/_stats/types";
 
 function parseDailyStatsDay(day: DailyStatsRow["day"]): Date {
   return day instanceof Date ? day : new Date(day);
+}
+
+function parseLocalDateParts(date: string): {
+  year: number;
+  monthIndex: number;
+  day: number;
+} {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date);
+  if (!match) {
+    return { year: NaN, monthIndex: NaN, day: NaN };
+  }
+
+  return {
+    year: Number(match[1]),
+    monthIndex: Number(match[2]) - 1,
+    day: Number(match[3]),
+  };
+}
+
+function localDateParamToUtc(date: string, timezone: string): Date {
+  const { year, monthIndex, day } = parseLocalDateParts(date);
+  return new Date(new TZDate(year, monthIndex, day, timezone).getTime());
+}
+
+export function getDeleteDateBounds(
+  startDate: string,
+  endDate: string,
+  timezone: string | null
+): { startDateTime: Date; endDateTime: Date } {
+  if (timezone) {
+    const startDateTime = localDateParamToUtc(startDate, timezone);
+    const endParts = parseLocalDateParts(endDate);
+    const endExclusiveDateTime = new Date(
+      new TZDate(
+        endParts.year,
+        endParts.monthIndex,
+        endParts.day + 1,
+        timezone
+      ).getTime()
+    );
+
+    return {
+      startDateTime,
+      endDateTime: new Date(endExclusiveDateTime.getTime() - 1),
+    };
+  }
+
+  return {
+    startDateTime: new Date(`${startDate}T00:00:00.000Z`),
+    endDateTime: new Date(`${endDate}T23:59:59.999Z`),
+  };
 }
 
 function getDaysInUtcMonth(date: Date): number {
@@ -330,7 +383,7 @@ export async function DELETE(
 
     // Parse parameters
     const startDate = searchParams.get("startDate");
-    const endDate = searchParams.get("endDate") || startDate;
+    const endDateParam = searchParams.get("endDate");
     const applicationsParam = searchParams.get("applications");
 
     if (!startDate || !applicationsParam) {
@@ -340,11 +393,21 @@ export async function DELETE(
       );
     }
 
+    const endDate = endDateParam || startDate;
     const applications = applicationsParam.split(",");
 
-    // Parse dates
-    const startDateTime = new Date(`${startDate}T00:00:00.000Z`);
-    const endDateTime = new Date(`${endDate}T23:59:59.999Z`);
+    const userPrefs = await db.userPreferences.findUnique({
+      where: { userId },
+      select: { timezone: true },
+    });
+    const timezone = userPrefs?.timezone || null;
+
+    // Parse dates as inclusive local calendar days when a timezone is known.
+    const { startDateTime, endDateTime } = getDeleteDateBounds(
+      startDate,
+      endDate,
+      timezone
+    );
 
     if (isNaN(startDateTime.getTime()) || isNaN(endDateTime.getTime())) {
       return NextResponse.json(
@@ -413,7 +476,8 @@ export async function DELETE(
         userId,
         applications,
         expandedAffectedPeriods,
-        tx
+        tx,
+        timezone
       );
 
       return {
