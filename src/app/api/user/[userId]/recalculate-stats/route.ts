@@ -1,12 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
-import { DbStatKeys, Periods } from "@/types";
-import {
-  getPeriodEndForDateInTimezone,
-  getPeriodStartForDateInTimezone,
-} from "@/lib/dateUtils";
-import { Prisma } from "@prisma/client";
+import { addUniqueDate, recalculateUserStats } from "@/lib/stats-recalculation";
+import { getPeriodStartForDateInTimezone } from "@/lib/dateUtils";
+import { Periods } from "@/types";
 
 export async function POST(
   request: NextRequest,
@@ -26,181 +23,77 @@ export async function POST(
     });
     const timezone = userPrefs?.timezone || null;
 
-    // Delete all existing UserStats for this user
-    await db.userStats.deleteMany({
+    const messageSummary = await db.messageStats.aggregate({
       where: { userId },
+      _count: { _all: true },
     });
 
-    // Re-fetch all messages
-    const messages = await db.messageStats.findMany({
-      where: { userId },
-    });
+    if (messageSummary._count._all === 0) {
+      await db.userStats.deleteMany({
+        where: { userId },
+      });
 
-    if (messages.length === 0) {
       return NextResponse.json({
         success: true,
         message: "No messages to recalculate",
       });
     }
 
-    // Aggregate logic similar to upload-stats/route.ts
-    const statAccumulators = new Map<string, Record<string, number>>();
-    const messageCounters = new Map<
-      string,
-      { assistant: number; user: number }
-    >();
-    const modelSets = new Map<string, Set<string>>();
-    const conversationFirstOccurrence = new Map<
-      string,
-      { bucketKey: string; timestamp: number }
-    >();
-    const periodBoundaries = new Map<
-      string,
-      { periodStart: Date; periodEnd: Date }
-    >();
+    const buckets = await db.messageStats.findMany({
+      where: { userId },
+      select: {
+        application: true,
+        date: true,
+      },
+      distinct: ["application", "date"],
+    });
 
-    // Process all messages to accumulate stats
-    for (const message of messages) {
-      const isAssistantMessage = message.role === "assistant";
-      const messageDate = new Date(message.date);
-      const application = message.application;
+    const affectedPeriods = {
+      hourly: [] as Date[],
+      daily: [] as Date[],
+      weekly: [] as Date[],
+      monthly: [] as Date[],
+      yearly: [] as Date[],
+    };
+    const applications = new Set<string>();
 
-      // Process each period
+    for (const bucket of buckets) {
+      applications.add(bucket.application);
       for (const period of Periods) {
         const periodStart = getPeriodStartForDateInTimezone(
           period,
-          messageDate,
+          bucket.date,
           timezone
         );
-        const periodEnd = getPeriodEndForDateInTimezone(
-          period,
-          periodStart,
-          timezone
-        );
-        const key = `${period}|${application}|${periodStart.toISOString()}`;
-
-        // Initialize accumulator if needed
-        if (!statAccumulators.has(key)) {
-          statAccumulators.set(key, {});
-          messageCounters.set(key, { assistant: 0, user: 0 });
-          modelSets.set(key, new Set<string>());
-          periodBoundaries.set(key, { periodStart, periodEnd });
-        }
-
-        const accumulator = statAccumulators.get(key)!;
-        const counter = messageCounters.get(key)!;
-        const models = modelSets.get(key)!;
-
-        // Accumulate stats from the message
-        for (const statKey of DbStatKeys) {
-          if (statKey === "assistantMessages" || statKey === "userMessages") {
-            continue;
-          }
-
-          const value = message[statKey as keyof typeof message];
-          if (value !== undefined && value !== null) {
-            accumulator[statKey] = (accumulator[statKey] || 0) + Number(value);
-          }
-        }
-
-        // Count messages
-        if (isAssistantMessage) {
-          counter.assistant++;
-        } else {
-          counter.user++;
-        }
-
-        if (message.model) {
-          models.add(message.model);
-        }
-
-        const conversationHash = message.conversationHash?.trim();
-        if (conversationHash) {
-          const conversationKey = `${period}|${application}|${conversationHash}`;
-          const existingConversation =
-            conversationFirstOccurrence.get(conversationKey);
-          const timestamp = messageDate.getTime();
-          if (
-            !existingConversation ||
-            timestamp < existingConversation.timestamp
-          ) {
-            conversationFirstOccurrence.set(conversationKey, {
-              bucketKey: key,
-              timestamp,
-            });
-          }
-        }
+        addUniqueDate(affectedPeriods[period], periodStart);
       }
     }
 
-    const conversationStartsByBucket = new Map<string, number>();
-    for (const { bucketKey } of conversationFirstOccurrence.values()) {
-      conversationStartsByBucket.set(
-        bucketKey,
-        (conversationStartsByBucket.get(bucketKey) ?? 0) + 1
-      );
-    }
+    await db.$transaction(
+      async (tx) => {
+        await tx.userStats.deleteMany({
+          where: { userId },
+        });
 
-    // Build and insert UserStats records
-    const statsToCreate: Prisma.UserStatsUncheckedCreateInput[] = [];
-    const now = new Date();
+        await recalculateUserStats(
+          userId,
+          Array.from(applications),
+          affectedPeriods,
+          tx,
+          timezone
+        );
+      },
+      { timeout: 120_000 }
+    );
 
-    for (const [key, accumulator] of statAccumulators) {
-      const parts = key.split("|");
-      const period = parts[0];
-      const application = parts[1];
-      const boundaries = periodBoundaries.get(key)!;
-      const { periodStart, periodEnd } = boundaries;
-      const counter = messageCounters.get(key)!;
-
-      const newStat: Prisma.UserStatsUncheckedCreateInput = {
-        userId,
-        application,
-        period,
-        periodStart,
-        periodEnd,
-        assistantMessages: BigInt(counter.assistant),
-        userMessages: BigInt(counter.user),
-        conversations: BigInt(conversationStartsByBucket.get(key) ?? 0),
-        models: Array.from(modelSets.get(key) ?? []).sort(),
-        createdAt: now,
-        updatedAt: now,
-      };
-
-      // Add accumulated stats with proper types
-      for (const statKey of DbStatKeys) {
-        if (statKey === "assistantMessages" || statKey === "userMessages") {
-          continue;
-        }
-        if (accumulator[statKey] !== undefined) {
-          const value = accumulator[statKey];
-          if (statKey === "cost") {
-            newStat.cost = Number(value);
-          } else {
-            const bigIntKey = statKey as Exclude<
-              typeof statKey,
-              "cost" | "assistantMessages" | "userMessages"
-            >;
-            newStat[bigIntKey] = BigInt(value);
-          }
-        }
-      }
-
-      statsToCreate.push(newStat);
-    }
-
-    // Insert all stats in batches
-    const BATCH_SIZE = 100;
-    for (let i = 0; i < statsToCreate.length; i += BATCH_SIZE) {
-      const batch = statsToCreate.slice(i, i + BATCH_SIZE);
-      await db.userStats.createMany({
-        data: batch,
-      });
-    }
+    const aggregateRecordCount = Object.values(affectedPeriods).reduce(
+      (sum, periodStarts) => sum + periodStarts.length * applications.size,
+      0
+    );
 
     return NextResponse.json({
       success: true,
-      message: `Recalculated stats from ${messages.length} messages into ${statsToCreate.length} aggregated records`,
+      message: `Recalculated stats from ${messageSummary._count._all} messages across ${aggregateRecordCount} aggregate buckets`,
     });
   } catch (error) {
     console.error("Recalculate stats error:", error);
