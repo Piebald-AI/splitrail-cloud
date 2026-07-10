@@ -100,7 +100,12 @@ export default function Leaderboard() {
       usernameFilter,
     ],
     queryFn: async () => {
-      const applicationsParam = apps.join(",");
+      const hasAllApplicationsSelected =
+        apps.length === ALL_APPLICATIONS.length &&
+        ALL_APPLICATIONS.every((app) => apps.includes(app));
+      const applicationsParam = hasAllApplicationsSelected
+        ? "all"
+        : apps.join(",");
       const params = new URLSearchParams({
         applications: applicationsParam,
         sortBy: "cost",
