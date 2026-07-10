@@ -100,7 +100,12 @@ export default function Leaderboard() {
       usernameFilter,
     ],
     queryFn: async () => {
-      const applicationsParam = apps.join(",");
+      const hasAllApplicationsSelected =
+        apps.length === ALL_APPLICATIONS.length &&
+        ALL_APPLICATIONS.every((app) => apps.includes(app));
+      const applicationsParam = hasAllApplicationsSelected
+        ? "all"
+        : apps.join(",");
       const params = new URLSearchParams({
         applications: applicationsParam,
         sortBy: "cost",
@@ -391,15 +396,18 @@ export default function Leaderboard() {
             </TableBody>
           </Table>
         </div>
-        {data && data.privateUsersCount && data.privateUsersCount > 0 && !usernameFilter && (
-          <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
-            <EyeOff className="size-4" />
-            <span>
-              + {data.privateUsersCount} private{" "}
-              {data.privateUsersCount === 1 ? "user" : "users"}
-            </span>
-          </div>
-        )}
+        {data &&
+          data.privateUsersCount &&
+          data.privateUsersCount > 0 &&
+          !usernameFilter && (
+            <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+              <EyeOff className="size-4" />
+              <span>
+                + {data.privateUsersCount} private{" "}
+                {data.privateUsersCount === 1 ? "user" : "users"}
+              </span>
+            </div>
+          )}
         <TablePagination table={table} />
       </div>
     </div>

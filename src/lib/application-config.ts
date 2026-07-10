@@ -48,6 +48,10 @@ export const APPLICATION_CONFIG: Record<
     id: "copilot",
     label: "Copilot",
   },
+  copilot_cli: {
+    id: "copilot_cli",
+    label: "Copilot CLI",
+  },
   open_code: {
     id: "open_code",
     label: "OpenCode",
