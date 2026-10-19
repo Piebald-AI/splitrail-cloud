@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import { PrismaClient, type Prisma } from "@prisma/client";
 
 // Run only against the disposable PostgreSQL database described in docs/stats-summaries.md.
@@ -92,6 +93,50 @@ async function pending() {
   >`SELECT source_version <> refreshed_version AS pending FROM stats_refresh_state WHERE id`;
   return state.pending;
 }
+async function assertOriginalSummaryEquivalent() {
+  // Keep an independent definition of the deployed query as a regression oracle.
+  // This reads the original migration; it never rewrites migration history.
+  const originalMigration = (
+    await readFile(
+      "prisma/migrations/20261019013000_database_stats_summaries/migration.sql",
+      "utf8"
+    )
+  ).replace(/\r\n/g, "\n");
+  const originalQuery = originalMigration
+    .split("CREATE MATERIALIZED VIEW stats_summary AS\n")[1]
+    ?.split("\nWITH NO DATA;")[0];
+  assert.ok(originalQuery, "original summary definition is available");
+  await db.$transaction(async (tx) => {
+    await tx.$executeRawUnsafe(
+      `CREATE TEMP VIEW expected_summary AS ${originalQuery}`
+    );
+    const [differences] = await tx.$queryRaw<{ count: bigint }[]>`
+      SELECT count(*) FROM (
+        (SELECT to_jsonb(s) - 'cost' AS row FROM stats_summary s WHERE "userId"=${userId}
+          EXCEPT SELECT to_jsonb(s) - 'cost' FROM expected_summary s WHERE "userId"=${userId})
+        UNION ALL
+        (SELECT to_jsonb(s) - 'cost' FROM expected_summary s WHERE "userId"=${userId}
+          EXCEPT SELECT to_jsonb(s) - 'cost' FROM stats_summary s WHERE "userId"=${userId})
+      ) differences
+    `;
+    assert.equal(
+      differences.count,
+      0n,
+      "all columns/buckets match the original query"
+    );
+    const [costs] = await tx.$queryRaw<{ count: bigint }[]>`
+      SELECT count(*) FROM stats_summary actual JOIN expected_summary expected
+        USING ("userId", application, period, "periodStart")
+      WHERE actual."userId"=${userId} AND abs(actual.cost - expected.cost)>0.000001
+    `;
+    assert.equal(
+      costs.count,
+      0n,
+      "cost matches within floating-point tolerance"
+    );
+    await tx.$executeRawUnsafe("DROP VIEW expected_summary");
+  });
+}
 async function main() {
   try {
     await db.user.deleteMany({ where: { id: userId } });
@@ -118,6 +163,7 @@ async function main() {
     assert.equal(await refresh(), true);
     assert.equal(await pending(), false);
     assert.equal(await refresh(), false, "unchanged source skips refresh");
+    await assertOriginalSummaryEquivalent();
     let rows = await buckets();
     const daily = rows.filter((r) => r.period === "daily");
     assert.deepEqual(
@@ -152,6 +198,7 @@ async function main() {
       "old snapshot remains readable until refresh"
     );
     await refresh();
+    await assertOriginalSummaryEquivalent();
     rows = await buckets();
     assert.equal(
       rows.find((r) => r.period === "daily" && r.day === "2026-03-08")
@@ -173,6 +220,7 @@ async function main() {
       data: { timezone: "Asia/Kolkata" },
     });
     await refresh();
+    await assertOriginalSummaryEquivalent();
     rows = await buckets();
     assert.equal(
       rows.find((r) => r.period === "all" && r.application === "claude_code")
@@ -219,6 +267,37 @@ async function main() {
     );
     await refresh();
     assert.equal(await pending(), false);
+
+    // Nonzero values in every metric, multiple models, NULL cost/model, and
+    // tied conversation timestamps exercise the optimized aggregation stages.
+    const variedCounters = Object.fromEntries(
+      Object.keys(counters).map((key, index) => [key, BigInt(index + 1)])
+    );
+    await db.messageStats.createMany({
+      data: [
+        {
+          ...message("summary-test-5", "2026-03-08T07:30:00Z", "conversation"),
+          ...variedCounters,
+          role: "user",
+          model: null,
+          cost: null,
+        },
+        {
+          ...message("summary-test-6", "2026-03-08T07:30:00Z", "conversation"),
+          ...variedCounters,
+          model: "another-model",
+          cost: 0.1,
+        },
+        {
+          ...message("summary-test-7", "2026-03-08T07:30:00Z", "conversation"),
+          ...variedCounters,
+          model: "another-model",
+          cost: 0.2,
+        },
+      ],
+    });
+    await refresh();
+    await assertOriginalSummaryEquivalent();
 
     // Public visibility is live, even while the summary retains a prior snapshot.
     await db.userPreferences.update({
