@@ -242,7 +242,14 @@ export interface LeaderboardRequest {
   sortOrder?: "asc" | "desc";
 }
 
+export interface StatsFreshness {
+  lastRefreshedAt: string | null;
+  pending: boolean;
+  refreshIntervalMinutes: number;
+}
+
 export interface LeaderboardData {
+  freshness?: StatsFreshness;
   users: LeaderboardUser[];
   total: number;
   privateUsersCount?: number;

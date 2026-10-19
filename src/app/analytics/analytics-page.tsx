@@ -17,6 +17,7 @@ import { type ApplicationType } from "@/types";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { SetupInstructions } from "@/app/_stats/setup-instructions";
 import { useDeferredLoading } from "@/hooks/use-deferred-loading";
+import { StatsFreshnessNotice } from "@/components/stats-freshness";
 
 export default function AnalyticsPage() {
   const { data: session, status } = useSession();
@@ -36,6 +37,9 @@ export default function AnalyticsPage() {
     error: statsErrorObj,
   } = useQuery<StatsData, Error>({
     queryKey: ["userStats", session?.user?.id, period, timezone],
+    refetchOnWindowFocus: true,
+    refetchInterval: (query) =>
+      query.state.data?.freshness?.pending ? 60_000 : 15 * 60_000,
     queryFn: async () => {
       if (!session?.user?.id) throw new Error("No user session");
       const response = await fetch(
@@ -83,6 +87,7 @@ export default function AnalyticsPage() {
   if (!hasStatsCollectionData(statsData?.stats)) {
     return (
       <div className="animate-in fade-in-0 duration-300">
+        <StatsFreshnessNotice freshness={statsData?.freshness} />
         <SetupInstructions />
       </div>
     );
@@ -90,6 +95,7 @@ export default function AnalyticsPage() {
 
   return (
     <div className="flex flex-col gap-y-8 animate-in fade-in-0 duration-300">
+      <StatsFreshnessNotice freshness={statsData?.freshness} />
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
           <SourceBadges

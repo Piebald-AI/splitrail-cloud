@@ -73,6 +73,7 @@ export type StatsCollection = {
 
 export type StatsData = {
   stats: StatsCollection | null;
+  freshness?: import("@/types").StatsFreshness;
 };
 
 export const ZERO_COUNTER: CounterString = "0";
@@ -98,7 +99,9 @@ export function counterToBigInt(value: CounterInput): bigint {
     }
 
     if (!Number.isSafeInteger(value)) {
-      throw new Error("Counter numbers must stay within the safe integer range");
+      throw new Error(
+        "Counter numbers must stay within the safe integer range"
+      );
     }
 
     return BigInt(value);
@@ -141,11 +144,7 @@ export function isPositiveCounter(value: CounterInput): boolean {
   return counterToBigInt(value) > 0n;
 }
 
-export function counterSortingFn<TRow>(
-  getValue: (row: TRow) => CounterInput
-) {
-  return (
-    rowA: { original: TRow },
-    rowB: { original: TRow }
-  ) => compareCounterValues(getValue(rowA.original), getValue(rowB.original));
+export function counterSortingFn<TRow>(getValue: (row: TRow) => CounterInput) {
+  return (rowA: { original: TRow }, rowB: { original: TRow }) =>
+    compareCounterValues(getValue(rowA.original), getValue(rowB.original));
 }

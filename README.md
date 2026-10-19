@@ -11,3 +11,5 @@ Only **anonymized usage data** is uploaded to your Leaderboard account. **No con
 For questions or support, please open an issue on GitHub or email us at [support@piebald.ai](mailto:support@piebald.ai).
 
 Also check out our developer-first agentic AI experience, [Piebald](https://piebald.ai).
+
+Database summary architecture, refresh scheduling, and deployment instructions: [Stats summaries](docs/stats-summaries.md).

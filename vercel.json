@@ -1,4 +1,5 @@
 {
+  "crons": [{ "path": "/api/cron/refresh-stats", "schedule": "*/15 * * * *" }],
   "rewrites": [
     {
       "source": "/relay-tsez/static/(.*)",

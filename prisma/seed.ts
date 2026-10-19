@@ -104,159 +104,10 @@ const generateSampleUsers = (count: number): SampleUser[] => {
 
 const sampleUsers = generateSampleUsers(295); // This will create 300 total users (5 special + 295 generated)
 
-function generateNumber(dynamicMin: number, staticMin: number, multiplier: number, variation: number): bigint {
-  return BigInt(Math.round(Math.random() * (dynamicMin + staticMin) * multiplier * variation));
-}
-
-// Generate stats matching the UserStats schema (without the 'tokens' field which is calculated)
-function generateStats(baseMultiplier: number, periodMultiplier: number, application?: string) {
-  const m = baseMultiplier * periodMultiplier;
-  const v = Math.random() * 0.4 + 0.8; // 0.8 to 1.2 variation
-  
-  // Realistic token values based on research: 1,000-5,000 tokens per coding interaction
-  // Period multipliers will scale these appropriately
-  const baseTokensPerMessage = 2000; // Average across user/assistant messages
-  const messagesPerDay = 50; // Typical active coding day
-  
-  const inputTokens = generateNumber(baseTokensPerMessage * messagesPerDay * 0.6, baseTokensPerMessage * messagesPerDay * 0.3, m, v);
-  const outputTokens = generateNumber(baseTokensPerMessage * messagesPerDay * 0.4, baseTokensPerMessage * messagesPerDay * 0.2, m, v);
-  const cacheCreationTokens = generateNumber(baseTokensPerMessage * messagesPerDay * 0.1, baseTokensPerMessage * messagesPerDay * 0.05, m, v);
-  const cacheReadTokens = generateNumber(baseTokensPerMessage * messagesPerDay * 0.15, baseTokensPerMessage * messagesPerDay * 0.08, m, v);
-  const cachedTokens = cacheCreationTokens + cacheReadTokens;
-  
-  // Calculate realistic cost based on token usage and model pricing
-  let cost = 0;
-  if (application) {
-    // Use average pricing for the application's models
-    const inputTokensNum = Number(inputTokens);
-    const outputTokensNum = Number(outputTokens);
-    const cacheCreationTokensNum = Number(cacheCreationTokens);
-    const cacheReadTokensNum = Number(cacheReadTokens);
-    
-    if (application === "claude_code") {
-      // Average of Claude models: mostly Sonnet (70%), some Haiku (20%), rare Opus (10%)
-      const avgInputCost = (0.7 * 3 + 0.2 * 0.8 + 0.1 * 15) / 1000; // per 1k tokens
-      const avgOutputCost = (0.7 * 15 + 0.2 * 4 + 0.1 * 75) / 1000;
-      const avgCacheWriteCost = (0.7 * 3.75 + 0.2 * 1 + 0.1 * 18.75) / 1000;
-      const avgCacheReadCost = (0.7 * 0.3 + 0.2 * 0.08 + 0.1 * 1.5) / 1000;
-      
-      cost = (inputTokensNum / 1000) * avgInputCost +
-             (outputTokensNum / 1000) * avgOutputCost +
-             (cacheCreationTokensNum / 1000) * avgCacheWriteCost +
-             (cacheReadTokensNum / 1000) * avgCacheReadCost;
-    } else if (application === "gemini_cli") {
-      // Average of Gemini models: mostly Flash (60%), some Pro (30%), some 2.0 Flash (10%)
-      const avgInputCost = (0.6 * 0.075 + 0.3 * 1.25 + 0.1 * 0.1) / 1000;
-      const avgOutputCost = (0.6 * 0.3 + 0.3 * 5 + 0.1 * 0.4) / 1000;
-      const avgCachedCost = (0.6 * 0.01875 + 0.3 * 0.3125 + 0.1 * 0.025) / 1000;
-      
-      cost = (inputTokensNum / 1000) * avgInputCost +
-             (outputTokensNum / 1000) * avgOutputCost +
-             (Number(cachedTokens) / 1000) * avgCachedCost;
-    } else if (application === "codex_cli") {
-      // Average of OpenAI models: mostly 4o-mini (70%), some 4o (20%), some o3-mini (10%)
-      const avgInputCost = (0.7 * 0.15 + 0.2 * 2.5 + 0.1 * 1.1) / 1000;
-      const avgOutputCost = (0.7 * 0.6 + 0.2 * 10 + 0.1 * 4.4) / 1000;
-      const avgCachedCost = (0.7 * 0.075 + 0.2 * 1.25 + 0.1 * 0.55) / 1000;
-      
-      cost = (inputTokensNum / 1000) * avgInputCost +
-             (outputTokensNum / 1000) * avgOutputCost +
-             (Number(cachedTokens) / 1000) * avgCachedCost;
-    } else if (application === "kilo_cli") {
-      // Kilo CLI — mix of free and paid models via OpenRouter; weighted average
-      // ~40% glm-5 (paid), ~30% aurora-alpha (free), ~30% trinity (free)
-      const avgInputCost = (0.4 * 0.6) / 1000;
-      const avgOutputCost = (0.4 * 0.6) / 1000;
-      const avgCachedCost = (0.4 * 0.06) / 1000;
-      
-      cost = (inputTokensNum / 1000) * avgInputCost +
-             (outputTokensNum / 1000) * avgOutputCost +
-             (Number(cachedTokens) / 1000) * avgCachedCost;
-    }
-  } else {
-    // Fallback cost calculation
-    cost = Number(generateNumber(Math.round(m * 50), Math.round(m * 25), 1, v)) / 100;
-  }
-  
-  return {
-    toolCalls: generateNumber(25, 10, m, v),
-    assistantMessages: generateNumber(40, 20, m, v),
-    userMessages: generateNumber(40, 20, m, v),
-    inputTokens,
-    outputTokens,
-    cacheCreationTokens,
-    cacheReadTokens,
-    cachedTokens,
-    cost: Math.round(cost * 1000) / 1000,
-    filesRead: generateNumber(80, 30, m, v),
-    filesAdded: generateNumber(15, 5, m, v),
-    filesEdited: generateNumber(25, 10, m, v),
-    filesDeleted: generateNumber(15, 5, m, v),
-    linesRead: generateNumber(8000, 3000, m, v),
-    linesAdded: generateNumber(600, 200, m, v),
-    linesEdited: generateNumber(800, 300, m, v),
-    linesDeleted: generateNumber(600, 200, m, v),
-    bytesRead: generateNumber(150000, 50000, m, v),
-    bytesAdded: generateNumber(30000, 10000, m, v),
-    bytesEdited: generateNumber(30000, 10000, m, v),
-    bytesDeleted: generateNumber(25000, 8000, m, v),
-    codeLines: generateNumber(600, 200, m, v),
-    docsLines: generateNumber(600, 200, m, v),
-    dataLines: generateNumber(600, 200, m, v),
-    mediaLines: generateNumber(600, 200, m, v),
-    configLines: generateNumber(600, 200, m, v),
-    otherLines: generateNumber(600, 200, m, v),
-    terminalCommands: generateNumber(15, 5, m, v),
-    fileSearches: generateNumber(12, 3, m, v),
-    fileContentSearches: generateNumber(18, 5, m, v),
-    todosCreated: generateNumber(8, 2, m, v),
-    todosCompleted: generateNumber(12, 4, m, v),
-    todosInProgress: generateNumber(4, 1, m, v),
-    todoWrites: generateNumber(10, 3, m, v),
-    todoReads: generateNumber(15, 5, m, v),
-    // Note: 'tokens' field is not stored in DB, it's calculated on the fly
-  };
-}
-
-function getPeriodDates() {
-  const now = new Date();
-  
-  // Current hour
-  const hourStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), now.getHours(), 0, 0, 0);
-  const hourEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), now.getHours(), 59, 59, 999);
-  
-  // Current day
-  const dayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
-  const dayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
-  
-  // Current week (Monday start)
-  const day = now.getDay();
-  const diff = now.getDate() - day + (day === 0 ? -6 : 1);
-  const weekStart = new Date(now.getFullYear(), now.getMonth(), diff, 0, 0, 0, 0);
-  const weekEnd = new Date(weekStart.getTime() + 6 * 24 * 60 * 60 * 1000 + 23 * 60 * 60 * 1000 + 59 * 60 * 1000 + 59 * 1000 + 999);
-  
-  // Current month
-  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
-  const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
-  
-  // Current year
-  const yearStart = new Date(now.getFullYear(), 0, 1, 0, 0, 0, 0);
-  const yearEnd = new Date(now.getFullYear(), 11, 31, 23, 59, 59, 999);
-  
-  return {
-    hourly: { start: hourStart, end: hourEnd },
-    daily: { start: dayStart, end: dayEnd },
-    weekly: { start: weekStart, end: weekEnd },
-    monthly: { start: monthStart, end: monthEnd },
-    yearly: { start: yearStart, end: yearEnd },
-  };
-}
-
 async function clearDatabase() {
   console.log("🧹 Clearing existing data...");
   
   await prisma.messageStats.deleteMany();
-  await prisma.userStats.deleteMany();
   await prisma.userPreferences.deleteMany();
   await prisma.apiToken.deleteMany();
   await prisma.session.deleteMany();
@@ -267,7 +118,6 @@ async function clearDatabase() {
 
 // Helpers to generate realistic message_stats rows for the stats API
 const APPLICATIONS = ["claude_code", "gemini_cli", "codex_cli", "copilot", "kilo_cli"] as const;
-const PERIOD_STATS_APPS = ["claude_code", "gemini_cli", "codex_cli", "kilo_cli"] as const;
 const MODELS_BY_APP: Record<(typeof APPLICATIONS)[number], string[]> = {
   claude_code: [
     "claude-3.7-sonnet",
@@ -625,78 +475,6 @@ async function createUsers() {
   }));
 }
 
-async function createPeriodStats(users: Array<{ id: string; multiplier: number }>) {
-  console.log("📊 Creating period statistics...");
-  
-  const periods = getPeriodDates();
-  const applications = PERIOD_STATS_APPS;
-  
-  // Period multipliers (how much activity in each period)
-  const periodMultipliers = {
-    hourly: 0.1,   // 10% of daily activity in current hour
-    daily: 1.0,    // Base daily activity
-    weekly: 6.5,   // About 6.5 days worth of activity
-    monthly: 22,   // About 22 working days
-    yearly: 250,   // About 250 working days
-  };
-  
-  // Application usage distribution for each user
-  const applicationWeights = {
-    claude_code: 0.55,  // 55% usage
-    gemini_cli: 0.25,   // 25% usage
-    codex_cli: 0.1,     // 10% usage
-    kilo_cli: 0.1,      // 10% usage
-  };
-  
-  let processedUsers = 0;
-  const totalUsers = users.length;
-  
-  for (const user of users) {
-    // Create stats for each period
-    const periodConfigs = [
-      { period: "hourly", multiplier: periodMultipliers.hourly, start: periods.hourly.start, end: periods.hourly.end },
-      { period: "daily", multiplier: periodMultipliers.daily, start: periods.daily.start, end: periods.daily.end },
-      { period: "weekly", multiplier: periodMultipliers.weekly, start: periods.weekly.start, end: periods.weekly.end },
-      { period: "monthly", multiplier: periodMultipliers.monthly, start: periods.monthly.start, end: periods.monthly.end },
-      { period: "yearly", multiplier: periodMultipliers.yearly, start: periods.yearly.start, end: periods.yearly.end },
-    ];
-
-    // Batch all stats for this user
-    const userStatsData = [];
-    
-    for (const config of periodConfigs) {
-      // Create stats for each application
-      for (const application of applications) {
-        // Apply application weight to the stats
-        const appWeight = applicationWeights[application];
-        const stats = generateStats(user.multiplier * appWeight, config.multiplier, application);
-        
-        userStatsData.push({
-          userId: user.id,
-          period: config.period,
-          periodStart: config.start,
-          periodEnd: config.end,
-          application,
-          ...stats,
-        });
-      }
-    }
-    
-    // Batch insert all stats for this user
-    await prisma.userStats.createMany({
-      data: userStatsData,
-    });
-    
-    processedUsers++;
-    if (processedUsers % 50 === 0) {
-      console.log(`  📈 Progress: ${processedUsers}/${totalUsers} users processed`);
-    }
-  }
-  
-  const totalStats = users.length * 5 * applications.length;
-  console.log(`✅ Created ${totalStats.toLocaleString()} period statistics for ${users.length} users`);
-}
-
 async function createApiTokens(users: Array<{ id: string; username?: string }>) {
   console.log("🔑 Creating API tokens...");
   
@@ -722,9 +500,7 @@ async function main() {
 
   // Insert granular message_stats first so the stats API has raw data to aggregate
   await createMessageStats(users);
-
-  // Keep pre-aggregated period stats for leaderboard API and fast queries
-  await createPeriodStats(users);
+  await prisma.$queryRaw`SELECT refresh_stats_summary()`;
 
   // Issue API tokens so the CLI can authenticate
   await createApiTokens(users);
@@ -733,16 +509,8 @@ async function main() {
   console.log("");
   console.log("📊 Summary:");
   console.log(`  • ${users.length} users created`);
-  console.log(`  • ${(users.length * 5 * PERIOD_STATS_APPS.length).toLocaleString()} total UserStats records (5 periods × ${PERIOD_STATS_APPS.length} apps)`);
   console.log(`  • ${users.length} API tokens created`);
   console.log(`  • MessageStats generated for up to 120 days, ${APPLICATIONS.length} applications, multiple conversations/day`);
-  console.log("");
-  console.log("📈 Generated data for all time periods:");
-  console.log("  • Hourly (current hour)");
-  console.log("  • Daily (current day)");
-  console.log("  • Weekly (current week)");
-  console.log("  • Monthly (current month)");
-  console.log("  • Yearly (current year)");
   console.log("");
   console.log("🚀 Generated data for all applications:");
   console.log("  • Claude Code (55% usage)");

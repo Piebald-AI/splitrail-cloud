@@ -68,18 +68,9 @@ The platform tracks statistics from multiple agentic AI coding tools, not just C
 
 ### Stats Aggregation System
 
-Statistics are aggregated across multiple time periods for efficient querying:
+`message_stats` is the source of truth: one usage row per message. PostgreSQL derives the `stats_summary` materialized view with daily, weekly, monthly, and all-time totals per user/application. Daily buckets use saved user timezones; weekly/monthly use UTC. Conversation counts belong to the first message's bucket.
 
-- **MessageStats** (table: `message_stats`) - Raw message-level data from CLI uploads. Each row represents one message in a conversation.
-- **UserStats** (table: `user_stats`) - Aggregated statistics per user, per application, per period.
-  - Periods: `hourly`, `daily`, `weekly`, `monthly`, `yearly`
-  - Enables fast leaderboard queries without scanning all messages
-
-When uploading stats via `/api/upload-stats`, the system:
-
-1. Stores raw MessageStats
-2. Aggregates into UserStats for all time periods
-3. Uses upsert pattern to update existing aggregations
+Uploads only store source messages. Statement triggers mark database refresh metadata dirty. An authenticated Vercel cron calls `refresh_stats_summary()` every 15 minutes; unchanged data and overlapping invocations skip work. The application never maintains aggregate rows. Readers expose the last successful snapshot timestamp and show a freshness notice. See `docs/stats-summaries.md` for deployment order, local verification, and legacy table cleanup. Do not use `prisma db push` on production: the view, functions, triggers, and metadata are SQL-managed.
 
 ### Database Schema Key Points
 
@@ -88,7 +79,7 @@ All statistics fields use `BigInt` for large numbers except `cost` which is `Flo
 - `prisma/schema.prisma` - Database schema definition
 - `src/types/index.ts` - TypeScript types (must be kept in sync)
 
-**Critical**: When modifying MessageStats or UserStats schema, update BOTH files and check the comment at the top of the model in schema.prisma.
+**Critical**: When modifying message metric columns, update the Prisma schema, TypeScript types, and materialized-view SQL together.
 
 ### API Token Authentication
 
@@ -123,7 +114,7 @@ Reference `src/types/index.ts` for the canonical list of stat keys.
 
 - Authentication: Bearer token in Authorization header
 - Request body: Array of ConversationMessage (see `src/types/index.ts`)
-- Processes messages in batches to aggregate into UserStats
+- Stores source messages in batches; database summaries refresh separately
 - Updates `lastUsed` timestamp on API token
 
 ### Token Management

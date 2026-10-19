@@ -2,15 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
-import {
-  calculateAffectedPeriods,
-  calculateAffectedPeriodsForDates,
-  deleteAffectedUserStats,
-  getConversationStartDatesForKeys,
-  getImpactedConversationKeys,
-  mergeAffectedPeriods,
-  recalculateUserStats,
-} from "@/lib/stats-recalculation";
+import { getStatsFreshness } from "@/lib/stats-summary";
 
 import {
   createEmptyTotalsAccumulator,
@@ -27,7 +19,6 @@ import { getDeleteDateBounds } from "./delete-date-bounds";
 function parseDailyStatsDay(day: DailyStatsRow["day"]): Date {
   return day instanceof Date ? day : new Date(day);
 }
-
 
 function getDaysInUtcMonth(date: Date): number {
   return new Date(
@@ -101,9 +92,14 @@ export async function GET(
     const timezone = searchParams.get("timezone") || "UTC";
     const periodParam = searchParams.get("period");
     const validPeriods = ["daily", "weekly", "monthly"] as const;
-    if (periodParam && !validPeriods.includes(periodParam as (typeof validPeriods)[number])) {
+    if (
+      periodParam &&
+      !validPeriods.includes(periodParam as (typeof validPeriods)[number])
+    ) {
       return NextResponse.json(
-        { error: `Invalid period parameter: "${periodParam}". Must be one of: ${validPeriods.join(", ")}` },
+        {
+          error: `Invalid period parameter: "${periodParam}". Must be one of: ${validPeriods.join(", ")}`,
+        },
         { status: 400 }
       );
     }
@@ -127,11 +123,8 @@ export async function GET(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // For daily period, convert periodStart to the user's local timezone so
-    // that days align with the user's wall clock. For weekly/monthly the
-    // periodStart values are computed using UTC boundaries during aggregation,
-    // so applying AT TIME ZONE would shift the bucket key by a day for
-    // negative/positive UTC offsets.
+    // Summaries store daily calendar keys in the saved user timezone and
+    // weekly/monthly calendar keys in UTC. Read those keys without shifting.
     const commonColumns = Prisma.sql`
       application,
       cost AS total_cost,
@@ -171,15 +164,15 @@ export async function GET(
       conversations,
       models
     `;
-    const dayExpression =
-      period === "daily"
-        ? Prisma.sql`("periodStart" AT TIME ZONE 'UTC' AT TIME ZONE ${timezone})::date AS day`
-        : Prisma.sql`"periodStart"::date AS day`;
+    // Daily keys already represent local calendar dates in the saved timezone.
+    // Weekly and monthly keys use UTC. Never shift these dates a second time.
+    const dayExpression = Prisma.sql`"periodStart"::date AS day`;
+    const freshness = await getStatsFreshness();
     const dailyRows = await db.$queryRaw<DailyStatsRow[]>(Prisma.sql`
       SELECT
         ${dayExpression},
         ${commonColumns}
-      FROM user_stats
+      FROM stats_summary
       WHERE "userId" = ${userId}
         AND period = ${period}
       ORDER BY application, day
@@ -189,6 +182,7 @@ export async function GET(
       return NextResponse.json({
         success: true,
         data: {
+          freshness,
           stats: createEmptyStatsCollection(),
         },
       });
@@ -288,7 +282,11 @@ export async function GET(
     const firstTrackedDate = firstDate ?? new Date();
     const lastTrackedDate = lastDate ?? new Date();
     const periodsTracked = trackedPeriods.size;
-    const daysTracked = countTrackedDays(period, periodsTracked, trackedPeriods.values());
+    const daysTracked = countTrackedDays(
+      period,
+      periodsTracked,
+      trackedPeriods.values()
+    );
 
     stats.grandTotal = {
       daysTracked,
@@ -304,6 +302,7 @@ export async function GET(
     return NextResponse.json({
       success: true,
       data: {
+        freshness,
         stats,
       },
     });
@@ -373,77 +372,36 @@ export async function DELETE(
       );
     }
 
-    // Calculate affected periods before the transaction (pure function, no DB access needed)
-    const affectedPeriods = calculateAffectedPeriods(
-      startDateTime,
-      endDateTime
-    );
-
-    // Delete messages and rebuild affected aggregates in one transaction so
-    // clients never observe a partially-updated stats state.
-    const result = await db.$transaction(async (tx) => {
-      const impactedConversationKeys = await getImpactedConversationKeys(
-        userId,
-        applications,
-        startDateTime,
-        endDateTime,
-        tx
-      );
-
-      // Delete MessageStats
-      const deleteResult = await tx.messageStats.deleteMany({
-        where: {
-          userId,
-          application: { in: applications },
-          date: {
-            gte: startDateTime,
-            lte: endDateTime,
+    // PostgreSQL marks the summaries dirty in the same transaction as deletion.
+    const result = await db.$transaction(
+      async (tx) => {
+        const deleteResult = await tx.messageStats.deleteMany({
+          where: {
+            userId,
+            application: { in: applications },
+            date: {
+              gte: startDateTime,
+              lte: endDateTime,
+            },
           },
-        },
-      });
+        });
 
-      // If a deleted message was the first one in a conversation, the
-      // conversation count can move into a later period bucket.
-      const shiftedConversationStarts = await getConversationStartDatesForKeys(
-        userId,
-        impactedConversationKeys,
-        tx
-      );
-      const expandedAffectedPeriods = mergeAffectedPeriods(
-        affectedPeriods,
-        calculateAffectedPeriodsForDates(shiftedConversationStarts)
-      );
-
-      // Delete affected UserStats (within transaction for atomicity)
-      await deleteAffectedUserStats(
-        userId,
-        applications,
-        expandedAffectedPeriods,
-        tx
-      );
-
-      await recalculateUserStats(
-        userId,
-        applications,
-        expandedAffectedPeriods,
-        tx,
-        timezone
-      );
-
-      return {
-        deletedMessages: deleteResult.count,
-        affectedDays:
-          Math.ceil(
-            (endDateTime.getTime() - startDateTime.getTime()) /
-              (1000 * 60 * 60 * 24)
-          ) + 1,
-        dateRange: {
-          start: startDate,
-          end: endDate,
-        },
-        applications,
-      };
-    }, { timeout: 30000 });
+        return {
+          deletedMessages: deleteResult.count,
+          affectedDays:
+            Math.ceil(
+              (endDateTime.getTime() - startDateTime.getTime()) /
+                (1000 * 60 * 60 * 24)
+            ) + 1,
+          dateRange: {
+            start: startDate,
+            end: endDate,
+          },
+          applications,
+        };
+      },
+      { timeout: 30000 }
+    );
 
     return NextResponse.json({
       success: true,
