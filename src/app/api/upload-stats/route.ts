@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { type ConversationMessage, Periods } from "@/types";
-import { getPeriodStartForDateInTimezone } from "@/lib/dateUtils";
+import { type ConversationMessage } from "@/types";
 import { unsupportedMethod } from "@/lib/routeUtils";
 import { Prisma } from "@prisma/client";
 import { nowMs, timingEnabled } from "@/lib/timing";
@@ -9,17 +8,12 @@ import {
   bulkUpsertMessageStatsSql,
   type MessageStatsUpsertRow,
 } from "@/lib/message-stats-bulk-upsert";
-import {
-  type AffectedPeriods,
-  addUniqueDate,
-  recalculateUserStats,
-} from "@/lib/stats-recalculation";
 
-// Allow up to 5 minutes for large uploads with many affected period buckets.
+// Allow up to 5 minutes for large source-message uploads.
 export const maxDuration = 300;
 
 /**
- * Handles uploading conversation messages, upserting per-message stats, and recalculating per-period user aggregates.
+ * Saves source message statistics. PostgreSQL refreshes derived summaries separately.
  *
  * @param request - Incoming HTTP request. Must include an `Authorization: Bearer <token>` header; may include `x-timezone` to override stored user timezone; body must be a JSON array of `ConversationMessage` objects each containing a `stats` property.
  * @returns An object with `success: true` on successful processing, or an object with an `error` message when the request is invalid or processing fails.
@@ -57,7 +51,16 @@ export async function POST(request: NextRequest) {
     const userPrefs = await db.userPreferences.findUnique({
       where: { userId: user.id },
     });
-    const timezone = headerTimezone || userPrefs?.timezone || null;
+    if (headerTimezone) {
+      try {
+        Intl.DateTimeFormat(undefined, { timeZone: headerTimezone });
+      } catch {
+        return NextResponse.json(
+          { error: "Invalid timezone" },
+          { status: 400 }
+        );
+      }
+    }
 
     // Update stored timezone if header provided
     if (headerTimezone && headerTimezone !== userPrefs?.timezone) {
@@ -215,36 +218,6 @@ export async function POST(request: NextRequest) {
       (message) => !existingHashSet.has(message.globalHash as string)
     );
 
-    // Compute affected period buckets for recalculation based only on genuinely
-    // new messages.  We build an AffectedPeriods structure (unique periodStart
-    // dates per period type) plus a set of affected applications so that the
-    // efficient single-SQL-per-period recalculation function can be used.
-    const affectedPeriods: AffectedPeriods = {
-      hourly: [],
-      daily: [],
-      weekly: [],
-      monthly: [],
-      yearly: [],
-    };
-    const affectedApplications = new Set<string>();
-    for (const message of newMessagesForDb) {
-      affectedApplications.add(message.application as string);
-      for (const period of Periods) {
-        const periodStart = getPeriodStartForDateInTimezone(
-          period,
-          message.date as Date,
-          timezone
-        );
-        addUniqueDate(affectedPeriods[period], periodStart);
-      }
-    }
-    const affectedBucketCount =
-      affectedPeriods.hourly.length +
-      affectedPeriods.daily.length +
-      affectedPeriods.weekly.length +
-      affectedPeriods.monthly.length +
-      affectedPeriods.yearly.length;
-
     if (duplicateCount > 0) {
       console.warn("upload-stats: duplicate messages detected", {
         userId: user.id,
@@ -262,8 +235,7 @@ export async function POST(request: NextRequest) {
 
     const newMessageCount = newMessagesForDb.length;
 
-    // If this upload is entirely duplicates, there is nothing to upsert or recalculate.
-    // Returning early avoids re-running expensive bucket aggregations for no-op uploads.
+    // Duplicate-only uploads do not change source data or require a refresh.
     if (newMessageCount === 0) {
       if (timingEnabled()) {
         const endMs = nowMs();
@@ -293,9 +265,8 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Perform bulk upsert and recalculation in a single atomic transaction to ensure
-    // that affectedPeriods matches the exact rows being committed.
-    // We chunk the upsert to avoid oversized SQL while keeping everything in one transaction.
+    // Save source messages atomically. Database triggers mark summaries dirty.
+    // Chunking avoids oversized SQL without aggregating historical messages.
     await db.$transaction(
       async (tx) => {
         const BULK_UPSERT_BATCH_SIZE = 500;
@@ -310,28 +281,16 @@ export async function POST(request: NextRequest) {
 
         mark("upserted");
 
-        // Recalculate aggregate stats for every affected period bucket using a
-        // single efficient SQL statement per period type (5 total) instead of the
-        // old approach of 4 separate queries × N buckets.  This reduces thousands
-        // of sequential DB round-trips to at most 5, eliminating the timeout.
-        await recalculateUserStats(
-          user.id,
-          Array.from(affectedApplications),
-          affectedPeriods,
-          tx, // use transaction client
-          timezone
-        );
+        // A database trigger marks summaries dirty. The scheduled refresh
+        // derives them from committed source data, outside this upload.
       },
       {
-        // Prisma's default interactive transaction timeout is 5s — far too short
-        // for large uploads.  Allow up to 2 minutes for the combined bulk upsert
-        // + stats recalculation.
+        // Allow up to 2 minutes for a large source-message batch.
         timeout: 120_000,
       }
     );
 
-    // Emit timing breakdown once per request
-    mark("recalculated");
+    // Emit timing breakdown once per request.
 
     if (timingEnabled()) {
       const endMs = nowMs();
@@ -343,26 +302,25 @@ export async function POST(request: NextRequest) {
         ? Math.round(marks.duplicateCheck - (marks.prepared ?? startMs))
         : null;
       const upsertedMs = marks.upserted
-        ? Math.round(marks.upserted - (marks.duplicateCheck ?? marks.prepared ?? startMs))
-        : null;
-      const recalculatedMs = marks.recalculated
-        ? Math.round(endMs - (marks.upserted ?? startMs))
+        ? Math.round(
+            marks.upserted - (marks.duplicateCheck ?? marks.prepared ?? startMs)
+          )
         : null;
 
       console.info("upload-stats timings", {
         messages: dedupedBody.length,
         duplicates: duplicateCount,
-        affectedBuckets: affectedBucketCount,
         preparedMs,
         duplicateCheckMs,
         upsertedMs,
-        recalculatedMs,
         totalMs,
       });
     }
 
     return NextResponse.json({
       success: true,
+      message:
+        "Upload saved. Your stats will appear after the next refresh, usually within 15 minutes.",
     });
   } catch (error) {
     console.error("Upload stats error:", error);

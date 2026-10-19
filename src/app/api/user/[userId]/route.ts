@@ -62,10 +62,6 @@ export async function DELETE(
     }
 
     // Delete all data.
-    await db.userStats.deleteMany({
-      where: { userId },
-    });
-
     await db.messageStats.deleteMany({
       where: { userId },
     });

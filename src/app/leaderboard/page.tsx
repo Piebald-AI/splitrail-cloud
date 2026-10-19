@@ -1,5 +1,7 @@
 "use client";
 
+import { StatsFreshnessNotice } from "@/components/stats-freshness";
+
 import { Input } from "@/components/ui/input";
 import {
   TableHeader,
@@ -92,6 +94,9 @@ export default function Leaderboard() {
   });
 
   const { data, isLoading, error } = useQuery<LeaderboardData>({
+    refetchOnWindowFocus: true,
+    refetchInterval: (query) =>
+      query.state.data?.freshness?.pending ? 60_000 : 15 * 60_000,
     queryKey: [
       "leaderboard",
       apps,
@@ -250,6 +255,7 @@ export default function Leaderboard() {
   return (
     <div className="flex flex-col gap-y-8 animate-in fade-in-0 duration-300">
       <h1 className="font-bold text-3xl">Leaderboard</h1>
+      <StatsFreshnessNotice freshness={data?.freshness} />
 
       {/* No Data Banner */}
       {session && userHasData === false && (

@@ -69,7 +69,7 @@ export function DeleteDataByDate() {
         .join(", ");
 
       toast.success(
-        `Successfully deleted data from ${dateStr} for ${appNames}`
+        `Deleted data from ${dateStr} for ${appNames}. Summary totals update after the next refresh, usually within 15 minutes.`
       );
 
       // Reset wizard

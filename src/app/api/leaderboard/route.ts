@@ -8,6 +8,7 @@ import {
 import { unsupportedMethod } from "@/lib/routeUtils";
 import { Prisma } from "@prisma/client";
 import { n } from "@/lib/utils";
+import { getStatsFreshness } from "@/lib/stats-summary";
 
 export async function GET(request: NextRequest) {
   try {
@@ -67,7 +68,7 @@ export async function GET(request: NextRequest) {
         ? Prisma.sql`AND message_stats."application" = ANY(${applications})`
         : Prisma.sql``;
 
-    // Query aggregated stats directly from message_stats table
+    // Read PostgreSQL-maintained all-time totals, with live profile visibility.
     const rawResults = await db.$queryRaw<
       Array<{
         userId: string;
@@ -108,7 +109,8 @@ export async function GET(request: NextRequest) {
           ROW_NUMBER() OVER (ORDER BY COALESCE(SUM(message_stats."cost"), 0) DESC, users."createdAt" ASC) as rank
         FROM users
         INNER JOIN user_preferences ON users.id = user_preferences."userId"
-        LEFT JOIN message_stats ON users.id = message_stats."userId" ${applicationFilter}
+        LEFT JOIN stats_summary AS message_stats ON users.id = message_stats."userId"
+          AND message_stats.period = 'all' ${applicationFilter}
         WHERE ${whereClause}
         GROUP BY users.id, users."githubId", users."username", users."displayName", users."avatarUrl", users."createdAt"
       )
@@ -164,6 +166,7 @@ export async function GET(request: NextRequest) {
     }
 
     const leaderboardData = {
+      freshness: await getStatsFreshness(),
       users: usersWithMetrics,
       total,
       privateUsersCount,

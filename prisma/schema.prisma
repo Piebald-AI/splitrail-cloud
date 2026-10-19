@@ -1,6 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -11,161 +8,94 @@ datasource db {
 }
 
 model User {
-  id            String    @id @default(cuid())
-  githubId      String    @unique
-  username      String    @unique
-  displayName   String?
-  avatarUrl     String?
-  email         String?   @unique
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  
-  // Relationships
-  userStats     UserStats[]
-  messageStats  MessageStats[]
-  preferences   UserPreferences?
-  sessions      Session[]
-  apiTokens     ApiToken[]
+  id             String           @id @default(cuid())
+  githubId       String           @unique
+  username       String           @unique
+  displayName    String?
+  avatarUrl      String?
+  email          String?          @unique
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  messageStats   MessageStats[]
+  preferences    UserPreferences?
+  sessions       Session[]
+  apiTokens      ApiToken[]
   folderProjects FolderProject[]
-  
+
   @@map("users")
 }
 
-// NOTE: If you're updating this table, make sure to update the types in src/types/index.ts too.
+// Keep metric types in src/types/index.ts synchronized with source columns.
 model MessageStats {
-  globalHash            String    @id
-  userId                String
-  application           String    @default("claude_code") // "claude_code", "gemini_cli", "codex_cli", "cline", "kilo_code", "kilo_cli", "roo_code", "qwen_code", "copilot", "open_code", "pi_agent"
-  role                  String    // "assistant" or "user"
-  date                  DateTime
-  projectHash           String
-  conversationHash      String
-  localHash             String?
-  uuid                  String?
-  sessionName           String?
-  inputTokens           BigInt
-  outputTokens          BigInt
-  cacheCreationTokens   BigInt
-  cacheReadTokens       BigInt
-  cachedTokens          BigInt
-  reasoningTokens       BigInt    @default(0)
-  cost                  Float?
-  model                 String?
-  toolCalls             BigInt
-  fileTypes             Json?
-  terminalCommands      BigInt
-  fileSearches          BigInt
-  fileContentSearches   BigInt
-  filesRead             BigInt
-  filesAdded            BigInt
-  filesEdited           BigInt
-  filesDeleted          BigInt
-  linesRead             BigInt
-  linesEdited           BigInt
-  linesAdded            BigInt
-  linesDeleted          BigInt
-  bytesRead             BigInt
-  bytesAdded            BigInt
-  bytesEdited           BigInt
-  bytesDeleted          BigInt
-  codeLines             BigInt
-  docsLines             BigInt
-  dataLines             BigInt
-  mediaLines            BigInt
-  configLines           BigInt
-  otherLines            BigInt
-  todosCreated          BigInt    @default(0)
-  todosCompleted        BigInt    @default(0)
-  todosInProgress       BigInt    @default(0)
-  todoWrites            BigInt    @default(0)
-  todoReads             BigInt    @default(0)
-  
-  createdAt             DateTime?  @default(now())
-  
-  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+  globalHash          String    @id
+  userId              String
+  application         String    @default("claude_code")
+  role                String
+  date                DateTime
+  projectHash         String
+  conversationHash    String
+  localHash           String?
+  uuid                String?
+  sessionName         String?
+  inputTokens         BigInt
+  outputTokens        BigInt
+  cacheCreationTokens BigInt
+  cacheReadTokens     BigInt
+  cachedTokens        BigInt
+  reasoningTokens     BigInt    @default(0)
+  cost                Float?
+  model               String?
+  toolCalls           BigInt
+  fileTypes           Json?
+  terminalCommands    BigInt
+  fileSearches        BigInt
+  fileContentSearches BigInt
+  filesRead           BigInt
+  filesAdded          BigInt
+  filesEdited         BigInt
+  filesDeleted        BigInt
+  linesRead           BigInt
+  linesEdited         BigInt
+  linesAdded          BigInt
+  linesDeleted        BigInt
+  bytesRead           BigInt
+  bytesAdded          BigInt
+  bytesEdited         BigInt
+  bytesDeleted        BigInt
+  codeLines           BigInt
+  docsLines           BigInt
+  dataLines           BigInt
+  mediaLines          BigInt
+  configLines         BigInt
+  otherLines          BigInt
+  todosCreated        BigInt    @default(0)
+  todosCompleted      BigInt    @default(0)
+  todosInProgress     BigInt    @default(0)
+  todoWrites          BigInt    @default(0)
+  todoReads           BigInt    @default(0)
+  createdAt           DateTime? @default(now())
+  user                User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@index([userId, date])
   @@index([date])
   @@index([application, date])
-  // Covers the conversation-counting query in stats recalculation which filters
-  // by (userId, application) and groups by conversationHash with a MIN(date).
   @@index([userId, application, conversationHash, date])
   @@map("message_stats")
 }
 
-// NOTE: If you're updating this table, make sure to update the types in src/types/index.ts too.
-model UserStats {
-  id                    String   @id @default(cuid())
-  userId                String
-  application           String   // "claude_code", "gemini_cli", "codex_cli", "cline", "kilo_code", "kilo_cli", "roo_code", "qwen_code", "copilot", "open_code", "pi_agent"
-  period                String   // "hourly", "daily", "weekly", "monthly", "yearly"
-  periodStart           DateTime // Required for unique constraint - each period bucket is uniquely identified
-  periodEnd             DateTime?
-  toolCalls             BigInt   @default(0)
-  assistantMessages     BigInt   @default(0)
-  userMessages          BigInt   @default(0)
-  inputTokens           BigInt   @default(0)
-  outputTokens          BigInt   @default(0)
-  cacheCreationTokens   BigInt   @default(0)
-  cacheReadTokens       BigInt   @default(0)
-  cachedTokens          BigInt   @default(0)
-  reasoningTokens       BigInt   @default(0)
-  cost                  Float    @default(0)
-  filesRead             BigInt   @default(0)
-  filesAdded            BigInt   @default(0)
-  filesEdited           BigInt   @default(0)
-  filesDeleted          BigInt   @default(0)
-  linesRead             BigInt   @default(0)
-  linesAdded            BigInt   @default(0)
-  linesEdited           BigInt   @default(0)
-  linesDeleted          BigInt   @default(0)
-  bytesRead             BigInt   @default(0)
-  bytesAdded            BigInt   @default(0)
-  bytesEdited           BigInt   @default(0)
-  bytesDeleted          BigInt   @default(0)
-  codeLines             BigInt   @default(0)
-  docsLines             BigInt   @default(0)
-  dataLines             BigInt   @default(0)
-  mediaLines            BigInt   @default(0)
-  configLines           BigInt   @default(0)
-  otherLines            BigInt   @default(0)
-  terminalCommands      BigInt   @default(0)
-  fileSearches          BigInt   @default(0)
-  fileContentSearches   BigInt   @default(0)
-  todosCreated          BigInt   @default(0)
-  todosCompleted        BigInt   @default(0)
-  todosInProgress       BigInt   @default(0)
-  todoWrites            BigInt   @default(0)
-  todoReads             BigInt   @default(0)
-  conversations         BigInt   @default(0)
-  models                String[] @default([])
-  createdAt             DateTime @default(now())
-  updatedAt             DateTime @updatedAt
-  user                  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  @@unique([userId, period, application, periodStart])
-  @@index([application, period])
-  @@map("user_stats")
-}
+// stats_summary and stats_refresh_state are database-owned objects defined in
+// SQL migrations. Application code reads them with SQL and never maintains totals.
 
 model UserPreferences {
-  id                    String   @id @default(cuid())
-  userId                String   @unique
-  currency              String   @default("USD")
-  timezone              String?  // IANA timezone, e.g., "America/Chicago"
+  id            String   @id @default(cuid())
+  userId        String   @unique
+  currency      String   @default("USD")
+  timezone      String?
+  publicProfile Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  // Privacy settings – whether the user's profile and aggregated statistics
-  // are publicly visible on the Splitrail Cloud leaderboard. Users are opted
-  // out by default and must explicitly enable the visibility from their
-  // profile page.
-  publicProfile         Boolean  @default(false)
-  
-  createdAt             DateTime @default(now())
-  updatedAt             DateTime @updatedAt
-  
-  // Relationships
-  user                  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
   @@map("user_preferences")
 }
 
@@ -174,9 +104,8 @@ model Session {
   sessionToken String   @unique
   userId       String
   expires      DateTime
-  
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@map("sessions")
 }
 
@@ -184,45 +113,38 @@ model VerificationToken {
   identifier String
   token      String   @unique
   expires    DateTime
-  
+
   @@unique([identifier, token])
   @@map("verification_tokens")
 }
 
-// API tokens for CLI access
 model ApiToken {
-  id          String   @id @default(cuid())
-  userId      String
-  token       String   @unique
-  name        String   @default("CLI Token")
-  lastUsed    DateTime?
-  expiresAt   DateTime?
-  createdAt   DateTime @default(now())
-  
-  // Relationships
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+  id        String    @id @default(cuid())
+  userId    String
+  token     String    @unique
+  name      String    @default("CLI Token")
+  lastUsed  DateTime?
+  expiresAt DateTime?
+  createdAt DateTime  @default(now())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@map("api_tokens")
 }
 
-// Projects table
 model Project {
-  id            String   @id @default(cuid())
-  name          String   @unique
-  description   String?
-  openSource    Boolean  @default(false)
-  githubLink    String?
-  websiteLink   String?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  
-  // Relationships
+  id             String          @id @default(cuid())
+  name           String          @unique
+  description    String?
+  openSource     Boolean         @default(false)
+  githubLink     String?
+  websiteLink    String?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
   folderProjects FolderProject[]
-  
+
   @@map("projects")
 }
 
-// Association table for folders and projects
 model FolderProject {
   id        String   @id @default(cuid())
   userId    String
@@ -230,11 +152,9 @@ model FolderProject {
   projectId String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  
-  // Relationships
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  
+
   @@unique([userId, folder])
   @@map("folder_projects")
 }

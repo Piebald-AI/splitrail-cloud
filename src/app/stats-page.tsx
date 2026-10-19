@@ -13,6 +13,7 @@ import { StatsCharts } from "@/app/_stats/stats-charts";
 import { TotalStatsTable } from "@/app/_stats/total-stats-table";
 import { hasStatsCollectionData, type StatsData } from "@/app/_stats/types";
 import { useDeferredLoading } from "@/hooks/use-deferred-loading";
+import { StatsFreshnessNotice } from "@/components/stats-freshness";
 
 export default function StatsPage() {
   const { data: session, status } = useSession();
@@ -32,6 +33,9 @@ export default function StatsPage() {
     error: statsErrorObj,
   } = useQuery<StatsData, Error>({
     queryKey: ["userStats", session?.user?.id, timezone],
+    refetchOnWindowFocus: true,
+    refetchInterval: (query) =>
+      query.state.data?.freshness?.pending ? 60_000 : 15 * 60_000,
     queryFn: async () => {
       if (!session?.user?.id) throw new Error("No user session");
       const response = await fetch(
@@ -92,6 +96,7 @@ export default function StatsPage() {
   if (!hasStatsCollectionData(statsData.stats)) {
     return (
       <div className="flex flex-col gap-y-8 animate-in fade-in-0 duration-300">
+        <StatsFreshnessNotice freshness={statsData.freshness} />
         <SetupInstructions />
       </div>
     );
@@ -104,6 +109,7 @@ export default function StatsPage() {
 
   return (
     <div className="flex flex-col gap-y-8 animate-in fade-in-0 duration-300">
+      <StatsFreshnessNotice freshness={statsData.freshness} />
       <SourceBadges
         statsData={statsData}
         selectedSource={selectedSource}
